@@ -1,0 +1,57 @@
+name: Bug report
+description: Report reproducible incorrect or unsafe behavior
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include credentials or live configuration containing secrets.
+  - type: input
+    id: version
+    attributes:
+      label: Dotlad version
+      placeholder: Output of dotlad --version
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: macOS version, architecture, and /bin/bash version
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command and minimal manifest
+      description: Remove secrets and personal paths before posting.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: plan
+    attributes:
+      label: Read-only plan output
+      description: Include dotlad plan output when safe to share.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I reproduced this with the latest release.
+          required: true
+        - label: I removed credentials and private configuration.
+          required: true
