@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Stable repository-root entrypoint. The implementation lives in bin/.
+set -euo pipefail
+exec "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/bin/dotlad" "$@"

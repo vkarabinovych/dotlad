@@ -1,0 +1,37 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Publish release assets
+    runs-on: macos-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Runtime dependencies
+        run: brew install shellcheck jq yq
+
+      - name: Validate and test
+        run: |
+          test "$GITHUB_REF_NAME" = "v$(cat VERSION)"
+          /bin/bash scripts/check.sh
+          /bin/bash tests/run.sh
+
+      - name: Build archive and checksum
+        run: scripts/package.sh
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --generate-notes

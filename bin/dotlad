@@ -1,0 +1,198 @@
+#!/usr/bin/env bash
+#
+# dotlad — a small installer for manifest-driven dotfile projects.
+#
+#   ./dotlad        list the tools, pick some, install/update them
+#   ./dotlad all    install & update everything (fresh machine)
+#   ./dotlad help
+#
+# One direction only: repo → system. To send a change the other way, edit the
+# file in the repo yourself. Runs on the stock macOS bash 3.2.
+
+set -euo pipefail
+
+DOTLAD_RUNTIME_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DOTLAD_BIN="$DOTLAD_RUNTIME_ROOT/dotlad"
+DOTLAD_PROJECT_ROOT="${DOTLAD_PROJECT_ROOT:-$PWD}"
+DOTLAD_BACKUP_ROOT="${DOTLAD_BACKUP_ROOT:-$HOME/.dotlad_backup}"
+DOTLAD_COMMAND_NAME="${DOTLAD_COMMAND_NAME:-$(basename "$0")}"
+DOTLAD_VERSION="$(cat "$DOTLAD_RUNTIME_ROOT/VERSION" 2>/dev/null || printf 'development')"
+DOTLAD_BREWFILE_OUT="${DOTLAD_BREWFILE_OUT:-}"
+# Bash 3.2 with nounset cannot expand an empty array. Keep a removable sentinel
+# so the no-argument interactive command follows the same bootstrap path.
+BOOTSTRAP_ARGS=("")
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -C|--config)
+            [[ $# -gt 1 ]] || { printf 'dotlad: %s needs a path\n' "$1" >&2; exit 1; }
+            DOTLAD_PROJECT_ROOT="$2"; shift 2
+            ;;
+        --config=*) DOTLAD_PROJECT_ROOT="${1#*=}"; shift ;;
+        --backup-root)
+            [[ $# -gt 1 ]] || { printf 'dotlad: --backup-root needs a path\n' >&2; exit 1; }
+            DOTLAD_BACKUP_ROOT="$2"; shift 2
+            ;;
+        --backup-root=*) DOTLAD_BACKUP_ROOT="${1#*=}"; shift ;;
+        --output)
+            [[ $# -gt 1 ]] || { printf 'dotlad: --output needs a path\n' >&2; exit 1; }
+            DOTLAD_BREWFILE_OUT="$2"; shift 2
+            ;;
+        --output=*) DOTLAD_BREWFILE_OUT="${1#*=}"; shift ;;
+        *) BOOTSTRAP_ARGS+=("$1"); shift ;;
+    esac
+done
+[[ -d "$DOTLAD_PROJECT_ROOT" ]] \
+    || { printf 'dotlad: project root does not exist: %s\n' "$DOTLAD_PROJECT_ROOT" >&2; exit 1; }
+ROOT="$(cd "$DOTLAD_PROJECT_ROOT" && pwd)"
+export DOTLAD_RUNTIME_ROOT DOTLAD_PROJECT_ROOT="$ROOT" DOTLAD_BACKUP_ROOT DOTLAD_BIN
+export DOTLAD_COMMAND_NAME DOTLAD_VERSION DOTLAD_BREWFILE_OUT
+set -- "${BOOTSTRAP_ARGS[@]}"
+shift
+
+# shellcheck source=lib/runtime.sh
+. "$DOTLAD_RUNTIME_ROOT/lib/runtime.sh"
+
+usage() {
+    cat <<EOF
+dotlad — install a project's packages and configs onto your system.
+
+Usage:
+  $DOTLAD_COMMAND_NAME              Pick modules interactively (plain state without a TTY)
+  $DOTLAD_COMMAND_NAME <module>…    Preview and apply named modules
+  $DOTLAD_COMMAND_NAME profile NAME Apply a named profile and its inherited modules
+  $DOTLAD_COMMAND_NAME all          Apply every module relevant to the active mode
+  $DOTLAD_COMMAND_NAME brewfile     Generate a Homebrew Bundle file from the project
+  $DOTLAD_COMMAND_NAME plan [TARGET] Show a read-only plan (all, profile NAME, or modules)
+  $DOTLAD_COMMAND_NAME backups      List restore points
+  $DOTLAD_COMMAND_NAME restore NAME Restore a restore point
+  $DOTLAD_COMMAND_NAME backup delete NAME Delete a restore point
+  $DOTLAD_COMMAND_NAME version      Print the installed Dotlad version
+  $DOTLAD_COMMAND_NAME help         This help
+
+The list shows each tool's state:
+  ✓ up to date      the config matches the repo, or the package is installed
+  ↑ update available the config differs — updating would change it
+  + not set up       no config deployed yet
+  + not installed    one or more declared packages are missing
+
+Move with ↑/↓, pick with space and run with enter (a = all, d = diff,
+m = mode, q = quit). Replaced files are backed up to $(pretty_path "$DOTLAD_BACKUP_ROOT") and
+appear at the bottom of the list to restore. Named resolvers can preserve
+machine-local JSON, TOML, and Git values while repository values take priority.
+Letter shortcuts use the same physical keys on Ukrainian keyboard layouts.
+
+JSON, TOML, and Git config merging requires jq, yq, and git respectively.
+
+Modes:    --packages-only installs packages without copying config
+          --config-only copies config without installing packages
+          default installs packages and copies config
+
+Options:  --plain              disable color and the interactive screen
+          --yes                accept mutation confirmation prompts
+          --dry-run            plan the requested action without changing state
+          --json               emit JSON with plan or --dry-run
+          -C, --config PATH     manifest project (defaults to current directory)
+          --backup-root PATH    backup location (defaults to ~/.dotlad_backup)
+          --output PATH         brewfile path (defaults to ./Brewfile)
+          --version             print the installed Dotlad version
+
+--plain changes presentation only; use plan or --dry-run to guarantee no changes.
+EOF
+}
+
+main() {
+    local cmd="" a i p j
+    local pos=() plan_pos=() names=()
+    for a in "$@"; do
+        case "$a" in
+            --plain)   DOTLAD_PLAIN=1 ;;
+            --yes)     DOTLAD_YES=1 ;;
+            --dry-run) DOTLAD_DRY_RUN=1 ;;
+            --json)    DOTLAD_PLAN_JSON=1 ;;
+            --packages-only) mode_set packages ;;
+            --config-only)   mode_set config ;;
+            -h|--help) cmd="help" ;;
+            -V|--version) cmd="version" ;;
+            -*)        err "unknown option: $a"; exit 1 ;;
+            *)         pos+=("$a") ;;
+        esac
+    done
+    mode_set "$DOTLAD_MODE" || { err "unknown mode: $DOTLAD_MODE"; exit 1; }
+    [[ "$cmd" == "version" ]] && { printf 'dotlad %s\n' "$DOTLAD_VERSION"; exit 0; }
+    case "${pos[0]:-}" in
+        help)
+            [[ ${#pos[@]} -eq 1 ]] || { err "usage: $DOTLAD_COMMAND_NAME help"; exit 1; }
+            usage; exit 0
+            ;;
+        version)
+            [[ ${#pos[@]} -eq 1 ]] || { err "usage: $DOTLAD_COMMAND_NAME version"; exit 1; }
+            printf 'dotlad %s\n' "$DOTLAD_VERSION"; exit 0
+            ;;
+    esac
+    ui_init_colors
+    [[ "$cmd" == "help" ]] && { usage; exit 0; }
+    if [[ "${pos[0]:-}" == "brewfile" ]]; then
+        [[ ${#pos[@]} -eq 1 ]] \
+            || { err "usage: $DOTLAD_COMMAND_NAME brewfile [--output PATH]"; exit 1; }
+        cmd_brewfile; exit 0
+    fi
+    [[ -z "$DOTLAD_BREWFILE_OUT" ]] \
+        || { err "--output is only valid with the brewfile command"; exit 1; }
+    [[ -z "${DOTLAD_PLAN_JSON:-}" || -n "${DOTLAD_DRY_RUN:-}" || "${pos[0]:-}" == "plan" ]] \
+        || { err "--json is only valid with plan or --dry-run"; exit 1; }
+
+    if [[ -z "${DOTLAD_DRY_RUN:-}" && "${pos[0]:-}" == "backups" ]]; then
+        [[ ${#pos[@]} -eq 1 ]] || { err "usage: $DOTLAD_COMMAND_NAME backups"; exit 1; }
+        cmd_backups; exit 0
+    fi
+    if [[ -z "${DOTLAD_DRY_RUN:-}" && "${pos[0]:-}" == "restore" ]]; then
+        [[ ${#pos[@]} -eq 2 ]] || { err "usage: $DOTLAD_COMMAND_NAME restore NAME"; exit 1; }
+        cmd_restore_cli "${pos[1]}"; exit $?
+    fi
+    if [[ -z "${DOTLAD_DRY_RUN:-}" && "${pos[0]:-}" == "backup" ]]; then
+        [[ ${#pos[@]} -eq 3 && "${pos[1]}" == "delete" ]] \
+            || { err "usage: $DOTLAD_COMMAND_NAME backup delete NAME"; exit 1; }
+        cmd_backup_delete_cli "${pos[2]}"; exit $?
+    fi
+
+    manifest_load
+
+    if [[ "${pos[0]:-}" == "plan" ]]; then
+        if [[ ${#pos[@]} -eq 1 ]]; then cmd_plan; exit $?
+        else
+            for (( j = 1; j < ${#pos[@]}; j++ )); do plan_pos+=("${pos[$j]}"); done
+            cmd_plan "${plan_pos[@]}"; exit $?
+        fi
+    fi
+    if [[ -n "${DOTLAD_DRY_RUN:-}" ]]; then
+        if [[ ${#pos[@]} -eq 0 ]]; then cmd_plan; else cmd_plan "${pos[@]}"; fi
+        exit $?
+    fi
+
+    # No positional → the interactive picker.
+    if [[ ${#pos[@]} -eq 0 ]]; then cmd_pick; exit 0; fi
+
+    case "${pos[0]}" in
+        all)   cmd_all; exit 0 ;;
+        profile)
+            [[ ${#pos[@]} -eq 2 ]] || { err "usage: $DOTLAD_COMMAND_NAME profile NAME"; exit 1; }
+            cmd_profile "${pos[1]}"; exit 0
+            ;;
+        # hidden helper: the background install/update worker the TUI spawns.
+        _worker) worker; exit 0 ;;
+    esac
+
+    selection_explicit "${pos[@]}" \
+        || { hint "run $DOTLAD_COMMAND_NAME to see the list"; exit 1; }
+    names=("${SELECTED_NAMES[@]}")
+    title "$(mode_action): ${names[*]}"
+    for p in "${names[@]}"; do
+        i="$(manifest_find "$p")"; printf '\n%s— %s —%s\n' "$C_BOLD" "$p" "$C_RESET"; tool_diff "$i"
+    done
+    echo ""
+    confirm "$(mode_action) ${#names[@]} tool(s)?$(mode_backup_note)" || { hint "cancelled"; exit 0; }
+    mode_packages_enabled && ensure_brew
+    run_selected "${names[@]}"
+}
+
+main "$@"

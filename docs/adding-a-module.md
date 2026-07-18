@@ -1,0 +1,258 @@
+# Adding or changing a module
+
+A module is the smallest independently selectable unit in a Dotlad project. It
+owns package metadata, an optional config payload, and the rules Dotlad uses to
+recognize installed state.
+
+## Choose the module boundary
+
+Create an individual module when an application or tool:
+
+- deploys its own configuration;
+- should be selected independently;
+- has its own installation method or lifecycle; or
+- represents a distinct ecosystem tool.
+
+Use a package group only when its packages have no repository-managed config
+and users would naturally install them together. Prefer focused names such as
+`search-tools` or `data-tools`; split a group when its description needs more
+than one purpose.
+
+## Directory structure
+
+```text
+modules/example/
+├── module.conf
+└── files/
+    └── config.toml
+```
+
+Only `module.conf` is always required. A config module also needs the file or
+directory named by `SOURCE`. Dotlad ignores other module-local paths, so a
+consumer project may add its own notes or tests without affecting runtime
+loading.
+
+## Manifest fields
+
+```bash
+NAME="example"
+DESC="Short user-facing description of the tool and its value."
+ICON="◆"
+ORDER="500"
+BREW="example"
+CASK="0"
+CHECK="example"
+SOURCE="files/config.toml"
+DEST="$HOME/.config/example/config.toml"
+RESOLVER="toml-merge"
+REQUIRES="yq"
+```
+
+| Field         | Required       | Meaning                                                                            |
+| ------------- | -------------- | ---------------------------------------------------------------------------------- |
+| `NAME`        | yes            | Lowercase hyphenated identifier; must match the module directory                   |
+| `DESC`        | yes            | Concise user-facing description shown in the picker                                |
+| `ICON`        | yes            | Short glyph shown in the picker                                                     |
+| `ORDER`       | no             | Numeric manifest and batch order; defaults to `500`                                |
+| `BREW`        | no             | Space-separated Homebrew formula or cask names                                     |
+| `CASK`        | no             | `1` when every `BREW` item is a cask; defaults to `0`                              |
+| `CHECK`       | no             | Command or absolute path used to verify installation; defaults to `NAME`           |
+| `SOURCE`      | config modules | File or directory path relative to the module directory                            |
+| `DEST`        | config modules | Destination strictly below `$HOME`                                                  |
+| `RESOLVER`    | no             | Named resolver that merges a file with its live destination                        |
+| `REQUIRES`    | no             | Space-separated commands needed before config deployment                           |
+| `INSTALL_URL` | no             | Whitespace-free HTTPS script installer used instead of `BREW`                      |
+
+`BREW` and `INSTALL_URL` are mutually exclusive. A module must declare at least
+one package installer or a `SOURCE`/`DEST` pair. Package tokens may use fully
+qualified names such as `owner/tap/formula`.
+
+`module.conf` is parsed as data and never executed as Bash. Only the documented
+uppercase fields are accepted. Values may be double quoted, single quoted, or
+unquoted when they contain no whitespace. Blank lines and full-line comments
+are allowed. Duplicate or unknown fields, command substitutions, and backticks
+are rejected. Values are always treated as text; `$HOME` and `${HOME}` are
+expanded only in `DEST` and `CHECK`.
+
+## Package state
+
+`CHECK` is the primary installation probe. It may be a command name resolved
+through `PATH` or an absolute filesystem path:
+
+```bash
+CHECK="starship"
+CHECK="$HOME/.local/bin/example"
+CHECK="/Applications/Example.app"
+```
+
+For Homebrew modules, Dotlad also verifies every declared formula under
+Homebrew's `opt` directory or every cask under `Caskroom`. Installation is
+reported as successful only when both `CHECK` and all declared packages are
+present. Choose a `CHECK` that the installer makes available immediately.
+
+### Formulae and casks
+
+All entries in one module use the same Homebrew kind:
+
+```bash
+BREW="fd ripgrep"
+CASK="0"
+```
+
+```bash
+BREW="ghostty font-example-nerd-font"
+CASK="1"
+CHECK="/Applications/Ghostty.app"
+```
+
+Split formulae and casks into separate modules when they cannot share one
+`CASK` value.
+
+### HTTPS installer
+
+Use `INSTALL_URL` only when Homebrew is not an appropriate source:
+
+```bash
+CHECK="example"
+INSTALL_URL="https://example.com/install.sh"
+SOURCE="files/config.toml"
+DEST="$HOME/.config/example/config.toml"
+```
+
+Dotlad displays the equivalent `curl -fsSL URL | sh` operation and asks for
+confirmation unless `--yes` is active. The URL must use HTTPS. Review and pin
+remote installers according to the consumer project's trust policy.
+
+## Config deployment
+
+`SOURCE` and `DEST` are always declared together. A regular file is copied; a
+directory is mirrored exactly. A module without either field is package-only.
+
+### Exact file copy
+
+Use a file source when the live file should match the repository byte for byte:
+
+```bash
+SOURCE="files/config.toml"
+DEST="$HOME/.config/example/config.toml"
+```
+
+An existing destination is backed up, and the replacement preserves the source
+file mode.
+
+### Exact directory mirror
+
+Point `SOURCE` at a directory for an owned config tree:
+
+```bash
+SOURCE="files"
+DEST="$HOME/.config/example"
+```
+
+The destination becomes an exact mirror: changed files are replaced, missing
+files and empty directories are created, and stale files, directories, or
+symlinks are backed up and removed. Do not mirror a directory shared with
+another module or application.
+
+### Machine-local merge
+
+Set `RESOLVER` when repository defaults must coexist with machine-local keys:
+
+```bash
+RESOLVER="json-merge"
+REQUIRES="jq"
+```
+
+Built-in resolvers use the live file as a base and the repository file as the
+overlay:
+
+| Resolver          | Requirement | Merge behavior                                                      |
+| ----------------- | ----------- | ------------------------------------------------------------------- |
+| `json-merge`      | `jq`        | Recursively merges objects; unions arrays; repository scalars win   |
+| `toml-merge`      | `yq`        | Deep-merges TOML with repository values taking precedence           |
+| `gitconfig-merge` | `git`       | Replaces repository-declared keys and preserves unrelated live keys |
+
+An explicitly declared JSON `null` is an overlay value and replaces the live
+value. JSON array entries already present in the live file are retained; new
+repository entries are appended.
+
+Each resolver lives in `lib/resolvers/<name>.sh` and implements
+`resolver_<name>_render` and `resolver_<name>_equal`, with hyphens converted to
+underscores. A resolver is runtime code, not project code; adding one requires
+shipping an updated Dotlad runtime.
+
+Every `REQUIRES` token is checked as a command name and, when missing in full
+mode, installed as a Homebrew formula of the same name. The field cannot map a
+formula name to a differently named executable; preinstall that dependency or
+avoid declaring an inaccurate requirement.
+
+## Package-only module
+
+Omit `SOURCE`, `DEST`, and `RESOLVER` when a module deploys no config:
+
+```bash
+NAME="search-tools"
+DESC="Fast file and text search with fd and ripgrep."
+ICON="⌕"
+ORDER="200"
+CHECK="fd"
+BREW="fd ripgrep"
+```
+
+`CHECK` should represent the group clearly; every Homebrew entry is still
+verified independently.
+
+## Naming and ordering
+
+- Use the public command or application name for individual modules.
+- Use plural `<purpose>-tools` names for coherent package groups.
+- Keep `DESC` to one sentence that explains value rather than installation.
+- Choose an `ICON` that renders clearly in one terminal cell. Nerd Font icons
+  are fine when the consumer project documents that font requirement.
+- Use numeric gaps in `ORDER` so future modules can be inserted without a
+  renumbering sweep. The picker may regroup modules by state.
+
+## Add the module to a profile
+
+Profiles belong to the consumer project, so Dotlad does not prescribe names
+such as `core` or `full`. Add the module once to the lowest-level profile whose
+users should receive it; inheritance supplies it to child profiles. See
+[Profiles](profiles.md).
+
+## Validate the change
+
+Start with read-only project validation and planning:
+
+```bash
+dotlad -C /path/to/project --plain
+dotlad -C /path/to/project plan example
+dotlad -C /path/to/project brewfile
+```
+
+For changes to Dotlad itself, also run:
+
+```bash
+/bin/bash scripts/check.sh
+/bin/bash tests/run.sh
+```
+
+Add or extend integration coverage when changing a manifest rule, resolver,
+installed-state check, backup behavior, or installer path.
+
+## Manifest safety rules
+
+Loading fails before deployment when:
+
+- required presentation metadata is missing;
+- a module declares neither packages nor deployable configuration;
+- `NAME` does not match its directory;
+- `SOURCE` and `DEST` are not declared together;
+- a resolver is unknown or assigned to a directory source;
+- a source path or payload contains symlinks or special filesystem entries;
+- a destination is `$HOME`, escapes it, traverses a parent symlink, or overlaps
+  another module destination;
+- a package token or installer URL is malformed; or
+- Homebrew and an HTTPS installer are both declared.
+
+See [Troubleshooting](troubleshooting.md) for common validation and preflight
+failures.
