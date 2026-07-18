@@ -81,8 +81,8 @@ cmd_plan() {
 mode_action() {
     case "$DOTLAD_MODE" in
         packages) printf 'Install packages for' ;;
-        config)   printf 'Copy config for' ;;
-        *)        printf 'Install packages and copy config for' ;;
+        config)   printf 'Deploy config for' ;;
+        *)        printf 'Install packages and deploy config for' ;;
     esac
 }
 

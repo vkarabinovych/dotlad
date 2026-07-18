@@ -5,6 +5,11 @@ df filecopy >/dev/null 2>&1
 check "filecopy config deployed"        cmp -s "$FAKE/modules/filecopy/files/config.toml" "$H/.config/filecopy/config.toml"
 check "declared requirement installed before deploy" command -v "$SB/brewprefix/bin/reqtool"
 [[ "$(state_json filecopy)" == "ready 1" ]] && pass "after update: filecopy = ready, installed" || fail "after update: filecopy (got '$(state_json filecopy)')"
+default_resolver="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" DOTLAD_PLAIN=1 /bin/bash -c '
+    . "$DOTLAD_RUNTIME_ROOT/lib/runtime.sh"; manifest_load
+    i="$(manifest_find filecopy)"; printf "%s" "${T_RESOLVER[$i]}"')"
+[[ "$default_resolver" == copy ]] && pass "copy is the default built-in resolver" \
+    || fail "default resolver is '$default_resolver'"
 
 # --- update detection -------------------------------------------------------
 printf 'repo = 2\n' > "$FAKE/modules/filecopy/files/config.toml"
@@ -51,7 +56,8 @@ printf -- '-- stale\n' > "$H/.config/directory/stale.lua"
 [[ "$(state_json directory)" == "update 1" ]] && pass "stale live file → update available" || fail "stale → update (got '$(state_json directory)')"
 directory_counts="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" DOTLAD_PLAIN=1 /bin/bash -c '
     . "$DOTLAD_RUNTIME_ROOT/lib/runtime.sh"; manifest_load
-    i="$(manifest_find directory)"; dir_change_counts "$i"')"
+    i="$(manifest_find directory)"; tool_paths "$i"
+    resolver_changes "${T_RESOLVER[$i]}" "$TP_SRC" "$TP_DEST"')"
 [[ "$directory_counts" == "1 file to sync · 1 file to remove" ]] \
     && pass "directory update counts describe sync and removal" \
     || fail "directory update counts are ambiguous (got '$directory_counts')"
@@ -112,7 +118,7 @@ transaction_probe="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" DOTLAD_PLAIN=1 /bin/ba
     dest="$HOME/.transaction-dest"; mkdir -p "$dest"
     printf "old\n" > "$dest/config"
     stage="$(mktemp -d "$HOME/.transaction-stage.XXXXXX")"
-    rc=0; replace_directory_transaction "$stage" "$stage/missing" "$dest" >/dev/null 2>&1 || rc=$?
+    rc=0; replace_path_transaction "$stage" "$stage/missing" "$dest" >/dev/null 2>&1 || rc=$?
     content="$(tr -d "\n" < "$dest/config")"
     [[ -e "$stage" ]] && left=yes || left=no
     printf "%s|%s|%s" "$rc" "$content" "$left"')"
@@ -148,6 +154,85 @@ check "backup restore recreates the symlink" test -L "$H/.config/linked/config"
 [[ "$(readlink "$H/.config/linked/config")" == "$SB/outside/linked.conf" ]] \
     && pass "restored symlink keeps its target" || fail "restored symlink target"
 rm -rf "$FAKE/modules/linked"
+
+# The symlink resolver links both files and directories to their absolute
+# repository sources. Replaced content is backed up, and restoring a directory
+# snapshot safely removes the managed parent symlink before rebuilding it.
+rm -rf "$H/.dotlad_backup"
+mkdir -p "$FAKE/modules/symlink-file/files" "$H/.config/symlink-file"
+printf 'repository file\n' > "$FAKE/modules/symlink-file/files/config"
+printf 'local file\n' > "$H/.config/symlink-file/config"
+cat > "$FAKE/modules/symlink-file/module.conf" <<EOF
+NAME="symlink-file"
+DESC="File symlink resolver fixture"
+ICON="!"
+ORDER="998"
+SOURCE="files/config"
+DEST="$H/.config/symlink-file/config"
+RESOLVER="symlink"
+EOF
+symlink_plan="$(df --config-only --json plan symlink-file)"
+printf '%s' "$symlink_plan" | jq -e \
+    '.modules[0].config == "update" and .modules[0].changes == "1 link to sync"' >/dev/null \
+    && pass "symlink plan describes one link" || fail "symlink plan is ambiguous: $symlink_plan"
+df --config-only symlink-file >/dev/null 2>&1
+check "file symlink is deployed" test -L "$H/.config/symlink-file/config"
+symlink_file_source="$(cd "$FAKE/modules/symlink-file/files" && pwd -P)/config"
+[[ "$(readlink "$H/.config/symlink-file/config")" == "$symlink_file_source" ]] \
+    && pass "file symlink targets the repository source" || fail "file symlink target"
+check "file symlink exposes repository content" grep -qxF 'repository file' "$H/.config/symlink-file/config"
+check "replaced file is backed up before linking" sh -c \
+    "find '$H/.dotlad_backup' -path '*/.config/symlink-file/config' -type f | grep -q ."
+[[ "$(state_json symlink-file)" == "ready 0" ]] && pass "file symlink reaches ready" \
+    || fail "file symlink remains pending"
+printf 'repository edit\n' > "$FAKE/modules/symlink-file/files/config"
+[[ "$(state_json symlink-file)" == "ready 0" ]] && pass "source edits keep a correct symlink ready" \
+    || fail "source edit invalidated a correct symlink"
+printf 'wrong target\n' > "$SB/wrong-symlink-target"
+rm -f "$H/.config/symlink-file/config"
+ln -s "$SB/wrong-symlink-target" "$H/.config/symlink-file/config"
+[[ "$(state_json symlink-file)" == "update 0" ]] && pass "wrong symlink target is detected" \
+    || fail "wrong symlink target was treated as ready"
+df --config-only symlink-file >/dev/null 2>&1
+[[ "$(readlink "$H/.config/symlink-file/config")" == "$symlink_file_source" ]] \
+    && pass "wrong symlink target is replaced" || fail "wrong symlink was not corrected"
+check "replaced symlink target is backed up" sh -c \
+    "find '$H/.dotlad_backup' -path '*/.config/symlink-file/config' -type l | grep -q ."
+
+mkdir -p "$FAKE/modules/symlink-directory/files/nested" \
+    "$FAKE/modules/symlink-directory/files/empty" \
+    "$H/.config/symlink-directory/empty-local"
+printf 'managed tree\n' > "$FAKE/modules/symlink-directory/files/nested/config"
+printf 'local tree\n' > "$H/.config/symlink-directory/local.conf"
+cat > "$FAKE/modules/symlink-directory/module.conf" <<EOF
+NAME="symlink-directory"
+DESC="Directory symlink resolver fixture"
+ICON="!"
+ORDER="998"
+SOURCE="files"
+DEST="$H/.config/symlink-directory"
+RESOLVER="symlink"
+EOF
+df --config-only symlink-directory >/dev/null 2>&1
+check "directory symlink is deployed" test -L "$H/.config/symlink-directory"
+symlink_directory_source="$(cd "$FAKE/modules/symlink-directory" && pwd -P)/files"
+[[ "$(readlink "$H/.config/symlink-directory")" == "$symlink_directory_source" ]] \
+    && pass "directory symlink targets the repository source" || fail "directory symlink target"
+check "directory symlink exposes nested content" \
+    grep -qxF 'managed tree' "$H/.config/symlink-directory/nested/config"
+directory_link_backup="$(find "$H/.dotlad_backup" \
+    -path '*/.config/symlink-directory/local.conf' -type f | head -1)"
+check "replaced directory content is backed up before linking" test -n "$directory_link_backup"
+directory_link_rel="${directory_link_backup#"$H/.dotlad_backup"/}"
+directory_link_backup_name="${directory_link_rel%%/*}"
+df --yes restore "$directory_link_backup_name" >/dev/null 2>&1
+checknot "restoring directory content removes its managed symlink" test -L "$H/.config/symlink-directory"
+check "restoring directory content rebuilds the original tree" \
+    grep -qxF 'local tree' "$H/.config/symlink-directory/local.conf"
+check "restoring directory content rebuilds empty directories" \
+    test -d "$H/.config/symlink-directory/empty-local"
+rm -rf "$FAKE/modules/symlink-file" "$FAKE/modules/symlink-directory" \
+    "$H/.config/symlink-file" "$H/.config/symlink-directory"
 
 # A backup path below HOME may not traverse a symlinked parent.
 mkdir -p "$SB/outside-backups"

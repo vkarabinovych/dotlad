@@ -44,7 +44,7 @@ CASK="0"
 CHECK="example"
 SOURCE="files/config.toml"
 DEST="$HOME/.config/example/config.toml"
-RESOLVER="toml-merge"
+RESOLVER="toml"
 REQUIRES="yq"
 ```
 
@@ -59,7 +59,7 @@ REQUIRES="yq"
 | `CHECK`       | no             | Command or absolute path used to verify installation; defaults to `NAME`           |
 | `SOURCE`      | config modules | File or directory path relative to the module directory                            |
 | `DEST`        | config modules | Destination strictly below `$HOME`                                                  |
-| `RESOLVER`    | no             | Named resolver that merges a file with its live destination                        |
+| `RESOLVER`    | no             | Built-in deployment resolver; defaults to `copy`                                   |
 | `REQUIRES`    | no             | Space-separated commands needed before config deployment                           |
 | `INSTALL_URL` | no             | Whitespace-free HTTPS script installer used instead of `BREW`                      |
 
@@ -125,8 +125,13 @@ remote installers according to the consumer project's trust policy.
 
 ## Config deployment
 
-`SOURCE` and `DEST` are always declared together. A regular file is copied; a
-directory is mirrored exactly. A module without either field is package-only.
+`SOURCE` and `DEST` are always declared together. `RESOLVER` defaults to
+`copy`, which copies a regular file or mirrors a directory exactly. A module
+without either field is package-only.
+
+Passing `--symlink` changes the invocation-wide default to `symlink` for
+modules that omit `RESOLVER`. Declare `RESOLVER="copy"` explicitly when a
+module must always copy even under that flag.
 
 ### Exact file copy
 
@@ -154,32 +159,50 @@ files and empty directories are created, and stale files, directories, or
 symlinks are backed up and removed. Do not mirror a directory shared with
 another module or application.
 
+### Repository symlink
+
+Use `symlink` when an application should read the repository source directly:
+
+```bash
+SOURCE="files/config.toml"
+DEST="$HOME/.config/example/config.toml"
+RESOLVER="symlink"
+```
+
+Both regular files and directories are supported. Dotlad creates an absolute
+symlink to `SOURCE`, so moving or removing the project makes the deployed link
+invalid until the module is applied again from its new location. Existing
+destination files, symlinks, and directory contents are backed up before the
+link is swapped into place.
+
 ### Machine-local merge
 
 Set `RESOLVER` when repository defaults must coexist with machine-local keys:
 
 ```bash
-RESOLVER="json-merge"
+RESOLVER="json"
 REQUIRES="jq"
 ```
 
-Built-in resolvers use the live file as a base and the repository file as the
-overlay:
+Built-in resolvers define both deployment and semantic equality:
 
-| Resolver          | Requirement | Merge behavior                                                      |
-| ----------------- | ----------- | ------------------------------------------------------------------- |
-| `json-merge`      | `jq`        | Recursively merges objects; unions arrays; repository scalars win   |
-| `toml-merge`      | `yq`        | Deep-merges TOML with repository values taking precedence           |
-| `gitconfig-merge` | `git`       | Replaces repository-declared keys and preserves unrelated live keys |
+| Resolver          | Source         | Requirement | Behavior                                                          |
+| ----------------- | -------------- | ----------- | ----------------------------------------------------------------- |
+| `copy`            | file/directory | none        | Exact file copy or exact directory mirror; the default            |
+| `symlink`         | file/directory | none        | Absolute link from the destination to the repository source       |
+| `json`            | file           | `jq`        | Recursive object merge and array union; repository scalars win    |
+| `toml`            | file           | `yq`        | Deep merge with repository values taking precedence               |
+| `gitconfig`       | file           | `git`       | Repository keys win while unrelated live keys remain              |
 
 An explicitly declared JSON `null` is an overlay value and replaces the live
 value. JSON array entries already present in the live file are retained; new
 repository entries are appended.
 
-Each resolver lives in `lib/resolvers/<name>.sh` and implements
-`resolver_<name>_render` and `resolver_<name>_equal`, with hyphens converted to
-underscores. A resolver is runtime code, not project code; adding one requires
-shipping an updated Dotlad runtime.
+Each resolver lives in `lib/resolvers/<name>.sh` and implements semantic
+`equal` plus either `apply` or `render`, with hyphens converted to underscores.
+Deployment resolvers may also define source support, preflight, preview, change
+summary, and action hooks. A resolver is runtime code, not project code; adding
+one requires shipping an updated Dotlad runtime.
 
 Every `REQUIRES` token is checked as a command name and, when missing in full
 mode, installed as a Homebrew formula of the same name. The field cannot map a
@@ -247,7 +270,7 @@ Loading fails before deployment when:
 - a module declares neither packages nor deployable configuration;
 - `NAME` does not match its directory;
 - `SOURCE` and `DEST` are not declared together;
-- a resolver is unknown or assigned to a directory source;
+- a resolver is unknown or does not support the declared source type;
 - a source path or payload contains symlinks or special filesystem entries;
 - a destination is `$HOME`, escapes it, traverses a parent symlink, or overlaps
   another module destination;

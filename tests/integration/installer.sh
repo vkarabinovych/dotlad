@@ -91,7 +91,7 @@ ORDER="30"
 CHECK="jsonmerge"
 SOURCE="files/settings.json"
 DEST="$H/.config/jsonmerge/settings.json"
-RESOLVER="json-merge"
+RESOLVER="json"
 REQUIRES="jq"
 EOF
 
@@ -104,7 +104,7 @@ ORDER="40"
 CHECK="tomlmerge"
 SOURCE="files/config.toml"
 DEST="$H/.config/tomlmerge/config.toml"
-RESOLVER="toml-merge"
+RESOLVER="toml"
 REQUIRES="yq"
 EOF
 
@@ -131,7 +131,7 @@ ORDER="60"
 CHECK="git"
 SOURCE="files/.gitconfig"
 DEST="$H/.gitconfig"
-RESOLVER="gitconfig-merge"
+RESOLVER="gitconfig"
 REQUIRES="git"
 EOF
 

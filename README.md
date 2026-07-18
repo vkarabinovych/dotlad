@@ -16,6 +16,7 @@ previewing changes, applying modules, and restoring replaced files.
 - Apply every module, a reusable profile, or an explicit selection.
 - Run package-only or config-only workflows from the same manifests.
 - Preserve machine-local JSON, TOML, and Git values with named resolvers.
+- Deploy files or directories as repository symlinks when direct editing is preferred.
 - Back up replaced files automatically and restore them from the CLI or picker.
 - Use the same runtime as a standalone command or a pinned Git submodule.
 
@@ -105,10 +106,10 @@ my-dotfiles/
     └── base.conf
 ```
 
-Modules may declare packages, config, or both. `SOURCE` determines deployment
-semantics: a file is copied to `DEST`, while a directory is mirrored exactly.
-`RESOLVER` can merge a file with its live destination using `json-merge`,
-`toml-merge`, `gitconfig-merge`, or a runtime extension.
+Modules may declare packages, config, or both. `RESOLVER` selects deployment
+semantics and defaults to the built-in `copy` resolver, which copies a file or
+mirrors a directory exactly. Use `symlink` to point `DEST` at the repository
+source, or a merge resolver for machine-local file values.
 
 Profiles are optional named module selections with single-parent inheritance:
 
@@ -138,6 +139,7 @@ See [Adding or changing a module](docs/adding-a-module.md) and
 | `dotlad backup delete <name>`      | Delete a restore point                        |
 | `dotlad --packages-only <action>`  | Install packages without deploying config     |
 | `dotlad --config-only <action>`    | Deploy config without installing packages     |
+| `dotlad --symlink <action>`        | Default implicit config deployment to links   |
 
 See the [CLI reference](docs/cli.md) for option scope, JSON plans, picker
 controls, automation behavior, and exit statuses.
@@ -172,9 +174,10 @@ cannot contain symlinks or special filesystem entries.
 
 File writes are atomic. Directory modules are staged and swapped as a
 transaction; their destinations are exact mirrors, so stale files are backed
-up and pruned. Merge resolvers retain unrelated live values while
-repository-declared values win. Restore operations back up the current version
-before replacing it.
+up and pruned. Symlinks are also staged and swapped, and the repository must
+remain at the same absolute path while they are deployed. Merge resolvers
+retain unrelated live values while repository-declared values win. Restore
+operations back up the current version before replacing it.
 
 Use `dotlad plan` for a read-only preflight and keep `--yes` for reviewed
 automation rather than exploratory runs.

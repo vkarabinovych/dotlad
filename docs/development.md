@@ -43,7 +43,7 @@ this keeps production and test load order aligned.
 | Plain/picker presentation model  | `lib/pick.sh`                    |
 | Foreground and queued execution  | `lib/runner.sh`                  |
 | Terminal interaction             | `lib/tui.sh`                     |
-| Format-specific semantic merging | `lib/resolvers/<name>.sh`        |
+| Deployment and semantic resolving | `lib/resolvers/<name>.sh`       |
 | Integration regression coverage  | `tests/integration/cases/*.sh`   |
 
 Keep `lib/runtime.sh` as the single canonical load order. Avoid adding
@@ -59,7 +59,7 @@ Add a regression case for every change to:
 - preflight and batch atomicity contracts;
 - file/directory deployment or rollback;
 - backup, restore, or delete behavior;
-- resolver render/equality semantics;
+- resolver apply/render/equality semantics;
 - installed-state checks and installer paths; or
 - TUI worker coordination.
 

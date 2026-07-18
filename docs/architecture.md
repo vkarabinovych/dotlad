@@ -69,13 +69,17 @@ run substitutions, or define executable hooks. Parsed values are normalized
 into parallel `T_*` arrays ordered by numeric `ORDER` and then `NAME`.
 
 A module may declare packages, config, or both. No `SOURCE`/`DEST` pair means
-package-only. Otherwise, the source filesystem type selects exact file copy or
-exact directory mirroring.
+package-only. Otherwise, the manifest normalizes an omitted `RESOLVER` to the
+built-in `copy` resolver, or to `symlink` when the CLI exports that invocation
+default. Explicit manifest values always win, and the worker inherits the
+resolved default through the `DOTLAD_` environment contract.
 
 `RESOLVER` is the deliberate extension boundary. A resolver is trusted runtime
-code under `lib/resolvers/`, not code loaded from the project. Every
-resolver implements `render` and semantic `equal`; the engine uses the shared
-dispatcher and contains no format-specific merge branches.
+code under `lib/resolvers/`, not code loaded from the project. Every resolver
+implements semantic `equal` plus `apply` or `render`. The dispatcher supplies
+shared fallbacks for render-based file resolvers, while deployment resolvers
+own source support, preflight, apply, preview, and change-summary hooks. The
+engine contains no copy-, link-, or format-specific selection branches.
 
 Profiles use the same assignment reader with a smaller allowlist. Parent
 profiles resolve recursively, and modules are deduplicated in declaration
@@ -118,7 +122,7 @@ Destinations must be non-overlapping strict descendants of `$HOME`. Existing
 parent symlinks are rejected, and source payloads may contain only real regular
 files and directories.
 
-For a file deployment, Dotlad:
+For a rendered file deployment, Dotlad:
 
 1. renders a resolver result when configured;
 2. lazily creates one restore point for the run;
@@ -132,6 +136,11 @@ leaves, builds a complete sibling staging tree, and swaps the destination with
 two renames. Signal/error rollback restores the previous tree during the swap
 window. Empty source directories are preserved and stale destination entries
 are pruned.
+
+For a symlink deployment, Dotlad builds an absolute link in a sibling staging
+directory, backs up the destination, and uses the same two-rename transaction
+to swap the link into place. A directory destination is backed up leaf by leaf;
+restore removes the managed parent link before rebuilding those leaves.
 
 Restore follows the same safety direction: before an older version replaces a
 current path, the current version is added to a new restore point.

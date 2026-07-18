@@ -4,6 +4,8 @@
 
 RESTORE_N_RESTORED=0
 RESTORE_N_FAILED=0
+BACKUP_META_NAME=".dotlad-meta"
+BACKUP_DIRECTORY_NODES_NAME="directory-nodes"
 
 backup_root_safe() {
     local rest
@@ -82,7 +84,8 @@ backup_entries() {
         elif backup_paths_equal "$f" "$cur"; then mark='='
         else mark='~'; fi
         printf '%s\t%s\n' "$mark" "$rel"
-    done < <(find "$dir" \( -type f -o -type l \) 2>/dev/null | sort)
+    done < <(find "$dir" -path "$dir/$BACKUP_META_NAME" -prune -o \
+        \( -type f -o -type l \) -print 2>/dev/null | sort)
 }
 
 backup_count() {
@@ -91,8 +94,36 @@ backup_count() {
         printf '0'; return 0
     fi
     while IFS= read -r f; do [[ -n "$f" ]] && n=$((n + 1)); done \
-        < <(find "$dir" \( -type f -o -type l \) 2>/dev/null)
+        < <(find "$dir" -path "$dir/$BACKUP_META_NAME" -prune -o \
+            \( -type f -o -type l \) -print 2>/dev/null)
     printf '%s' "$n"
+}
+
+# Directory nodes replaced by a symlink are recorded as metadata. Prepare them
+# before restoring leaves so the managed parent link is never traversed and
+# empty directories are reconstructed too.
+restore_directory_nodes() {  # <snapshot-dir>
+    local marker="$1/$BACKUP_META_NAME/$BACKUP_DIRECTORY_NODES_NAME" rel cur
+    [[ -f "$marker" ]] || return 0
+    while IFS= read -r rel; do
+        [[ -n "$rel" ]] || continue
+        cur="$HOME/$rel"
+        if ! dest_safe "$cur"; then
+            err "unsafe restore destination: $rel"
+            RESTORE_N_FAILED=$((RESTORE_N_FAILED + 1)); continue
+        fi
+        if [[ -d "$cur" && ! -L "$cur" ]]; then continue; fi
+        if [[ -e "$cur" || -L "$cur" ]]; then
+            if ! backup_path "$cur" || ! rm -f "$cur"; then
+                err "cannot prepare directory restore: $rel"
+                RESTORE_N_FAILED=$((RESTORE_N_FAILED + 1)); continue
+            fi
+        fi
+        if ! mkdir -p "$cur"; then
+            err "cannot restore directory: $rel"
+            RESTORE_N_FAILED=$((RESTORE_N_FAILED + 1))
+        fi
+    done < "$marker"
 }
 
 restore_backup() {
@@ -103,6 +134,7 @@ restore_backup() {
         err "no such backup: $1"
         return 1
     fi
+    restore_directory_nodes "$dir"
     while IFS= read -r f; do
         rel="${f#"$dir"/}"; cur="$HOME/$rel"
         if ! dest_safe "$cur"; then
@@ -125,7 +157,8 @@ restore_backup() {
         else
             err "failed to restore ${rel}"; RESTORE_N_FAILED=$((RESTORE_N_FAILED + 1))
         fi
-    done < <(find "$dir" \( -type f -o -type l \) 2>/dev/null | sort)
+    done < <(find "$dir" -path "$dir/$BACKUP_META_NAME" -prune -o \
+        \( -type f -o -type l \) -print 2>/dev/null | sort)
     if [[ "$RESTORE_N_FAILED" -gt 0 ]]; then
         err "restored ${RESTORE_N_RESTORED} file(s), ${RESTORE_N_FAILED} failed from ${1}"
         return 1

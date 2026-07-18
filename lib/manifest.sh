@@ -5,6 +5,7 @@ T_NAME=(); T_DESC=(); T_ICON=(); T_BREW=(); T_CASK=(); T_CHECK=()
 T_SRC=(); T_DEST=(); T_RESOLVER=(); T_INSTALL_URL=()
 T_REQUIRES=()
 T_COUNT=0
+DOTLAD_DEFAULT_RESOLVER="${DOTLAD_DEFAULT_RESOLVER:-copy}"
 
 # ASCII unit separator: a non-whitespace record delimiter so empty fields
 # don't collapse (a tab would, via read's IFS whitespace folding).
@@ -136,6 +137,8 @@ source_path_safe() {  # <module-dir> <relative-source>
 
 manifest_load() {
     local f records=""
+    resolver_known "$DOTLAD_DEFAULT_RESOLVER" \
+        || fatal "unknown default resolver: '$DOTLAD_DEFAULT_RESOLVER'"
     # Loading is deliberately repeatable: probes and tests may refresh the
     # manifest after changing fixtures in the same shell.
     T_NAME=(); T_DESC=(); T_ICON=(); T_BREW=(); T_CASK=(); T_CHECK=()
@@ -191,6 +194,11 @@ manifest_load() {
         if [[ -n "$source" || -n "$dest" || -n "$resolver" ]]; then
             [[ -n "$source" && -n "$dest" ]] \
                 || fatal "modules/$name: SOURCE and DEST must be declared together"
+            resolver="${resolver:-$DOTLAD_DEFAULT_RESOLVER}"
+            [[ "$resolver" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
+                || fatal "modules/$name: invalid RESOLVER '$resolver'"
+            resolver_known "$resolver" \
+                || fatal "modules/$name: unknown RESOLVER '$resolver'"
             case "$source" in
                 ""|/*|.|..|*/|*//*|./*|../*|*/./*|*/../*|*/.|*/..)
                     fatal "modules/${name}/module.conf: bad SOURCE" ;;
@@ -200,16 +208,13 @@ manifest_load() {
             src="${module_dir#"$ROOT"/}/$source"
             [[ -e "$ROOT/$src" ]] || fatal "modules/${name}: SOURCE does not exist: '$source'"
             if [[ -d "$ROOT/$src" && ! -L "$ROOT/$src" ]]; then
-                [[ -z "$resolver" ]] || fatal "modules/$name: RESOLVER requires a file SOURCE"
+                resolver_supports "$resolver" directory \
+                    || fatal "modules/$name: RESOLVER '$resolver' does not support a directory SOURCE"
                 prior="$(find "$ROOT/$src" ! -type d ! -type f -print 2>/dev/null)"
                 [[ -z "$prior" ]] || fatal "modules/$name: directory SOURCE contains a non-regular entry"
             elif [[ -f "$ROOT/$src" && ! -L "$ROOT/$src" ]]; then
-                if [[ -n "$resolver" ]]; then
-                    [[ "$resolver" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
-                        || fatal "modules/$name: invalid RESOLVER '$resolver'"
-                    resolver_known "$resolver" \
-                        || fatal "modules/$name: unknown RESOLVER '$resolver'"
-                fi
+                resolver_supports "$resolver" file \
+                    || fatal "modules/$name: RESOLVER '$resolver' does not support a file SOURCE"
             else
                 fatal "modules/$name: SOURCE must be a real file or directory"
             fi

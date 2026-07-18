@@ -149,7 +149,7 @@ compute_row() {
 #   + create <src> → <dest>    (config not there yet, magenta)
 #   ↑ update <src> → <dest> · N files to sync [· M files to remove]
 #                                           (existing config differs, yellow)
-#   ✓ copy <src> → <dest> · N files synced  (completed result, green)
+#   ✓ copy|link <src> → <dest> · N entries synced  (completed result, green)
 #   ✓ <dest> up to date
 # Callers add the ├/└ connector and indent.
 tool_activity() {  # <idx> <spinner-frame>
@@ -201,29 +201,33 @@ tool_activity() {  # <idx> <spinner-frame>
         fi
     fi
     if mode_config_enabled && tool_has_config "$i"; then
-        local src="${T_SRC[$i]}" dest c m b counts cg cc verb
+        local src="${T_SRC[$i]}" dest c m b counts cg cc verb action
         dest="$(pretty_path "${T_DEST[$i]}")"
+        action="$(tool_config_action "$i")"
         # A pending change either creates a config that isn't there yet
         # (+ create, magenta — like the "not set up" headline) or updates an
-        # existing one (↑ copy, yellow — like "update available").
-        if [[ -e "${T_DEST[$i]}" ]]; then cg='↑'; cc="$C_YELLOW"; verb='update'
+        # existing one (↑ update, yellow — like "update available").
+        if [[ -e "${T_DEST[$i]}" || -L "${T_DEST[$i]}" ]]; then cg='↑'; cc="$C_YELLOW"; verb='update'
         else cg='+'; cc="$C_MAGENTA"; verb='create'; fi
-        if [[ "$running" == 1 && "$stage" == "copy" ]]; then
+        if [[ "$running" == 1 && ( "$stage" == "copy" || "$stage" == "link" ) ]]; then
             wrapped_activity "$C_CYAN" "$frame" "$verb" "$src → $dest"
         elif [[ -n "$run" && -f "$run/${nm}.result" ]]; then
             # `|| true`: read returns non-zero on a newline-less file, which
-            # under set -e would abort before the copy line is printed.
+            # under set -e would abort before the result line is printed.
             read -r c m b < "$run/${nm}.result" || true
             counts=''
-            [[ "${c:-0}" -gt 0 ]] && counts="${c} $(file_noun "$c") synced"
+            if [[ "${c:-0}" -gt 0 && "$action" == link ]]; then
+                counts="${c} link synced"
+            elif [[ "${c:-0}" -gt 0 ]]; then
+                counts="${c} $(file_noun "$c") synced"
+            fi
             [[ "${m:-0}" -gt 0 ]] && counts="${counts:+${counts} · }${m} $(file_noun "$m") removed"
             [[ "${b:-0}" -gt 0 ]] && counts="${counts:+${counts} · }${b} $(file_noun "$b") backed up"
-            wrapped_activity "$C_GREEN" '✓' copy "$src → $dest${counts:+ · $counts}"
+            wrapped_activity "$C_GREEN" '✓' "$action" "$src → $dest${counts:+ · $counts}"
         elif tool_uptodate "$i"; then
             wrapped_activity "$C_GREEN" '✓' 'up to date' "$dest"
-        elif tool_config_is_dir "$i"; then
-            # per-file counts are meaningful for a directory
-            counts="$(dir_change_counts "$i")"
+        elif tool_config_is_dir "$i" || [[ "$action" == link ]]; then
+            counts="$(resolver_changes "${T_RESOLVER[$i]}" "$ROOT/$src" "${T_DEST[$i]}")"
             wrapped_activity "$cc" "$cg" "$verb" "$src → $dest${counts:+ · $counts}"
         else
             wrapped_activity "$cc" "$cg" "$verb" "$src → $dest"

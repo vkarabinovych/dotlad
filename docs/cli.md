@@ -44,12 +44,15 @@ use the selected project and backup location consistently.
 | `--yes`                   | mutating commands        | Accept confirmation prompts                               |
 | `--packages-only`         | module/profile/all/plan  | Include package actions and omit config actions           |
 | `--config-only`           | module/profile/all/plan  | Include config actions and omit package actions           |
+| `--symlink`               | module/profile/all/plan  | Default modules without `RESOLVER` to `symlink`           |
 | `--dry-run`               | module/profile/all       | Convert the requested action into a read-only plan        |
 | `--json`                  | `plan` or `--dry-run`    | Emit the plan as JSON                                     |
 | `--output PATH`           | `brewfile` only          | Write somewhere other than `./Brewfile`                   |
 
 The two operation-mode flags are mutually exclusive in effect: if both are
 present, the last one wins. Prefer passing only one so automation is obvious.
+`--symlink` is independent of operation mode: it changes only modules that omit
+`RESOLVER`; an explicit resolver in a manifest always takes precedence.
 `--plain` is only a presentation flag: with no command it selects the read-only
 state view, but it does not make a named module/profile/all action read-only.
 Use `plan` or `--dry-run` for that guarantee. Options such as `--output` and
@@ -82,8 +85,8 @@ Human plans use these package states:
 - `skipped by mode` — packages exist in the manifest but config-only mode is active.
 
 Config states are `create`, `update`, `already up to date`, or `skipped by
-mode`. For directory modules, the plan also counts files to sync, remove, and
-back up.
+mode`. Copy plans count files to sync or remove; symlink plans report the link
+that will be synchronized.
 
 ### JSON plans
 
@@ -97,6 +100,7 @@ reports:
 | `package_names`        | Space-separated Homebrew entries, when declared      |
 | `install_url`          | HTTPS installer URL, when declared                   |
 | `config`               | `none`, `ready`, `create`, `update`, or `skipped`    |
+| `resolver`             | Effective resolver after applying CLI defaults       |
 | `destination`          | Expanded destination path                            |
 | `changes`              | Human-readable file-change count                     |
 | `missing_requirements` | Commands required by config processing               |

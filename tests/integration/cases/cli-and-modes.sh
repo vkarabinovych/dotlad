@@ -29,6 +29,42 @@ printf '%s' "$plan_json" | jq -e \
 dry_json="$(df --dry-run --json filecopy)"
 [[ "$dry_json" == "$plan_json" ]] && pass "--dry-run matches plan" || fail "dry-run alias"
 
+# --symlink changes only the implicit resolver. Explicit module choices still
+# win, and JSON plans expose the effective resolver.
+mkdir -p "$FAKE/modules/symlink-flag/files" "$FAKE/modules/explicit-copy/files"
+printf 'linked by flag\n' > "$FAKE/modules/symlink-flag/files/config"
+printf 'explicit copy\n' > "$FAKE/modules/explicit-copy/files/config"
+cat > "$FAKE/modules/symlink-flag/module.conf" <<EOF
+NAME="symlink-flag"
+DESC="CLI symlink default fixture"
+ICON="!"
+ORDER="997"
+SOURCE="files/config"
+DEST="$H/.config/symlink-flag/config"
+EOF
+cat > "$FAKE/modules/explicit-copy/module.conf" <<EOF
+NAME="explicit-copy"
+DESC="Explicit copy resolver fixture"
+ICON="!"
+ORDER="997"
+SOURCE="files/config"
+DEST="$H/.config/explicit-copy/config"
+RESOLVER="copy"
+EOF
+symlink_flag_plan="$(df plan symlink-flag --symlink --json)"
+printf '%s' "$symlink_flag_plan" | jq -e \
+    '.modules[0].resolver == "symlink" and .modules[0].changes == "1 link to sync"' >/dev/null \
+    && pass "--symlink changes the planned default resolver" \
+    || fail "--symlink plan did not expose the effective resolver"
+df --config-only symlink-flag --symlink >/dev/null 2>&1
+check "--symlink deploys an implicit resolver as a link" test -L "$H/.config/symlink-flag/config"
+df --symlink --config-only explicit-copy >/dev/null 2>&1
+checknot "explicit copy resolver overrides --symlink" test -L "$H/.config/explicit-copy/config"
+check "explicit copy resolver still deploys content" cmp -s \
+    "$FAKE/modules/explicit-copy/files/config" "$H/.config/explicit-copy/config"
+rm -rf "$FAKE/modules/symlink-flag" "$FAKE/modules/explicit-copy" \
+    "$H/.config/symlink-flag" "$H/.config/explicit-copy"
+
 # --- operation modes --------------------------------------------------------
 mkdir -p "$FAKE/modules/mode-fixture/files"
 printf 'repo = 1\n' > "$FAKE/modules/mode-fixture/files/config.toml"
@@ -136,7 +172,7 @@ DEST="$H/.config/worker-fixture/config.toml"
 EOF
 worker_probe="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" \
     DOTLAD_BIN="$DOTLAD_RUNTIME_ROOT/dotlad" \
-    DOTLAD_BACKUP_ROOT="$H/.dotlad_backup" /bin/bash -c '
+    DOTLAD_BACKUP_ROOT="$H/.dotlad_backup" DOTLAD_DEFAULT_RESOLVER=symlink /bin/bash -c '
     . "$DOTLAD_RUNTIME_ROOT/lib/runtime.sh"
     manifest_load; mode_set config
     DOTLAD_RUNDIR="$(mktemp -d)"; export DOTLAD_RUNDIR
@@ -148,13 +184,13 @@ worker_probe="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" \
         sleep 0.05; attempt=$((attempt + 1))
     done
     if [[ -f "$DOTLAD_RUNDIR/worker-fixture.done" \
-        && -f "$HOME/.config/worker-fixture/config.toml" ]]; then
+        && -L "$HOME/.config/worker-fixture/config.toml" ]]; then
         printf done
     else
         printf failed
     fi
-    rm -rf "$DOTLAD_RUNDIR"')"
-[[ "$worker_probe" == "done" ]] && pass "background worker preserves the external project root" \
+    tui_cleanup >/dev/null 2>&1')"
+[[ "$worker_probe" == "done" ]] && pass "background worker preserves project root and default resolver" \
     || fail "external project worker probe (got '$worker_probe')"
 rm -rf "$FAKE/modules/worker-fixture" "$H/.config/worker-fixture"
 rm -rf "$FAKE/modules/mode-fixture" "$H/.config/mode-fixture"

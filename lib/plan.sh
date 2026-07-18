@@ -14,6 +14,7 @@ json_string() {
 plan_module() {  # <idx> — populate PLAN_* globals without changing state
     local i="$1" counts=""
     PLAN_PACKAGES="none"; PLAN_CONFIG="none"; PLAN_DEST=""; PLAN_CHANGES=""
+    PLAN_RESOLVER=""
     PLAN_MISSING=""; PLAN_BLOCKERS=""
     preflight_inspect "$i" || true
     PLAN_MISSING="$PREFLIGHT_MISSING"
@@ -24,7 +25,7 @@ plan_module() {  # <idx> — populate PLAN_* globals without changing state
         PLAN_PACKAGES="skipped"
     fi
     if mode_config_enabled && tool_has_config "$i"; then
-        tool_paths "$i"; PLAN_DEST="$TP_DEST"
+        tool_paths "$i"; PLAN_DEST="$TP_DEST"; PLAN_RESOLVER="${T_RESOLVER[$i]}"
         if [[ ! -e "$TP_DEST" && ! -L "$TP_DEST" ]]; then
             PLAN_CONFIG="create"
         elif tool_uptodate "$i"; then
@@ -32,10 +33,9 @@ plan_module() {  # <idx> — populate PLAN_* globals without changing state
         else
             PLAN_CONFIG="update"
         fi
-        if [[ "$PLAN_CONFIG" != "ready" ]] && tool_config_is_dir "$i"; then
-            counts="$(dir_change_counts "$i")"; PLAN_CHANGES="$counts"
-        elif [[ "$PLAN_CONFIG" == "create" || "$PLAN_CONFIG" == "update" ]]; then
-            PLAN_CHANGES="1 file to sync"
+        if [[ "$PLAN_CONFIG" == "create" || "$PLAN_CONFIG" == "update" ]]; then
+            counts="$(resolver_changes "${T_RESOLVER[$i]}" "$TP_SRC" "$TP_DEST")"
+            PLAN_CHANGES="$counts"
         fi
     elif ! mode_config_enabled && tool_has_config "$i"; then
         PLAN_CONFIG="skipped"; PLAN_DEST="${T_DEST[$i]}"
@@ -51,6 +51,7 @@ plan_module_json() {  # <idx> <leading-comma 0|1>
     printf ',"package_names":'; json_string "${T_BREW[$i]}"
     printf ',"install_url":'; json_string "${T_INSTALL_URL[$i]}"
     printf ',"config":'; json_string "$PLAN_CONFIG"
+    printf ',"resolver":'; json_string "$PLAN_RESOLVER"
     printf ',"destination":'; json_string "$PLAN_DEST"
     printf ',"changes":'; json_string "$PLAN_CHANGES"
     printf ',"missing_requirements":['

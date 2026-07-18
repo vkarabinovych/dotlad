@@ -1,4 +1,4 @@
-# lib/resolvers/json-merge.sh — recursively overlay repository values and union
+# lib/resolvers/json.sh — recursively overlay repository values and union
 # arrays.
 
 # shellcheck disable=SC2016
@@ -13,15 +13,15 @@ JSON_MERGE_FILTER='
         else $b end;
     merge(.[0]; .[1])'
 
-resolver_json_merge_render() {  # <repo> <live>
+resolver_json_render() {  # <repo> <live>
     local base='{}'
     [[ -s "$2" && ! -L "$2" ]] && base="$(cat "$2")"
     jq -s "$JSON_MERGE_FILTER" <(printf '%s' "$base") "$1"
 }
 
-resolver_json_merge_equal() {  # <repo> <live>
+resolver_json_equal() {  # <repo> <live>
     [[ -f "$2" && ! -L "$2" ]] && command -v jq >/dev/null 2>&1 || return 1
     local merged
-    merged="$(resolver_json_merge_render "$1" "$2" 2>/dev/null)" || return 1
+    merged="$(resolver_json_render "$1" "$2" 2>/dev/null)" || return 1
     [[ "$(jq -S . "$2" 2>/dev/null)" == "$(printf '%s' "$merged" | jq -S .)" ]]
 }

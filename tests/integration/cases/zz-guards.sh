@@ -6,3 +6,5 @@ rc_is "unknown option exits 1" 1 df --bogus
 rc_is "help rejects positional arguments" 1 df help extra
 rc_is "version rejects positional arguments" 1 df version extra
 rc_is "help command exits 0" 0 df help
+df help | grep -q -- '--symlink' && pass "help documents --symlink" \
+    || fail "help omits --symlink"

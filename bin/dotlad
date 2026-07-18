@@ -78,19 +78,21 @@ The list shows each tool's state:
 Move with ↑/↓, pick with space and run with enter (a = all, d = diff,
 m = mode, q = quit). Replaced files are backed up to $(pretty_path "$DOTLAD_BACKUP_ROOT") and
 appear at the bottom of the list to restore. Named resolvers can preserve
-machine-local JSON, TOML, and Git values while repository values take priority.
+machine-local JSON, TOML, and Git values or deploy a repository symlink.
 Letter shortcuts use the same physical keys on Ukrainian keyboard layouts.
 
 JSON, TOML, and Git config merging requires jq, yq, and git respectively.
 
-Modes:    --packages-only installs packages without copying config
-          --config-only copies config without installing packages
-          default installs packages and copies config
+Modes:    --packages-only installs packages without deploying config
+          --config-only deploys config without installing packages
+          --symlink uses symlink as the default config resolver
+          default installs packages and deploys config
 
 Options:  --plain              disable color and the interactive screen
           --yes                accept mutation confirmation prompts
           --dry-run            plan the requested action without changing state
           --json               emit JSON with plan or --dry-run
+          --symlink            default to symlink instead of copy deployment
           -C, --config PATH     manifest project (defaults to current directory)
           --backup-root PATH    backup location (defaults to ~/.dotlad_backup)
           --output PATH         brewfile path (defaults to ./Brewfile)
@@ -109,6 +111,7 @@ main() {
             --yes)     DOTLAD_YES=1 ;;
             --dry-run) DOTLAD_DRY_RUN=1 ;;
             --json)    DOTLAD_PLAN_JSON=1 ;;
+            --symlink) DOTLAD_DEFAULT_RESOLVER=symlink; export DOTLAD_DEFAULT_RESOLVER ;;
             --packages-only) mode_set packages ;;
             --config-only)   mode_set config ;;
             -h|--help) cmd="help" ;;

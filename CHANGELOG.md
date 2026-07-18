@@ -2,6 +2,20 @@
 
 All notable user-facing changes are documented here.
 
+## [Unreleased]
+
+### Added
+
+- Built-in `symlink` resolver for deploying file and directory links to their
+  repository sources.
+- Global `--symlink` option for making that resolver the invocation default
+  without overriding explicit module resolvers.
+
+### Changed
+
+- Exact file copying and directory mirroring now use the explicit built-in
+  `copy` resolver, which remains the default when `RESOLVER` is omitted.
+
 ## [0.4.0] - 2026-07-18
 
 ### Added
@@ -20,3 +34,4 @@ All notable user-facing changes are documented here.
   reproducible release archives with SHA-256 checksums.
 
 [0.4.0]: https://github.com/vkarabinovych/dotlad/releases/tag/v0.4.0
+[Unreleased]: https://github.com/vkarabinovych/dotlad/compare/v0.4.0...HEAD

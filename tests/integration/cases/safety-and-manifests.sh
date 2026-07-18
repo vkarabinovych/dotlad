@@ -35,7 +35,7 @@ check "directory SOURCE is inferred and mirrored" cmp -s \
     "$FAKE/modules/evil/files/config" "$H/.config/evil/config"
 rm -rf "$H/.config/evil"
 
-# Resolvers are named extensions for file sources only.
+# Resolvers declare which source types they support.
 cat > "$FAKE/modules/evil/module.conf" <<EOF
 NAME="evil"
 DESC="Unknown resolver fixture"
@@ -53,7 +53,7 @@ ICON="!"
 ORDER="999"
 SOURCE="files"
 DEST="$H/.config/evil"
-RESOLVER="json-merge"
+RESOLVER="json"
 EOF
 rc_is "resolver rejects a directory SOURCE" 1 df evil
 cat > "$FAKE/modules/evil/module.conf" <<EOF
@@ -76,14 +76,14 @@ ICON="!"
 ORDER="998"
 SOURCE="files/config.json"
 DEST="$H/.config/invalid-resolver/config.json"
-RESOLVER="json-merge"
+RESOLVER="json"
 REQUIRES="jq"
 EOF
 mkdir -p "$H/.config/multipkg"
 printf 'preflight-keep\n' > "$H/.config/multipkg/config"
 invalid_plan="$(df --config-only --json plan invalid-resolver)"
 printf '%s' "$invalid_plan" | jq -e \
-    ".modules[0].blockers | index(\"cannot resolve config with 'json-merge'\")" >/dev/null \
+    ".modules[0].blockers | index(\"cannot resolve config with 'json'\")" >/dev/null \
     && pass "plan reports a resolver blocker" \
     || fail "plan missed a resolver blocker (got '$invalid_plan')"
 rc_is "resolver failure blocks the full foreground batch" 1 \
@@ -116,6 +116,19 @@ DEST="$H/.config/existing-dir"
 EOF
 rc_is "file deployment rejects a directory destination" 1 df evil
 check "directory destination remains intact" test -f "$H/.config/existing-dir/keep"
+mkfifo "$H/.config/unsupported-link-destination"
+cat > "$FAKE/modules/evil/module.conf" <<EOF
+NAME="evil"
+DESC="Symlink destination safety fixture"
+ICON="!"
+ORDER="999"
+SOURCE="files/config"
+DEST="$H/.config/unsupported-link-destination"
+RESOLVER="symlink"
+EOF
+rc_is "symlink deployment rejects a special destination" 1 df --config-only evil
+check "rejected special destination remains intact" test -p "$H/.config/unsupported-link-destination"
+rm -f "$H/.config/unsupported-link-destination"
 rm -rf "$FAKE/modules/evil"
 
 # Modules may not own the same destination or nest under another module.

@@ -21,7 +21,9 @@ lives in `lib/`; each named resolver has one file under
 Use four-space indentation, quote expansions unless splitting is intentional,
 and keep shared code ShellCheck-clean. Public environment variables use the
 `DOTLAD_` prefix. Resolver names use lowercase hyphenated identifiers and map to
-`resolver_<name>_render` and `resolver_<name>_equal` functions.
+`resolver_<name>_<method>` hooks. Every resolver implements `equal` plus either
+`apply` or `render`; deployment resolvers may implement the optional contract
+hooks documented in `docs/adding-a-module.md`.
 
 ## Testing Guidelines
 
