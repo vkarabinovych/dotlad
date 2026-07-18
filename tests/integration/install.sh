@@ -11,6 +11,34 @@ PROJECT="$SB/project"
 BREW_CWD="$SB/brew-cwd"
 VERSION="$(cat "$ROOT/VERSION")"
 
+# Release notes come from exactly one versioned changelog section.
+NOTES_CHANGELOG="$SB/release-notes.md"
+cat > "$NOTES_CHANGELOG" <<'EOF'
+## [Unreleased]
+
+- Later work.
+
+## [1.2.3] - 2026-07-18
+
+### Added
+
+- Released feature.
+
+## [1.2.2] - 2026-07-17
+
+- Earlier work.
+
+[1.2.2]: https://example.test/releases/1.2.2
+EOF
+release_notes="$("$ROOT/scripts/release-notes.sh" v1.2.3 "$NOTES_CHANGELOG")"
+[[ "$release_notes" == $'### Added\n\n- Released feature.' ]]
+release_notes="$("$ROOT/scripts/release-notes.sh" v1.2.2 "$NOTES_CHANGELOG")"
+[[ "$release_notes" == '- Earlier work.' ]]
+if "$ROOT/scripts/release-notes.sh" v9.9.9 "$NOTES_CHANGELOG" >/dev/null 2>&1; then
+    printf 'release notes accepted a missing changelog section\n' >&2
+    exit 1
+fi
+
 mkdir -p "$HOME_DIR" "$BREW_CWD" "$PROJECT/tools/demo/files" "$PROJECT/profiles"
 printf 'installed = true\n' > "$PROJECT/tools/demo/files/config.toml"
 cat > "$PROJECT/tools/demo/tool.conf" <<'EOF'

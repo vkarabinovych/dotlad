@@ -124,21 +124,21 @@ See [Adding or changing a tool](docs/adding-a-tool.md) and
 
 ## CLI at a glance
 
-| Command                           | Purpose                                    |
-| --------------------------------- | ------------------------------------------ |
-| `dotlad`                          | Open the interactive tool picker           |
+| Command                           | Purpose                                     |
+| --------------------------------- | ------------------------------------------- |
+| `dotlad`                          | Open the interactive tool picker            |
 | `dotlad --plain`                  | Print read-only tool and backup state       |
-| `dotlad <tool>…`                  | Apply named tools                          |
-| `dotlad profile <name>`           | Apply a profile and inherited tools        |
-| `dotlad all`                      | Apply every tool                           |
+| `dotlad <tool>…`                  | Apply named tools                           |
+| `dotlad profile <name>`           | Apply a profile and inherited tools         |
+| `dotlad all`                      | Apply every tool                            |
 | `dotlad plan [target]`            | Preview actions, requirements, and blockers |
-| `dotlad --dry-run <action>`       | Plan a normal tool/profile/all action      |
-| `dotlad brewfile`                 | Generate a Homebrew Bundle file            |
-| `dotlad backups`                  | List available restore points              |
-| `dotlad restore <name>`           | Restore a restore point                    |
-| `dotlad backup delete <name>`     | Delete a restore point                     |
-| `dotlad --packages-only <action>` | Install packages without deploying config  |
-| `dotlad --config-only <action>`   | Deploy config without installing packages  |
+| `dotlad --dry-run <action>`       | Plan a normal tool/profile/all action       |
+| `dotlad brewfile`                 | Generate a Homebrew Bundle file             |
+| `dotlad backups`                  | List available restore points               |
+| `dotlad restore <name>`           | Restore a restore point                     |
+| `dotlad backup delete <name>`     | Delete a restore point                      |
+| `dotlad --packages-only <action>` | Install packages without deploying config   |
+| `dotlad --config-only <action>`   | Deploy config without installing packages   |
 | `dotlad --symlink <action>`       | Default implicit config deployment to links |
 
 See the [CLI reference](docs/cli.md) for option scope, JSON plans, picker

@@ -43,19 +43,19 @@ ui → resolvers → manifest → brewfile → packages → backup → engine
    → plan → picker model → runner → commands → TUI
 ```
 
-| Component       | Responsibility                                                   |
-| --------------- | ---------------------------------------------------------------- |
-| `bin/dotlad`    | Bootstrap, global option extraction, argument parsing, dispatch  |
-| `manifest.sh`   | Strict manifest/profile parsing, normalization, safety validation |
-| `resolvers.sh`  | Load and dispatch trusted runtime resolver implementations        |
-| `packages.sh`   | Package, remote-installer, and requirement installation           |
-| `backup.sh`     | Restore-point creation, listing, restoration, and deletion        |
-| `engine.sh`     | State inspection, preflight, config transactions, synchronization |
-| `plan.sh`       | Human and JSON projections of canonical preflight state           |
-| `pick.sh`       | Presentation model shared by plain output and the TUI              |
-| `runner.sh`     | Foreground batches and the serialized TUI queue                    |
-| `commands.sh`   | Command implementations and tool selection                      |
-| `tui.sh`        | Terminal input, rendering, focus, details, and live output         |
+| Component      | Responsibility                                                    |
+| -------------- | ----------------------------------------------------------------- |
+| `bin/dotlad`   | Bootstrap, global option extraction, argument parsing, dispatch   |
+| `manifest.sh`  | Strict manifest/profile parsing, normalization, safety validation |
+| `resolvers.sh` | Load and dispatch trusted runtime resolver implementations        |
+| `packages.sh`  | Package, remote-installer, and requirement installation           |
+| `backup.sh`    | Restore-point creation, listing, restoration, and deletion        |
+| `engine.sh`    | State inspection, preflight, config transactions, synchronization |
+| `plan.sh`      | Human and JSON projections of canonical preflight state           |
+| `pick.sh`      | Presentation model shared by plain output and the TUI             |
+| `runner.sh`    | Foreground batches and the serialized TUI queue                   |
+| `commands.sh`  | Command implementations and tool selection                        |
+| `tui.sh`       | Terminal input, rendering, focus, details, and live output        |
 
 `commands.sh` and the TUI depend on lower layers; lower layers do not call into
 presentation code. This keeps read-only probes and non-interactive commands

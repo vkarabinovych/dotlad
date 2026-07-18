@@ -18,36 +18,36 @@ use the selected project and backup location consistently.
 
 ## Commands
 
-| Command                       | Behavior                                                   |
-| ----------------------------- | ---------------------------------------------------------- |
-| `dotlad`                      | Open the picker, or print state when no TTY is available   |
-| `dotlad <tool>…`             | Preview and apply one or more named tools                 |
-| `dotlad profile <name>`      | Apply a profile after resolving inherited tools           |
-| `dotlad all`                 | Apply every tool relevant to the active mode              |
-| `dotlad plan [target]`        | Produce a read-only plan; the default target is `all`      |
-| `dotlad brewfile`             | Generate a Homebrew Bundle file                            |
-| `dotlad backups`              | List restore points                                        |
-| `dotlad restore <name>`       | Restore all files in a restore point                       |
-| `dotlad backup delete <name>` | Permanently delete a restore point                         |
-| `dotlad version`              | Print the installed version                                |
-| `dotlad help`                 | Print built-in help                                        |
+| Command                       | Behavior                                                 |
+| ----------------------------- | -------------------------------------------------------- |
+| `dotlad`                      | Open the picker, or print state when no TTY is available |
+| `dotlad <tool>…`              | Preview and apply one or more named tools                |
+| `dotlad profile <name>`       | Apply a profile after resolving inherited tools          |
+| `dotlad all`                  | Apply every tool relevant to the active mode             |
+| `dotlad plan [target]`        | Produce a read-only plan; the default target is `all`    |
+| `dotlad brewfile`             | Generate a Homebrew Bundle file                          |
+| `dotlad backups`              | List restore points                                      |
+| `dotlad restore <name>`       | Restore all files in a restore point                     |
+| `dotlad backup delete <name>` | Permanently delete a restore point                       |
+| `dotlad version`              | Print the installed version                              |
+| `dotlad help`                 | Print built-in help                                      |
 
 `--help` and `--version` are equivalent to the corresponding commands.
 
 ## Options
 
-| Option                    | Scope                    | Behavior                                                  |
-| ------------------------- | ------------------------ | --------------------------------------------------------- |
-| `-C`, `--config PATH`     | all project commands     | Use `PATH` as the project root instead of `$PWD`          |
-| `--backup-root PATH`      | config and backup tasks  | Use `PATH` instead of `~/.dotlad_backup`                  |
-| `--plain`                 | display                  | Disable color and the interactive screen                 |
-| `--yes`                   | mutating commands        | Accept confirmation prompts                               |
-| `--packages-only`         | tool/profile/all/plan   | Include package actions and omit config actions          |
-| `--config-only`           | tool/profile/all/plan   | Include config actions and omit package actions          |
-| `--symlink`               | tool/profile/all/plan   | Default tools without `RESOLVER` to `symlink`            |
-| `--dry-run`               | tool/profile/all        | Convert the requested action into a read-only plan       |
-| `--json`                  | `plan` or `--dry-run`    | Emit the plan as JSON                                     |
-| `--output PATH`           | `brewfile` only          | Write somewhere other than `./Brewfile`                   |
+| Option                | Scope                   | Behavior                                           |
+| --------------------- | ----------------------- | -------------------------------------------------- |
+| `-C`, `--config PATH` | all project commands    | Use `PATH` as the project root instead of `$PWD`   |
+| `--backup-root PATH`  | config and backup tasks | Use `PATH` instead of `~/.dotlad_backup`           |
+| `--plain`             | display                 | Disable color and the interactive screen           |
+| `--yes`               | mutating commands       | Accept confirmation prompts                        |
+| `--packages-only`     | tool/profile/all/plan   | Include package actions and omit config actions    |
+| `--config-only`       | tool/profile/all/plan   | Include config actions and omit package actions    |
+| `--symlink`           | tool/profile/all/plan   | Default tools without `RESOLVER` to `symlink`      |
+| `--dry-run`           | tool/profile/all        | Convert the requested action into a read-only plan |
+| `--json`              | `plan` or `--dry-run`   | Emit the plan as JSON                              |
+| `--output PATH`       | `brewfile` only         | Write somewhere other than `./Brewfile`            |
 
 The two operation-mode flags are mutually exclusive in effect: if both are
 present, the last one wins. Prefer passing only one so automation is obvious.
@@ -93,18 +93,18 @@ that will be synchronized.
 JSON output contains the active `mode` and a `tools` array. Each tool
 reports:
 
-| Field                  | Meaning                                              |
-| ---------------------- | ---------------------------------------------------- |
-| `name`                 | Manifest name                                        |
-| `packages`             | `none`, `ready`, `install`, or `skipped`             |
-| `package_names`        | Space-separated Homebrew entries, when declared      |
-| `install_url`          | HTTPS installer URL, when declared                   |
-| `config`               | `none`, `ready`, `create`, `update`, or `skipped`    |
-| `resolver`             | Effective resolver after applying CLI defaults       |
-| `destination`          | Expanded destination path                            |
-| `changes`              | Human-readable file-change count                     |
-| `missing_requirements` | Commands required by config processing               |
-| `blockers`             | Conditions that would prevent execution              |
+| Field                  | Meaning                                           |
+| ---------------------- | ------------------------------------------------- |
+| `name`                 | Manifest name                                     |
+| `packages`             | `none`, `ready`, `install`, or `skipped`          |
+| `package_names`        | Space-separated Homebrew entries, when declared   |
+| `install_url`          | HTTPS installer URL, when declared                |
+| `config`               | `none`, `ready`, `create`, `update`, or `skipped` |
+| `resolver`             | Effective resolver after applying CLI defaults    |
+| `destination`          | Expanded destination path                         |
+| `changes`              | Human-readable file-change count                  |
+| `missing_requirements` | Commands required by config processing            |
+| `blockers`             | Conditions that would prevent execution           |
 
 For example, reject a reviewed automation step when any tool is blocked:
 
@@ -169,13 +169,13 @@ partial restore exits non-zero and reports restored and failed entry counts.
 
 ## Picker states
 
-| Symbol | State                      | Meaning                                                |
-| :----: | -------------------------- | ------------------------------------------------------ |
-|  `✓`   | up to date / installed     | Config matches the project or all packages are present |
-|  `↑`   | update available           | Applying the tool would change its config                 |
-|  `+`   | not set up / not installed | Config or packages are missing                         |
-|  `!`   | tool not found              | Config exists, but no installer or executable is available |
-|  `✗`   | failed                     | The latest queued operation failed                     |
+| Symbol | State                      | Meaning                                                    |
+| :----: | -------------------------- | ---------------------------------------------------------- |
+|  `✓`   | up to date / installed     | Config matches the project or all packages are present     |
+|  `↑`   | update available           | Applying the tool would change its config                  |
+|  `+`   | not set up / not installed | Config or packages are missing                             |
+|  `!`   | tool not found             | Config exists, but no installer or executable is available |
+|  `✗`   | failed                     | The latest queued operation failed                         |
 
 In full mode, a missing package or executable takes priority over a ready
 config. The config state remains visible as a secondary coloured note.

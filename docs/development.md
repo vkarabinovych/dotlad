@@ -13,12 +13,18 @@ Run the source checks and isolated integration suite from the repository root:
 ```bash
 /bin/bash scripts/check.sh
 /bin/bash tests/run.sh
+npx --yes markdownlint-cli2@0.23.1 "**/*.md"
+npx --yes prettier@3.6.2 --check "**/*.md"
 ```
 
 `scripts/check.sh` runs Bash syntax checks across every shell source,
 ShellCheck with the Bash dialect, and `git diff --check`. Pass
 `--syntax-only` when ShellCheck is unavailable and only parser compatibility is
 being investigated.
+
+Markdown uses the repository's `.markdownlint-cli2.yaml` profile and Prettier
+defaults. Run Prettier with `--write` instead of `--check` to normalize tables
+after editing documentation.
 
 `tests/run.sh` creates its own project root, HOME, application directory, and
 package prefix. `tests/integration/installer.sh` owns the shared fixture and
@@ -31,20 +37,20 @@ this keeps production and test load order aligned.
 
 ## Where changes belong
 
-| Change                           | Primary location                 |
-| -------------------------------- | -------------------------------- |
-| CLI parsing or dispatch          | `bin/dotlad`                     |
-| Command behavior and selections  | `lib/commands.sh`                |
-| Manifest or profile contracts    | `lib/manifest.sh`                |
-| Package/requirement installation | `lib/packages.sh`                |
-| State, preflight, config writes  | `lib/engine.sh`                  |
-| Restore-point behavior           | `lib/backup.sh`                  |
-| Human or JSON plans              | `lib/plan.sh`                    |
-| Plain/picker presentation model  | `lib/pick.sh`                    |
-| Foreground and queued execution  | `lib/runner.sh`                  |
-| Terminal interaction             | `lib/tui.sh`                     |
-| Deployment and semantic resolving | `lib/resolvers/<name>.sh`       |
-| Integration regression coverage  | `tests/integration/cases/*.sh`   |
+| Change                            | Primary location               |
+| --------------------------------- | ------------------------------ |
+| CLI parsing or dispatch           | `bin/dotlad`                   |
+| Command behavior and selections   | `lib/commands.sh`              |
+| Manifest or profile contracts     | `lib/manifest.sh`              |
+| Package/requirement installation  | `lib/packages.sh`              |
+| State, preflight, config writes   | `lib/engine.sh`                |
+| Restore-point behavior            | `lib/backup.sh`                |
+| Human or JSON plans               | `lib/plan.sh`                  |
+| Plain/picker presentation model   | `lib/pick.sh`                  |
+| Foreground and queued execution   | `lib/runner.sh`                |
+| Terminal interaction              | `lib/tui.sh`                   |
+| Deployment and semantic resolving | `lib/resolvers/<name>.sh`      |
+| Integration regression coverage   | `tests/integration/cases/*.sh` |
 
 Keep `lib/runtime.sh` as the single canonical load order. Avoid adding
 command logic back to the entrypoint or filesystem state checks to
@@ -143,8 +149,11 @@ a complete source bundle and is validated by the installer integration suite.
    ```
 
 The release workflow rejects a tag that differs from `VERSION`, reruns the
-integration suite, and publishes the archive plus checksum. It never creates or
-moves release tags.
+integration suite, publishes the archive plus checksum, and uses the matching
+version section from `CHANGELOG.md` as the GitHub Release body. It also links
+to the comparison with the previous tag, or to the release commit for the
+first tag. A missing or empty section fails the release instead of publishing
+incomplete notes. The workflow never creates or moves release tags.
 
 ## Change checklist
 

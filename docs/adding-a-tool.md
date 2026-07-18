@@ -48,20 +48,20 @@ RESOLVER="toml"
 REQUIRES="yq"
 ```
 
-| Field         | Required       | Meaning                                                                            |
-| ------------- | -------------- | ---------------------------------------------------------------------------------- |
-| `NAME`        | yes            | Lowercase hyphenated identifier; must match the tool directory                     |
-| `DESC`        | yes            | Concise user-facing description shown in the picker                                |
-| `ICON`        | yes            | Short glyph shown in the picker                                                     |
-| `ORDER`       | no             | Numeric manifest and batch order; defaults to `500`                                |
-| `BREW`        | no             | Space-separated Homebrew formula or cask names                                     |
-| `CASK`        | no             | `1` when every `BREW` item is a cask; defaults to `0`                              |
-| `CHECK`       | no             | Command or absolute path used to verify installation; defaults to `NAME`           |
-| `SOURCE`      | with config    | File or directory path relative to the tool directory                              |
-| `DEST`        | with config    | Destination strictly below `$HOME`                                                  |
-| `RESOLVER`    | no             | Built-in deployment resolver; defaults to `copy`                                   |
-| `REQUIRES`    | no             | Space-separated commands needed before config deployment                           |
-| `INSTALL_URL` | no             | Whitespace-free HTTPS script installer used instead of `BREW`                      |
+| Field         | Required    | Meaning                                                                  |
+| ------------- | ----------- | ------------------------------------------------------------------------ |
+| `NAME`        | yes         | Lowercase hyphenated identifier; must match the tool directory           |
+| `DESC`        | yes         | Concise user-facing description shown in the picker                      |
+| `ICON`        | yes         | Short glyph shown in the picker                                          |
+| `ORDER`       | no          | Numeric manifest and batch order; defaults to `500`                      |
+| `BREW`        | no          | Space-separated Homebrew formula or cask names                           |
+| `CASK`        | no          | `1` when every `BREW` item is a cask; defaults to `0`                    |
+| `CHECK`       | no          | Command or absolute path used to verify installation; defaults to `NAME` |
+| `SOURCE`      | with config | File or directory path relative to the tool directory                    |
+| `DEST`        | with config | Destination strictly below `$HOME`                                       |
+| `RESOLVER`    | no          | Built-in deployment resolver; defaults to `copy`                         |
+| `REQUIRES`    | no          | Space-separated commands needed before config deployment                 |
+| `INSTALL_URL` | no          | Whitespace-free HTTPS script installer used instead of `BREW`            |
 
 `BREW` and `INSTALL_URL` are mutually exclusive. A tool must declare at least
 one package installer or a `SOURCE`/`DEST` pair. Package tokens may use fully
@@ -186,13 +186,13 @@ REQUIRES="jq"
 
 Built-in resolvers define both deployment and semantic equality:
 
-| Resolver          | Source         | Requirement | Behavior                                                          |
-| ----------------- | -------------- | ----------- | ----------------------------------------------------------------- |
-| `copy`            | file/directory | none        | Exact file copy or exact directory mirror; the default            |
-| `symlink`         | file/directory | none        | Absolute link from the destination to the repository source       |
-| `json`            | file           | `jq`        | Recursive object merge and array union; repository scalars win    |
-| `toml`            | file           | `yq`        | Deep merge with repository values taking precedence               |
-| `gitconfig`       | file           | `git`       | Repository keys win while unrelated live keys remain              |
+| Resolver    | Source         | Requirement | Behavior                                                       |
+| ----------- | -------------- | ----------- | -------------------------------------------------------------- |
+| `copy`      | file/directory | none        | Exact file copy or exact directory mirror; the default         |
+| `symlink`   | file/directory | none        | Absolute link from the destination to the repository source    |
+| `json`      | file           | `jq`        | Recursive object merge and array union; repository scalars win |
+| `toml`      | file           | `yq`        | Deep merge with repository values taking precedence            |
+| `gitconfig` | file           | `git`       | Repository keys win while unrelated live keys remain           |
 
 An explicitly declared JSON `null` is an overlay value and replaces the live
 value. JSON array entries already present in the live file are retained; new
