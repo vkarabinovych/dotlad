@@ -1,6 +1,6 @@
 # CLI reference
 
-Dotlad reads module manifests from a project and applies their package and
+Dotlad reads tool manifests from a project and applies their package and
 configuration state to the current user's system.
 
 ## Invocation
@@ -8,8 +8,8 @@ configuration state to the current user's system.
 Run Dotlad from the project root or select a project explicitly:
 
 ```bash
-dotlad [OPTIONS] [COMMAND | MODULE…]
-dotlad -C /path/to/project [OPTIONS] [COMMAND | MODULE…]
+dotlad [OPTIONS] [COMMAND | TOOL…]
+dotlad -C /path/to/project [OPTIONS] [COMMAND | TOOL…]
 ```
 
 Options may appear before or after positional arguments. `-C` and
@@ -21,9 +21,9 @@ use the selected project and backup location consistently.
 | Command                       | Behavior                                                   |
 | ----------------------------- | ---------------------------------------------------------- |
 | `dotlad`                      | Open the picker, or print state when no TTY is available   |
-| `dotlad <module>…`            | Preview and apply one or more named modules                |
-| `dotlad profile <name>`       | Apply a profile after resolving inherited modules          |
-| `dotlad all`                  | Apply every module relevant to the active mode             |
+| `dotlad <tool>…`             | Preview and apply one or more named tools                 |
+| `dotlad profile <name>`      | Apply a profile after resolving inherited tools           |
+| `dotlad all`                 | Apply every tool relevant to the active mode              |
 | `dotlad plan [target]`        | Produce a read-only plan; the default target is `all`      |
 | `dotlad brewfile`             | Generate a Homebrew Bundle file                            |
 | `dotlad backups`              | List restore points                                        |
@@ -42,25 +42,25 @@ use the selected project and backup location consistently.
 | `--backup-root PATH`      | config and backup tasks  | Use `PATH` instead of `~/.dotlad_backup`                  |
 | `--plain`                 | display                  | Disable color and the interactive screen                 |
 | `--yes`                   | mutating commands        | Accept confirmation prompts                               |
-| `--packages-only`         | module/profile/all/plan  | Include package actions and omit config actions           |
-| `--config-only`           | module/profile/all/plan  | Include config actions and omit package actions           |
-| `--symlink`               | module/profile/all/plan  | Default modules without `RESOLVER` to `symlink`           |
-| `--dry-run`               | module/profile/all       | Convert the requested action into a read-only plan        |
+| `--packages-only`         | tool/profile/all/plan   | Include package actions and omit config actions          |
+| `--config-only`           | tool/profile/all/plan   | Include config actions and omit package actions          |
+| `--symlink`               | tool/profile/all/plan   | Default tools without `RESOLVER` to `symlink`            |
+| `--dry-run`               | tool/profile/all        | Convert the requested action into a read-only plan       |
 | `--json`                  | `plan` or `--dry-run`    | Emit the plan as JSON                                     |
 | `--output PATH`           | `brewfile` only          | Write somewhere other than `./Brewfile`                   |
 
 The two operation-mode flags are mutually exclusive in effect: if both are
 present, the last one wins. Prefer passing only one so automation is obvious.
-`--symlink` is independent of operation mode: it changes only modules that omit
+`--symlink` is independent of operation mode: it changes only tools that omit
 `RESOLVER`; an explicit resolver in a manifest always takes precedence.
 `--plain` is only a presentation flag: with no command it selects the read-only
-state view, but it does not make a named module/profile/all action read-only.
+state view, but it does not make a named tool/profile/all action read-only.
 Use `plan` or `--dry-run` for that guarantee. Options such as `--output` and
 `--json` are rejected outside their documented command scope.
 
 ## Inspect and plan
 
-`dotlad --plain` prints the same module and restore-point state as the picker
+`dotlad --plain` prints the same tool and restore-point state as the picker
 without changing anything. With no command, Dotlad also chooses this view
 automatically when stdin or stdout is not a terminal.
 
@@ -75,8 +75,8 @@ dotlad --dry-run all
 dotlad --dry-run --json profile base
 ```
 
-Valid plan targets are `all`, `profile NAME`, or one or more module names.
-`dotlad plan` with no target means all modules relevant to the active mode.
+Valid plan targets are `all`, `profile NAME`, or one or more tool names.
+`dotlad plan` with no target means all tools relevant to the active mode.
 
 Human plans use these package states:
 
@@ -90,7 +90,7 @@ that will be synchronized.
 
 ### JSON plans
 
-JSON output contains the active `mode` and a `modules` array. Each module
+JSON output contains the active `mode` and a `tools` array. Each tool
 reports:
 
 | Field                  | Meaning                                              |
@@ -106,11 +106,11 @@ reports:
 | `missing_requirements` | Commands required by config processing               |
 | `blockers`             | Conditions that would prevent execution              |
 
-For example, reject a reviewed automation step when any module is blocked:
+For example, reject a reviewed automation step when any tool is blocked:
 
 ```bash
 plan="$(dotlad -C "$HOME/dotfiles" plan --json profile base)"
-printf '%s\n' "$plan" | jq -e '[.modules[].blockers[]] | length == 0'
+printf '%s\n' "$plan" | jq -e '[.tools[].blockers[]] | length == 0'
 ```
 
 A successfully generated plan exits zero even when it reports blockers. This
@@ -118,9 +118,9 @@ lets callers inspect the complete batch; automation that requires an executable
 plan must check `blockers`. Invalid options, targets, or manifests exit
 non-zero.
 
-## Apply modules and profiles
+## Apply tools and profiles
 
-Direct module actions show their diffs and ask once before applying the batch:
+Direct tool actions show their diffs and ask once before applying the batch:
 
 ```bash
 dotlad starship git
@@ -129,13 +129,13 @@ dotlad all
 ```
 
 Foreground execution preflights the complete selection before changing the
-first module. The picker does the same before appending work to its serialized
-queue. A blocker in a later module therefore prevents an earlier module from
+first tool. The picker does the same before appending work to its serialized
+queue. A blocker in a later tool therefore prevents an earlier tool from
 partially applying.
 
 In full mode, Dotlad can install missing `REQUIRES` entries through Homebrew
 before processing config. Config-only mode never installs them and instead
-reports them as blockers. An `INSTALL_URL` module displays its exact
+reports them as blockers. An `INSTALL_URL` tool displays its exact
 `curl -fsSL URL | sh` action and asks for confirmation unless `--yes` is active.
 
 ## Operation modes
@@ -148,8 +148,8 @@ dotlad --packages-only profile base
 dotlad --config-only starship
 ```
 
-Modules with no applicable action are hidden from the picker and excluded from
-`all` and profiles. Naming an irrelevant module directly is an error. Press `m`
+Tools with no applicable action are hidden from the picker and excluded from
+`all` and profiles. Naming an irrelevant tool directly is an error. Press `m`
 in the picker to cycle through the same three modes.
 
 ## Restore points
@@ -172,7 +172,7 @@ partial restore exits non-zero and reports restored and failed entry counts.
 | Symbol | State                      | Meaning                                                |
 | :----: | -------------------------- | ------------------------------------------------------ |
 |  `✓`   | up to date / installed     | Config matches the project or all packages are present |
-|  `↑`   | update available           | Applying the module would change its config            |
+|  `↑`   | update available           | Applying the tool would change its config                 |
 |  `+`   | not set up / not installed | Config or packages are missing                         |
 |  `✗`   | failed                     | The latest queued operation failed                     |
 
@@ -182,12 +182,12 @@ partial restore exits non-zero and reports restored and failed entry counts.
 | ------------------------- | -------------------------------------------------------- |
 | `↑` / `↓`, `j` / `k`      | Move in the tree, or scroll focused live output          |
 | `Home` / `End`, `g` / `G` | Jump to the first or last item                           |
-| `Space`                   | Select or deselect a module                              |
-| `Enter`                   | Apply selected modules, retry, or restore a backup       |
-| `a`                       | Select or clear all modules                              |
+| `Space`                   | Select or deselect a tool                                |
+| `Enter`                   | Apply selected tools, retry, or restore a backup         |
+| `a`                       | Select or clear all tools                                |
 | `m`                       | Switch package/config operation mode                     |
 | `d`                       | Show a config diff, operation log, or backup preview     |
-| `Tab`                     | Move focus between the module tree and live output       |
+| `Tab`                     | Move focus between the tool tree and live output         |
 | `x`                       | Delete the focused restore point after confirmation      |
 | `q`                       | Quit; active work must be confirmed before it is stopped |
 
@@ -210,7 +210,7 @@ dotlad -C "$HOME/dotfiles" brewfile
 The first and third examples write `Brewfile` in the shell's current working
 directory. Relative `--output` paths are also resolved from the current working
 directory, not the selected project root. Change package declarations in
-`modules/*/module.conf` instead of editing generated output.
+`tools/*/tool.conf` instead of editing generated output.
 
 ## Automation and exit status
 
@@ -220,6 +220,6 @@ delete confirmations.
 
 Dotlad exits zero after a completed command and after cancellation at a
 top-level confirmation. It exits non-zero for invalid input, unsafe manifests,
-preflight blockers, failed or skipped per-module installation/deployment, and
+preflight blockers, failed or skipped per-tool installation/deployment, and
 partial restore. As noted above, a valid plan uses its `blockers` data rather
 than its process status to describe executability.

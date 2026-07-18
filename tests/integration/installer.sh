@@ -22,7 +22,7 @@ command -v jq >/dev/null 2>&1 || { echo "SKIP: jq required"; exit 0; }
 SB="$(mktemp -d "${TMPDIR:-/tmp}/dotlad-test.XXXXXX")"
 FAKE="$SB/repo"; H="$SB/home"
 trap 'rm -rf "$SB"' EXIT
-mkdir -p "$FAKE/modules" "$FAKE/profiles" "$H" "$SB/bin"
+mkdir -p "$FAKE/tools" "$FAKE/profiles" "$H" "$SB/bin"
 # brew simulator: `install` creates both the opt link and a bin stub for each
 # formula, so "installed" flips deterministically regardless of what the host
 # happens to have on PATH.
@@ -57,13 +57,13 @@ export BREW_LOG="$SB/brew.log"; : > "$BREW_LOG"
 export FAKE_APPLICATIONS="$H/Applications"
 ln -sf "$SB/bin/brew" "$SB/brewprefix/bin/brew"
 
-mkdir -p "$FAKE/modules/filecopy/files" "$FAKE/modules/package" \
-    "$FAKE/modules/jsonmerge/files" "$FAKE/modules/tomlmerge/files" \
-    "$FAKE/modules/desktop/files" "$FAKE/modules/git/files" \
-    "$FAKE/modules/directory/files/lua" "$FAKE/modules/multipkg/files"
+mkdir -p "$FAKE/tools/filecopy/files" "$FAKE/tools/package" \
+    "$FAKE/tools/jsonmerge/files" "$FAKE/tools/tomlmerge/files" \
+    "$FAKE/tools/desktop/files" "$FAKE/tools/git/files" \
+    "$FAKE/tools/directory/files/lua" "$FAKE/tools/multipkg/files"
 
-printf 'repo = 1\n' > "$FAKE/modules/filecopy/files/config.toml"
-cat > "$FAKE/modules/filecopy/module.conf" <<EOF
+printf 'repo = 1\n' > "$FAKE/tools/filecopy/files/config.toml"
+cat > "$FAKE/tools/filecopy/tool.conf" <<EOF
 NAME="filecopy"
 DESC="File deployment fixture"
 ICON="a"
@@ -74,7 +74,7 @@ DEST="$H/.config/filecopy/config.toml"
 REQUIRES="reqtool"
 EOF
 
-cat > "$FAKE/modules/package/module.conf" <<'EOF'
+cat > "$FAKE/tools/package/tool.conf" <<'EOF'
 NAME="package"
 DESC="Package-only fixture"
 ICON="b"
@@ -82,8 +82,8 @@ ORDER="20"
 BREW="package"
 EOF
 
-printf '{"model": "opus"}\n' > "$FAKE/modules/jsonmerge/files/settings.json"
-cat > "$FAKE/modules/jsonmerge/module.conf" <<EOF
+printf '{"model": "opus"}\n' > "$FAKE/tools/jsonmerge/files/settings.json"
+cat > "$FAKE/tools/jsonmerge/tool.conf" <<EOF
 NAME="jsonmerge"
 DESC="JSON resolver fixture"
 ICON="c"
@@ -95,8 +95,8 @@ RESOLVER="json"
 REQUIRES="jq"
 EOF
 
-printf 'model = "repo"\n' > "$FAKE/modules/tomlmerge/files/config.toml"
-cat > "$FAKE/modules/tomlmerge/module.conf" <<EOF
+printf 'model = "repo"\n' > "$FAKE/tools/tomlmerge/files/config.toml"
+cat > "$FAKE/tools/tomlmerge/tool.conf" <<EOF
 NAME="tomlmerge"
 DESC="TOML resolver fixture"
 ICON="x"
@@ -108,8 +108,8 @@ RESOLVER="toml"
 REQUIRES="yq"
 EOF
 
-printf 'font-family = fixture\n' > "$FAKE/modules/desktop/files/config"
-cat > "$FAKE/modules/desktop/module.conf" <<EOF
+printf 'font-family = fixture\n' > "$FAKE/tools/desktop/files/config"
+cat > "$FAKE/tools/desktop/tool.conf" <<EOF
 NAME="desktop"
 DESC="Cask fixture"
 ICON="g"
@@ -122,8 +122,8 @@ DEST="$H/.config/desktop/config"
 EOF
 
 printf '[user]\n\tname = Repo\n[core]\n\tpager = repo-pager\n[color]\n\tui = auto\n' \
-    > "$FAKE/modules/git/files/.gitconfig"
-cat > "$FAKE/modules/git/module.conf" <<EOF
+    > "$FAKE/tools/git/files/.gitconfig"
+cat > "$FAKE/tools/git/tool.conf" <<EOF
 NAME="git"
 DESC="Git config resolver fixture"
 ICON="i"
@@ -135,9 +135,9 @@ RESOLVER="gitconfig"
 REQUIRES="git"
 EOF
 
-printf -- '-- init\n' > "$FAKE/modules/directory/files/init.lua"
-printf -- '-- mod\n' > "$FAKE/modules/directory/files/lua/mod.lua"
-cat > "$FAKE/modules/directory/module.conf" <<EOF
+printf -- '-- init\n' > "$FAKE/tools/directory/files/init.lua"
+printf -- '-- mod\n' > "$FAKE/tools/directory/files/lua/mod.lua"
+cat > "$FAKE/tools/directory/tool.conf" <<EOF
 NAME="directory"
 DESC="Directory mirror fixture"
 ICON="n"
@@ -148,8 +148,8 @@ SOURCE="files"
 DEST="$H/.config/directory"
 EOF
 
-printf '# fixture\n' > "$FAKE/modules/multipkg/files/config"
-cat > "$FAKE/modules/multipkg/module.conf" <<EOF
+printf '# fixture\n' > "$FAKE/tools/multipkg/files/config"
+cat > "$FAKE/tools/multipkg/tool.conf" <<EOF
 NAME="multipkg"
 DESC="Multi-package fixture"
 ICON="z"
@@ -162,15 +162,15 @@ EOF
 
 cat > "$FAKE/profiles/base.conf" <<'EOF'
 extends=""
-modules="filecopy package jsonmerge tomlmerge desktop git directory multipkg"
+tools="filecopy package jsonmerge tomlmerge desktop git directory multipkg"
 EOF
 cat > "$FAKE/profiles/developer.conf" <<'EOF'
 extends="base"
-modules=""
+tools=""
 EOF
 cat > "$FAKE/profiles/complete.conf" <<'EOF'
 extends="developer"
-modules=""
+tools=""
 EOF
 
 df() { (cd "$FAKE" && PATH="$SB/brewprefix/bin:$SB/bin:$PATH" HOME="$H" \
@@ -180,7 +180,7 @@ state_json() { # print ST_CFG/ST_INSTALLED for a tool via a tiny sourced probe
     (cd "$FAKE" && PATH="$SB/brewprefix/bin:$SB/bin:$PATH" HOME="$H" DOTLAD_PLAIN=1 \
         ROOT="$FAKE" /bin/bash -c '
         . "$DOTLAD_RUNTIME_ROOT/lib/runtime.sh"; manifest_load
-        i="$(manifest_find "'"$1"'")"; tool_state "$i"; printf "%s %s\n" "$ST_CFG" "$ST_INSTALLED"')
+        i="$(tool_find "'"$1"'")"; tool_state "$i"; printf "%s %s\n" "$ST_CFG" "$ST_INSTALLED"')
 }
 
 restore() {

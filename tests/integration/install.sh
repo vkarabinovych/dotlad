@@ -11,9 +11,9 @@ PROJECT="$SB/project"
 BREW_CWD="$SB/brew-cwd"
 VERSION="$(cat "$ROOT/VERSION")"
 
-mkdir -p "$HOME_DIR" "$BREW_CWD" "$PROJECT/modules/demo/files" "$PROJECT/profiles"
-printf 'installed = true\n' > "$PROJECT/modules/demo/files/config.toml"
-cat > "$PROJECT/modules/demo/module.conf" <<'EOF'
+mkdir -p "$HOME_DIR" "$BREW_CWD" "$PROJECT/tools/demo/files" "$PROJECT/profiles"
+printf 'installed = true\n' > "$PROJECT/tools/demo/files/config.toml"
+cat > "$PROJECT/tools/demo/tool.conf" <<'EOF'
 NAME="demo"
 DESC="Standalone install fixture"
 ICON="•"
@@ -47,7 +47,7 @@ grep -Fx 'dotlad: -C needs a path' "$SB/missing-root.out" >/dev/null
 
 HOME="$HOME_DIR" "$PREFIX/bin/dotlad" -C "$PROJECT" \
     --config-only --yes demo >/dev/null
-cmp "$PROJECT/modules/demo/files/config.toml" "$HOME_DIR/.config/demo/config.toml"
+cmp "$PROJECT/tools/demo/files/config.toml" "$HOME_DIR/.config/demo/config.toml"
 (cd "$BREW_CWD" && HOME="$HOME_DIR" "$PREFIX/bin/dotlad" \
     -C "$PROJECT" brewfile >/dev/null)
 grep -Fx 'brew "demo"' "$BREW_CWD/Brewfile" >/dev/null

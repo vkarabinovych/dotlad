@@ -10,10 +10,10 @@ dotlad -C /path/to/project plan
 dotlad -C /path/to/project plan --json
 ```
 
-## `no modules/ directory`
+## `no tools/ directory`
 
 Dotlad is using the wrong project root. Run it from the directory that owns
-`modules/`, or pass that directory explicitly:
+`tools/`, or pass that directory explicitly:
 
 ```bash
 dotlad -C "$HOME/dotfiles" --plain
@@ -45,12 +45,12 @@ dotlad -C /path/to/project --yes profile base
 ```
 
 Use `--plain` for a read-only state listing. `--plain` changes presentation; it
-does not turn a named module, profile, or `all` action into a dry run. Use
+does not turn a named tool, profile, or `all` action into a dry run. Use
 `plan` or `--dry-run` for that guarantee.
 
 ## `Homebrew is required`
 
-The selected mode includes a missing module with `BREW` packages, but `brew` is
+The selected mode includes a missing tool with `BREW` packages, but `brew` is
 not available. Install Homebrew, exclude package actions with `--config-only`,
 or remove `BREW` only when the consumer project intentionally manages that
 package elsewhere.
@@ -70,16 +70,16 @@ A config resolver or other config step declares a command in `REQUIRES`.
 Install the command first or run the full package + config mode. Confirm that
 the `REQUIRES` token is both the executable name and the Homebrew formula name.
 
-## A module is missing from a profile or picker
+## A tool is missing from a profile or picker
 
-Operation modes hide modules that have no relevant action:
+Operation modes hide tools that have no relevant action:
 
-- `--packages-only` hides config-only modules;
-- `--config-only` hides package-only modules.
+- `--packages-only` hides config-only tools;
+- `--config-only` hides package-only tools.
 
-Run without a mode flag or inspect the module directly in a matching mode. If
-the module should be in a profile, check the resolved parent chain and ensure
-the module name exactly matches its directory and `NAME`.
+Run without a mode flag or inspect the tool directly in a matching mode. If
+the tool should be in a profile, check the resolved parent chain and ensure
+the tool name exactly matches its directory and `NAME`.
 
 ## A package installs but remains `not installed`
 
@@ -91,27 +91,27 @@ Typical fixes are:
 
 - set `CHECK` to the actual installed command;
 - use an absolute application path for a cask without a CLI; or
-- split unrelated packages when one `CHECK` cannot represent the module.
+- split unrelated packages when one `CHECK` cannot represent the tool.
 
 Do not weaken the check merely to hide a failed or incomplete installation.
 
 ## Config always shows `update available`
 
-Run a plan and inspect the module diff in the picker with `d`.
+Run a plan and inspect the tool diff in the picker with `d`.
 
-- Exact file modules compare bytes.
-- Directory modules compare the complete tree, including empty directories and
+- Exact file tools compare bytes.
+- Directory tools compare the complete tree, including empty directories and
   stale destination entries.
-- Resolver modules compare the semantic merged result.
+- Resolver tools compare the semantic merged result.
 
-For resolver modules, verify the declared requirement is installed and that
-both repository and live documents are valid. For directory modules, remember
+For resolver tools, verify the declared requirement is installed and that
+both repository and live documents are valid. For directory tools, remember
 that the destination is exclusively owned and mirrored exactly.
 
 ## Destination validation fails
 
 `DEST` must expand to a strict descendant of the active `$HOME`. Dotlad rejects
-`$HOME` itself, `..`, duplicate separators, overlapping module destinations,
+`$HOME` itself, `..`, duplicate separators, overlapping tool destinations,
 and any existing parent symlink.
 
 Prefer a direct path such as:
@@ -120,18 +120,18 @@ Prefer a direct path such as:
 DEST="$HOME/.config/example/config.toml"
 ```
 
-Do not assign both a directory and a file inside it to different modules. If a
+Do not assign both a directory and a file inside it to different tools. If a
 parent below `$HOME` is a symlink, choose the real in-home destination or manage
 that path outside Dotlad.
 
 ## Directory deployment would remove files
 
 A directory `SOURCE` is an exact mirror, not an overlay. Extra destination
-files and symlinks are backed up and pruned. Use `dotlad plan <module>` and the
+files and symlinks are backed up and pruned. Use `dotlad plan <tool>` and the
 picker diff before applying.
 
 If the application shares that directory with machine-local state, narrow the
-module to individual file sources or use a file resolver where appropriate.
+tool to individual file sources or use a file resolver where appropriate.
 
 ## Restore or delete cannot find a backup
 

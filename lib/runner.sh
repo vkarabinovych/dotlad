@@ -1,13 +1,13 @@
 # lib/runner.sh — foreground execution and the serialized TUI worker.
 
 # Update named tools and report one foreground batch (`all`, profiles, or
-# explicit module names).
+# explicit tool names).
 run_selected() {
     N_UPDATED=0; N_INSTALLED=0; N_BACKED=0; N_FAILED=0
     local name i parts=""
-    preflight_selected "$@" || { err "preflight failed; no selected module was changed"; return 1; }
+    preflight_selected "$@" || { err "preflight failed; no selected tool was changed"; return 1; }
     for name in "$@"; do
-        i="$(manifest_find "$name")" || continue
+        i="$(tool_find "$name")" || continue
         tool_relevant "$i" || continue
         sync_tool "$i" || true
     done
@@ -45,18 +45,18 @@ queue_lock() {
 
 queue_unlock() { rmdir "$1/queue.lock" 2>/dev/null || true; }
 
-runner_clear_result() {  # <run-dir> <module>
+runner_clear_result() {  # <run-dir> <tool>
     rm -f "$1/$2.done" "$1/$2.failed" "$1/$2.result" "$1/$2.stage"
 }
 
-enqueue() {  # <module names...>
+enqueue() {  # <tool names...>
     local run="${DOTLAD_RUNDIR:-}" name tab
     [[ -n "$run" ]] || return 0
     preflight_selected "$@" > "$run/preflight.log" 2>&1 || return 1
     tab="$(printf '\t')"
     queue_lock "$run" || return 1
     for name in "$@"; do
-        manifest_find "$name" >/dev/null 2>&1 || continue
+        tool_find "$name" >/dev/null 2>&1 || continue
         [[ -f "$run/${name}.running" ]] && continue
         queue_has_tool "$run" "$name" && continue
         printf '%s%s%s\n' "$DOTLAD_MODE" "$tab" "$name" >> "$run/queue"
@@ -87,7 +87,7 @@ worker() {
         if [[ -z "$line" ]]; then sleep 0.3; continue; fi
         IFS="$tab" read -r qmode name <<< "$line"
         mode_set "$qmode" || continue
-        i="$(manifest_find "$name")" || continue
+        i="$(tool_find "$name")" || continue
         : > "$run/${name}.log"
         runner_clear_result "$run" "$name"
         : > "$run/${name}.running"

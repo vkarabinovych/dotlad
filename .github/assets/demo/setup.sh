@@ -8,7 +8,7 @@ case "$DEMO_ROOT" in
     *) printf 'Refusing unsafe demo root: %s\n' "$DEMO_ROOT" >&2; exit 1 ;;
 esac
 rm -rf "$DEMO_ROOT"
-mkdir -p "$DEMO_ROOT/home/.config/shell" "$DEMO_ROOT/project/modules" \
+mkdir -p "$DEMO_ROOT/home/.config/shell" "$DEMO_ROOT/project/tools" \
     "$DEMO_ROOT/project/profiles" "$DEMO_ROOT/bin" "$DEMO_ROOT/brew/bin" \
     "$DEMO_ROOT/brew/opt"
 
@@ -32,14 +32,14 @@ mkdir -p "$DEMO_ROOT/brew/opt/starship" "$DEMO_ROOT/brew/opt/zoxide" \
     "$DEMO_ROOT/brew/opt/jq" "$DEMO_ROOT/brew/opt/yq" \
     "$DEMO_ROOT/brew/opt/git" "$DEMO_ROOT/brew/opt/git-delta"
 
-make_module() {
-    mkdir -p "$DEMO_ROOT/project/modules/$1/files"
+make_tool() {
+    mkdir -p "$DEMO_ROOT/project/tools/$1/files"
 }
 
-make_module shell
-printf 'theme = "dracula"\n' > "$DEMO_ROOT/project/modules/shell/files/config.toml"
+make_tool shell
+printf 'theme = "dracula"\n' > "$DEMO_ROOT/project/tools/shell/files/config.toml"
 printf 'theme = "plain"\n' > "$DEMO_ROOT/home/.config/shell/config.toml"
-cat > "$DEMO_ROOT/project/modules/shell/module.conf" <<'EOF'
+cat > "$DEMO_ROOT/project/tools/shell/tool.conf" <<'EOF'
 NAME="shell"
 DESC="Prompt and navigation tools with a shared shell configuration."
 ICON=""
@@ -50,10 +50,10 @@ SOURCE="files/config.toml"
 DEST="$HOME/.config/shell/config.toml"
 EOF
 
-make_module git
-printf '[color]\n\tui = auto\n' > "$DEMO_ROOT/project/modules/git/files/.gitconfig"
-cp "$DEMO_ROOT/project/modules/git/files/.gitconfig" "$DEMO_ROOT/home/.gitconfig"
-cat > "$DEMO_ROOT/project/modules/git/module.conf" <<'EOF'
+make_tool git
+printf '[color]\n\tui = auto\n' > "$DEMO_ROOT/project/tools/git/files/.gitconfig"
+cp "$DEMO_ROOT/project/tools/git/files/.gitconfig" "$DEMO_ROOT/home/.gitconfig"
+cat > "$DEMO_ROOT/project/tools/git/tool.conf" <<'EOF'
 NAME="git"
 DESC="Git defaults with readable diffs and machine-local values preserved."
 ICON="󰊢"
@@ -64,9 +64,9 @@ SOURCE="files/.gitconfig"
 DEST="$HOME/.gitconfig"
 EOF
 
-make_module editor
-printf 'return { theme = "dracula" }\n' > "$DEMO_ROOT/project/modules/editor/files/init.lua"
-cat > "$DEMO_ROOT/project/modules/editor/module.conf" <<'EOF'
+make_tool editor
+printf 'return { theme = "dracula" }\n' > "$DEMO_ROOT/project/tools/editor/files/init.lua"
+cat > "$DEMO_ROOT/project/tools/editor/tool.conf" <<'EOF'
 NAME="editor"
 DESC="Editor configuration and syntax tooling."
 ICON=""
@@ -77,9 +77,9 @@ SOURCE="files/init.lua"
 DEST="$HOME/.config/editor/init.lua"
 EOF
 
-make_module terminal
-printf 'font-family = FiraCode Nerd Font\n' > "$DEMO_ROOT/project/modules/terminal/files/config"
-cat > "$DEMO_ROOT/project/modules/terminal/module.conf" <<'EOF'
+make_tool terminal
+printf 'font-family = FiraCode Nerd Font\n' > "$DEMO_ROOT/project/tools/terminal/files/config"
+cat > "$DEMO_ROOT/project/tools/terminal/tool.conf" <<'EOF'
 NAME="terminal"
 DESC="Terminal application and portable visual defaults."
 ICON="󰆍"
@@ -91,8 +91,8 @@ SOURCE="files/config"
 DEST="$HOME/.config/terminal/config"
 EOF
 
-mkdir -p "$DEMO_ROOT/project/modules/data"
-cat > "$DEMO_ROOT/project/modules/data/module.conf" <<'EOF'
+mkdir -p "$DEMO_ROOT/project/tools/data"
+cat > "$DEMO_ROOT/project/tools/data/tool.conf" <<'EOF'
 NAME="data"
 DESC="Command-line JSON and YAML processing."
 ICON="󰆼"
@@ -103,9 +103,9 @@ EOF
 
 cat > "$DEMO_ROOT/project/profiles/core.conf" <<'EOF'
 extends=""
-modules="shell git data"
+tools="shell git data"
 EOF
 cat > "$DEMO_ROOT/project/profiles/full.conf" <<'EOF'
 extends="core"
-modules="editor terminal"
+tools="editor terminal"
 EOF

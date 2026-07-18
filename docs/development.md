@@ -114,7 +114,7 @@ dotlad -C /path/to/project brewfile --output packaging/Brewfile
 
 The default output is `Brewfile` in the current working directory. Relative
 `--output` paths are resolved from that directory; absolute paths are
-preserved. Generated files are derived data—change module manifests instead.
+preserved. Generated files are derived data—change tool manifests instead.
 
 ## Build a release archive
 

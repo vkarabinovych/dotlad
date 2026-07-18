@@ -2,24 +2,24 @@
 # shellcheck disable=SC2015,SC2154  # sourced integration cases share the orchestrator fixture
 # --- update one tool --------------------------------------------------------
 df filecopy >/dev/null 2>&1
-check "filecopy config deployed"        cmp -s "$FAKE/modules/filecopy/files/config.toml" "$H/.config/filecopy/config.toml"
+check "filecopy config deployed"        cmp -s "$FAKE/tools/filecopy/files/config.toml" "$H/.config/filecopy/config.toml"
 check "declared requirement installed before deploy" command -v "$SB/brewprefix/bin/reqtool"
 [[ "$(state_json filecopy)" == "ready 1" ]] && pass "after update: filecopy = ready, installed" || fail "after update: filecopy (got '$(state_json filecopy)')"
 default_resolver="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" DOTLAD_PLAIN=1 /bin/bash -c '
     . "$DOTLAD_RUNTIME_ROOT/lib/runtime.sh"; manifest_load
-    i="$(manifest_find filecopy)"; printf "%s" "${T_RESOLVER[$i]}"')"
+    i="$(tool_find filecopy)"; printf "%s" "${T_RESOLVER[$i]}"')"
 [[ "$default_resolver" == copy ]] && pass "copy is the default built-in resolver" \
     || fail "default resolver is '$default_resolver'"
 
 # --- update detection -------------------------------------------------------
-printf 'repo = 2\n' > "$FAKE/modules/filecopy/files/config.toml"
+printf 'repo = 2\n' > "$FAKE/tools/filecopy/files/config.toml"
 [[ "$(state_json filecopy)" == "update 1" ]] && pass "repo edit → update available" || fail "repo edit → update (got '$(state_json filecopy)')"
 df filecopy >/dev/null 2>&1
 [[ "$(state_json filecopy)" == "ready 1" ]] && pass "re-update → ready" || fail "re-update → ready"
 
 # --- backup before overwrite ------------------------------------------------
 rm -rf "$H/.dotlad_backup"
-printf 'repo = 3\n' > "$FAKE/modules/filecopy/files/config.toml"
+printf 'repo = 3\n' > "$FAKE/tools/filecopy/files/config.toml"
 df filecopy >/dev/null 2>&1
 if find "$H/.dotlad_backup" -type f 2>/dev/null | grep -q .; then
     bk="$(find "$H/.dotlad_backup" -path '*filecopy*' -type f | head -1)"
@@ -43,20 +43,20 @@ printf '{"model":"old","localOnly":"x"}\n' > "$H/.config/jsonmerge/settings.json
 df jsonmerge >/dev/null 2>&1
 check "jsonmerge: repo key wins"           jq -e '.model == "opus"' "$H/.config/jsonmerge/settings.json"
 check "jsonmerge: local-only key survives" jq -e '.localOnly == "x"' "$H/.config/jsonmerge/settings.json"
-printf '{"model":null}\n' > "$FAKE/modules/jsonmerge/files/settings.json"
+printf '{"model":null}\n' > "$FAKE/tools/jsonmerge/files/settings.json"
 df jsonmerge >/dev/null 2>&1
 check "jsonmerge: explicit repo null wins" jq -e '.model == null' "$H/.config/jsonmerge/settings.json"
 check "jsonmerge: local key survives a null overlay" jq -e '.localOnly == "x"' "$H/.config/jsonmerge/settings.json"
 
 # --- dir mirror + prune of stale --------------------------------------------
 df directory >/dev/null 2>&1
-check "directory files deployed" cmp -s "$FAKE/modules/directory/files/lua/mod.lua" "$H/.config/directory/lua/mod.lua"
-printf -- '-- changed\n' > "$FAKE/modules/directory/files/lua/mod.lua"
+check "directory files deployed" cmp -s "$FAKE/tools/directory/files/lua/mod.lua" "$H/.config/directory/lua/mod.lua"
+printf -- '-- changed\n' > "$FAKE/tools/directory/files/lua/mod.lua"
 printf -- '-- stale\n' > "$H/.config/directory/stale.lua"
 [[ "$(state_json directory)" == "update 1" ]] && pass "stale live file → update available" || fail "stale → update (got '$(state_json directory)')"
 directory_counts="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" DOTLAD_PLAIN=1 /bin/bash -c '
     . "$DOTLAD_RUNTIME_ROOT/lib/runtime.sh"; manifest_load
-    i="$(manifest_find directory)"; tool_paths "$i"
+    i="$(tool_find directory)"; tool_paths "$i"
     resolver_changes "${T_RESOLVER[$i]}" "$TP_SRC" "$TP_DEST"')"
 [[ "$directory_counts" == "1 file to sync · 1 file to remove" ]] \
     && pass "directory update counts describe sync and removal" \
@@ -67,8 +67,8 @@ check "pruned file backed up" sh -c "find '$H/.dotlad_backup' -path '*directory/
 
 # Empty directories are part of an exact directory mirror: they are created,
 # retained, and distinguished from stale destination-only directories.
-mkdir -p "$FAKE/modules/empty-tree/files/kept-empty"
-cat > "$FAKE/modules/empty-tree/module.conf" <<EOF
+mkdir -p "$FAKE/tools/empty-tree/files/kept-empty"
+cat > "$FAKE/tools/empty-tree/tool.conf" <<EOF
 NAME="empty-tree"
 DESC="Empty directory mirror fixture"
 ICON="!"
@@ -87,14 +87,14 @@ mkdir -p "$H/.config/empty-tree/stale-empty"
 df --config-only empty-tree >/dev/null 2>&1
 checknot "stale empty directory is pruned" test -e "$H/.config/empty-tree/stale-empty"
 check "declared empty directory survives prune" test -d "$H/.config/empty-tree/kept-empty"
-rm -rf "$FAKE/modules/empty-tree" "$H/.config/empty-tree"
+rm -rf "$FAKE/tools/empty-tree" "$H/.config/empty-tree"
 
 # A destination leaf may conflict with a source directory. The shared change
 # model must back up that leaf and let the transactional mirror replace it.
-mkdir -p "$FAKE/modules/tree-conflict/files/branch" "$H/.config/tree-conflict"
-printf 'managed\n' > "$FAKE/modules/tree-conflict/files/branch/config"
+mkdir -p "$FAKE/tools/tree-conflict/files/branch" "$H/.config/tree-conflict"
+printf 'managed\n' > "$FAKE/tools/tree-conflict/files/branch/config"
 printf 'local leaf\n' > "$H/.config/tree-conflict/branch"
-cat > "$FAKE/modules/tree-conflict/module.conf" <<EOF
+cat > "$FAKE/tools/tree-conflict/tool.conf" <<EOF
 NAME="tree-conflict"
 DESC="Directory conflict fixture"
 ICON="!"
@@ -108,7 +108,7 @@ check "directory mirror deploys below the replaced leaf" \
     grep -qxF managed "$H/.config/tree-conflict/branch/config"
 check "directory mirror backs up a conflicting leaf" sh -c \
     "find '$H/.dotlad_backup' -path '*/.config/tree-conflict/branch' -type f | grep -q ."
-rm -rf "$FAKE/modules/tree-conflict" "$H/.config/tree-conflict"
+rm -rf "$FAKE/tools/tree-conflict" "$H/.config/tree-conflict"
 
 transaction_probe="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" DOTLAD_PLAIN=1 /bin/bash -c '
     . "$DOTLAD_RUNTIME_ROOT/lib/ui.sh"
@@ -127,11 +127,11 @@ transaction_probe="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" DOTLAD_PLAIN=1 /bin/ba
     || fail "directory transaction rollback (got '$transaction_probe')"
 
 # A leaf symlink is replaced safely, preserved as a symlink, and restorable.
-mkdir -p "$FAKE/modules/linked/files" "$H/.config/linked" "$SB/outside"
-printf 'managed\n' > "$FAKE/modules/linked/files/config"
+mkdir -p "$FAKE/tools/linked/files" "$H/.config/linked" "$SB/outside"
+printf 'managed\n' > "$FAKE/tools/linked/files/config"
 printf 'local\n' > "$SB/outside/linked.conf"
 ln -s "$SB/outside/linked.conf" "$H/.config/linked/config"
-cat > "$FAKE/modules/linked/module.conf" <<EOF
+cat > "$FAKE/tools/linked/tool.conf" <<EOF
 NAME="linked"
 DESC="Symlink backup fixture"
 ICON="!"
@@ -153,16 +153,16 @@ df --yes restore "$backup_name" >/dev/null 2>&1
 check "backup restore recreates the symlink" test -L "$H/.config/linked/config"
 [[ "$(readlink "$H/.config/linked/config")" == "$SB/outside/linked.conf" ]] \
     && pass "restored symlink keeps its target" || fail "restored symlink target"
-rm -rf "$FAKE/modules/linked"
+rm -rf "$FAKE/tools/linked"
 
 # The symlink resolver links both files and directories to their absolute
 # repository sources. Replaced content is backed up, and restoring a directory
 # snapshot safely removes the managed parent symlink before rebuilding it.
 rm -rf "$H/.dotlad_backup"
-mkdir -p "$FAKE/modules/symlink-file/files" "$H/.config/symlink-file"
-printf 'repository file\n' > "$FAKE/modules/symlink-file/files/config"
+mkdir -p "$FAKE/tools/symlink-file/files" "$H/.config/symlink-file"
+printf 'repository file\n' > "$FAKE/tools/symlink-file/files/config"
 printf 'local file\n' > "$H/.config/symlink-file/config"
-cat > "$FAKE/modules/symlink-file/module.conf" <<EOF
+cat > "$FAKE/tools/symlink-file/tool.conf" <<EOF
 NAME="symlink-file"
 DESC="File symlink resolver fixture"
 ICON="!"
@@ -173,11 +173,11 @@ RESOLVER="symlink"
 EOF
 symlink_plan="$(df --config-only --json plan symlink-file)"
 printf '%s' "$symlink_plan" | jq -e \
-    '.modules[0].config == "update" and .modules[0].changes == "1 link to sync"' >/dev/null \
+    '.tools[0].config == "update" and .tools[0].changes == "1 link to sync"' >/dev/null \
     && pass "symlink plan describes one link" || fail "symlink plan is ambiguous: $symlink_plan"
 df --config-only symlink-file >/dev/null 2>&1
 check "file symlink is deployed" test -L "$H/.config/symlink-file/config"
-symlink_file_source="$(cd "$FAKE/modules/symlink-file/files" && pwd -P)/config"
+symlink_file_source="$(cd "$FAKE/tools/symlink-file/files" && pwd -P)/config"
 [[ "$(readlink "$H/.config/symlink-file/config")" == "$symlink_file_source" ]] \
     && pass "file symlink targets the repository source" || fail "file symlink target"
 check "file symlink exposes repository content" grep -qxF 'repository file' "$H/.config/symlink-file/config"
@@ -185,7 +185,7 @@ check "replaced file is backed up before linking" sh -c \
     "find '$H/.dotlad_backup' -path '*/.config/symlink-file/config' -type f | grep -q ."
 [[ "$(state_json symlink-file)" == "ready 0" ]] && pass "file symlink reaches ready" \
     || fail "file symlink remains pending"
-printf 'repository edit\n' > "$FAKE/modules/symlink-file/files/config"
+printf 'repository edit\n' > "$FAKE/tools/symlink-file/files/config"
 [[ "$(state_json symlink-file)" == "ready 0" ]] && pass "source edits keep a correct symlink ready" \
     || fail "source edit invalidated a correct symlink"
 printf 'wrong target\n' > "$SB/wrong-symlink-target"
@@ -199,12 +199,12 @@ df --config-only symlink-file >/dev/null 2>&1
 check "replaced symlink target is backed up" sh -c \
     "find '$H/.dotlad_backup' -path '*/.config/symlink-file/config' -type l | grep -q ."
 
-mkdir -p "$FAKE/modules/symlink-directory/files/nested" \
-    "$FAKE/modules/symlink-directory/files/empty" \
+mkdir -p "$FAKE/tools/symlink-directory/files/nested" \
+    "$FAKE/tools/symlink-directory/files/empty" \
     "$H/.config/symlink-directory/empty-local"
-printf 'managed tree\n' > "$FAKE/modules/symlink-directory/files/nested/config"
+printf 'managed tree\n' > "$FAKE/tools/symlink-directory/files/nested/config"
 printf 'local tree\n' > "$H/.config/symlink-directory/local.conf"
-cat > "$FAKE/modules/symlink-directory/module.conf" <<EOF
+cat > "$FAKE/tools/symlink-directory/tool.conf" <<EOF
 NAME="symlink-directory"
 DESC="Directory symlink resolver fixture"
 ICON="!"
@@ -215,7 +215,7 @@ RESOLVER="symlink"
 EOF
 df --config-only symlink-directory >/dev/null 2>&1
 check "directory symlink is deployed" test -L "$H/.config/symlink-directory"
-symlink_directory_source="$(cd "$FAKE/modules/symlink-directory" && pwd -P)/files"
+symlink_directory_source="$(cd "$FAKE/tools/symlink-directory" && pwd -P)/files"
 [[ "$(readlink "$H/.config/symlink-directory")" == "$symlink_directory_source" ]] \
     && pass "directory symlink targets the repository source" || fail "directory symlink target"
 check "directory symlink exposes nested content" \
@@ -231,7 +231,7 @@ check "restoring directory content rebuilds the original tree" \
     grep -qxF 'local tree' "$H/.config/symlink-directory/local.conf"
 check "restoring directory content rebuilds empty directories" \
     test -d "$H/.config/symlink-directory/empty-local"
-rm -rf "$FAKE/modules/symlink-file" "$FAKE/modules/symlink-directory" \
+rm -rf "$FAKE/tools/symlink-file" "$FAKE/tools/symlink-directory" \
     "$H/.config/symlink-file" "$H/.config/symlink-directory"
 
 # A backup path below HOME may not traverse a symlinked parent.
@@ -317,7 +317,7 @@ result_counts="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" DOTLAD_PLAIN=1 /bin/bash -
     ACTIVITY_WIDTH=120
     DOTLAD_RUNDIR="$HOME/result-counts"; mkdir -p "$DOTLAD_RUNDIR"
     printf "8 0 8\n" > "$DOTLAD_RUNDIR/directory.result"
-    i="$(manifest_find directory)"; tool_activity "$i" ""')"
+    i="$(tool_find directory)"; tool_activity "$i" ""')"
 if printf '%s\n' "$result_counts" | grep -qF '8 files synced · 8 files backed up' \
     && ! printf '%s\n' "$result_counts" | grep -qF '+8/-0'; then
     pass "completed update counts name synced files"
@@ -328,9 +328,9 @@ narrow_cfg="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" /bin/bash -c '
     . "$DOTLAD_RUNTIME_ROOT/lib/ui.sh"
     . "$DOTLAD_RUNTIME_ROOT/lib/pick.sh"
     ACTIVITY_WIDTH=48
-    wrapped_activity "" "↑" update "modules/sample/files/config.toml → ~/Library/Application Support/sample/config.toml"')"
+    wrapped_activity "" "↑" update "tools/sample/files/config.toml → ~/Library/Application Support/sample/config.toml"')"
 if printf '%s\n' "$narrow_cfg" | lines_fit 48 \
-    && printf '%s\n' "$narrow_cfg" | grep -qF 'modules/sample/files/config.toml' \
+    && printf '%s\n' "$narrow_cfg" | grep -qF 'tools/sample/files/config.toml' \
     && printf '%s\n' "$narrow_cfg" | grep -qF 'Support/sample/config.toml'; then
     pass "narrow config activity wraps both source and destination"
 else
@@ -338,7 +338,7 @@ else
 fi
 narrow_tree="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" /bin/bash -c '
     . "$DOTLAD_RUNTIME_ROOT/lib/runtime.sh"; manifest_load
-    ACTIVITY_WIDTH=40; i="$(manifest_find multipkg)"; tool_block "$i" ""')"
+    ACTIVITY_WIDTH=40; i="$(tool_find multipkg)"; tool_block "$i" ""')"
 if printf '%s\n' "$narrow_tree" | grep -q '^  ├ .* install' \
     && printf '%s\n' "$narrow_tree" | grep -q '^  │   ' \
     && printf '%s\n' "$narrow_tree" | grep -q '^  └ + create' \
@@ -358,5 +358,5 @@ if printf '%s' "$out" | grep -q 'already up to date' && [[ "$brew_before" == "$b
 else
     fail "second 'all' repeated work"
 fi
-profile_run="$(df profile base 2>&1)" && pass "profile command runs inherited module set" \
-    || fail "profile command runs inherited module set: $profile_run"
+profile_run="$(df profile base 2>&1)" && pass "profile command runs inherited tool set" \
+    || fail "profile command runs inherited tool set: $profile_run"

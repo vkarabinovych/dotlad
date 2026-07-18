@@ -14,16 +14,16 @@ selection_profile() {  # <profile>
     SELECTED_NAMES=()
     while IFS= read -r name; do
         [[ -n "$name" ]] || continue
-        i="$(manifest_find "$name")"
+        i="$(tool_find "$name")"
         tool_relevant "$i" && SELECTED_NAMES+=("$name")
-    done < <(profile_modules "$1")
+    done < <(profile_tools "$1")
 }
 
-selection_explicit() {  # <module names...>
+selection_explicit() {  # <tool names...>
     local name i
     SELECTED_NAMES=()
     for name in "$@"; do
-        i="$(manifest_find "$name")" || { err "unknown tool: $name"; return 1; }
+        i="$(tool_find "$name")" || { err "unknown tool: $name"; return 1; }
         tool_relevant "$i" \
             || { err "$name has nothing to do in $(mode_label) mode"; return 1; }
         SELECTED_NAMES+=("$name")
@@ -65,7 +65,7 @@ cmd_backup_delete_cli() {
 cmd_plan() {
     if [[ $# -eq 0 || "${1:-}" == all ]]; then
         [[ $# -le 1 ]] \
-            || { err "usage: $DOTLAD_COMMAND_NAME plan [all|profile NAME|MODULE…]"; return 1; }
+            || { err "usage: $DOTLAD_COMMAND_NAME plan [all|profile NAME|TOOL…]"; return 1; }
         selection_all
     elif [[ "$1" == profile ]]; then
         [[ $# -eq 2 ]] || { err "usage: $DOTLAD_COMMAND_NAME plan profile NAME"; return 1; }
@@ -74,7 +74,7 @@ cmd_plan() {
         selection_explicit "$@" || return 1
     fi
     [[ ${#SELECTED_NAMES[@]} -gt 0 ]] \
-        || { err "plan has no modules for $(mode_label) mode"; return 1; }
+        || { err "plan has no tools for $(mode_label) mode"; return 1; }
     plan_selected "${SELECTED_NAMES[@]}"
 }
 
@@ -108,9 +108,9 @@ cmd_profile() {
     local profile="$1"
     selection_profile "$profile"
     [[ ${#SELECTED_NAMES[@]} -gt 0 ]] \
-        || fatal "profile '$profile' has no modules for $(mode_label) mode"
+        || fatal "profile '$profile' has no tools for $(mode_label) mode"
     title "Profile: $profile"
-    confirm "$(mode_action) ${#SELECTED_NAMES[@]} module(s) from '$profile'?" \
+    confirm "$(mode_action) ${#SELECTED_NAMES[@]} tool(s) from '$profile'?" \
         || { hint "cancelled"; exit 0; }
     mode_packages_enabled && ensure_brew
     DOTLAD_YES=1

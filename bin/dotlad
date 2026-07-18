@@ -57,12 +57,12 @@ usage() {
 dotlad — install a project's packages and configs onto your system.
 
 Usage:
-  $DOTLAD_COMMAND_NAME              Pick modules interactively (plain state without a TTY)
-  $DOTLAD_COMMAND_NAME <module>…    Preview and apply named modules
-  $DOTLAD_COMMAND_NAME profile NAME Apply a named profile and its inherited modules
-  $DOTLAD_COMMAND_NAME all          Apply every module relevant to the active mode
+  $DOTLAD_COMMAND_NAME              Pick tools interactively (plain state without a TTY)
+  $DOTLAD_COMMAND_NAME <tool>…      Preview and apply named tools
+  $DOTLAD_COMMAND_NAME profile NAME Apply a named profile and its inherited tools
+  $DOTLAD_COMMAND_NAME all          Apply every tool relevant to the active mode
   $DOTLAD_COMMAND_NAME brewfile     Generate a Homebrew Bundle file from the project
-  $DOTLAD_COMMAND_NAME plan [TARGET] Show a read-only plan (all, profile NAME, or modules)
+  $DOTLAD_COMMAND_NAME plan [TARGET] Show a read-only plan (all, profile NAME, or tool names)
   $DOTLAD_COMMAND_NAME backups      List restore points
   $DOTLAD_COMMAND_NAME restore NAME Restore a restore point
   $DOTLAD_COMMAND_NAME backup delete NAME Delete a restore point
@@ -190,7 +190,7 @@ main() {
     names=("${SELECTED_NAMES[@]}")
     title "$(mode_action): ${names[*]}"
     for p in "${names[@]}"; do
-        i="$(manifest_find "$p")"; printf '\n%s— %s —%s\n' "$C_BOLD" "$p" "$C_RESET"; tool_diff "$i"
+        i="$(tool_find "$p")"; printf '\n%s— %s —%s\n' "$C_BOLD" "$p" "$C_RESET"; tool_diff "$i"
     done
     echo ""
     confirm "$(mode_action) ${#names[@]} tool(s)?$(mode_backup_note)" || { hint "cancelled"; exit 0; }

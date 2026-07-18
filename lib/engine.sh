@@ -227,7 +227,7 @@ preflight_selected() {
     local name i failed=0
     UTD_CACHE=()
     for name in "$@"; do
-        i="$(manifest_find "$name")" || { err "unknown tool: $name"; failed=1; continue; }
+        i="$(tool_find "$name")" || { err "unknown tool: $name"; failed=1; continue; }
         tool_relevant "$i" || continue
         preflight_tool "$i" || failed=1
     done

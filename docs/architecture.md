@@ -14,8 +14,8 @@ DOTLAD_RUNTIME_ROOT/
 └── lib/
 
 DOTLAD_PROJECT_ROOT/
-├── modules/<name>/module.conf
-├── modules/<name>/<payload>
+├── tools/<name>/tool.conf
+├── tools/<name>/<payload>
 └── profiles/<name>.conf
 ```
 
@@ -54,7 +54,7 @@ ui → resolvers → manifest → brewfile → packages → backup → engine
 | `plan.sh`       | Human and JSON projections of canonical preflight state           |
 | `pick.sh`       | Presentation model shared by plain output and the TUI              |
 | `runner.sh`     | Foreground batches and the serialized TUI queue                    |
-| `commands.sh`   | Command implementations and module selection                      |
+| `commands.sh`   | Command implementations and tool selection                      |
 | `tui.sh`        | Terminal input, rendering, focus, details, and live output         |
 
 `commands.sh` and the TUI depend on lower layers; lower layers do not call into
@@ -63,12 +63,12 @@ independent of terminal state.
 
 ## Manifest model and trust boundary
 
-`manifest_load` parses every `module.conf` through a field allowlist and a
+`manifest_load` parses every `tool.conf` through a field allowlist and a
 strict assignment reader. Project files are data: they cannot source files,
 run substitutions, or define executable hooks. Parsed values are normalized
 into parallel `T_*` arrays ordered by numeric `ORDER` and then `NAME`.
 
-A module may declare packages, config, or both. No `SOURCE`/`DEST` pair means
+A tool may declare packages, config, or both. No `SOURCE`/`DEST` pair means
 package-only. Otherwise, the manifest normalizes an omitted `RESOLVER` to the
 built-in `copy` resolver, or to `symlink` when the CLI exports that invocation
 default. Explicit manifest values always win, and the worker inherits the
@@ -82,7 +82,7 @@ own source support, preflight, apply, preview, and change-summary hooks. The
 engine contains no copy-, link-, or format-specific selection branches.
 
 Profiles use the same assignment reader with a smaller allowlist. Parent
-profiles resolve recursively, and modules are deduplicated in declaration
+profiles resolve recursively, and tools are deduplicated in declaration
 order.
 
 ## State and preflight
@@ -98,7 +98,7 @@ The active mode filters which side is relevant. State is semantic: a resolver
 destination is ready when applying the repository overlay would make no
 change, not necessarily when its bytes equal the repository file.
 
-`preflight_inspect` produces the canonical read-only result for one module. It
+`preflight_inspect` produces the canonical read-only result for one tool. It
 checks installed state, requirements, resolver renderability, destination
 shape, and backup safety. Plans project this result; foreground batches and TUI
 queueing enforce it. A full selection is preflighted before its first mutation.
@@ -114,7 +114,7 @@ install requirements/packages → deploy config → report result
 ```
 
 Plans intentionally report all blockers as data. Execution converts those
-blockers into a failed batch before any selected module changes state.
+blockers into a failed batch before any selected tool changes state.
 
 ## Deployment transactions
 
@@ -147,7 +147,7 @@ current path, the current version is added to a new restore point.
 
 ## Interactive runtime
 
-The TUI scans expensive module state into a cache and rebuilds presentation
+The TUI scans expensive tool state into a cache and rebuilds presentation
 rows only when state changes. Cursor movement does not rerun filesystem or
 resolver comparisons.
 

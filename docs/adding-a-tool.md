@@ -1,12 +1,12 @@
-# Adding or changing a module
+# Adding or changing a tool
 
-A module is the smallest independently selectable unit in a Dotlad project. It
+A tool is the smallest independently selectable unit in a Dotlad project. It
 owns package metadata, an optional config payload, and the rules Dotlad uses to
 recognize installed state.
 
-## Choose the module boundary
+## Choose the tool boundary
 
-Create an individual module when an application or tool:
+Create an individual tool when an application or command:
 
 - deploys its own configuration;
 - should be selected independently;
@@ -21,14 +21,14 @@ than one purpose.
 ## Directory structure
 
 ```text
-modules/example/
-├── module.conf
+tools/example/
+├── tool.conf
 └── files/
     └── config.toml
 ```
 
-Only `module.conf` is always required. A config module also needs the file or
-directory named by `SOURCE`. Dotlad ignores other module-local paths, so a
+Only `tool.conf` is always required. A config tool also needs the file or
+directory named by `SOURCE`. Dotlad ignores other tool-local paths, so a
 consumer project may add its own notes or tests without affecting runtime
 loading.
 
@@ -50,24 +50,24 @@ REQUIRES="yq"
 
 | Field         | Required       | Meaning                                                                            |
 | ------------- | -------------- | ---------------------------------------------------------------------------------- |
-| `NAME`        | yes            | Lowercase hyphenated identifier; must match the module directory                   |
+| `NAME`        | yes            | Lowercase hyphenated identifier; must match the tool directory                     |
 | `DESC`        | yes            | Concise user-facing description shown in the picker                                |
 | `ICON`        | yes            | Short glyph shown in the picker                                                     |
 | `ORDER`       | no             | Numeric manifest and batch order; defaults to `500`                                |
 | `BREW`        | no             | Space-separated Homebrew formula or cask names                                     |
 | `CASK`        | no             | `1` when every `BREW` item is a cask; defaults to `0`                              |
 | `CHECK`       | no             | Command or absolute path used to verify installation; defaults to `NAME`           |
-| `SOURCE`      | config modules | File or directory path relative to the module directory                            |
-| `DEST`        | config modules | Destination strictly below `$HOME`                                                  |
+| `SOURCE`      | with config    | File or directory path relative to the tool directory                              |
+| `DEST`        | with config    | Destination strictly below `$HOME`                                                  |
 | `RESOLVER`    | no             | Built-in deployment resolver; defaults to `copy`                                   |
 | `REQUIRES`    | no             | Space-separated commands needed before config deployment                           |
 | `INSTALL_URL` | no             | Whitespace-free HTTPS script installer used instead of `BREW`                      |
 
-`BREW` and `INSTALL_URL` are mutually exclusive. A module must declare at least
+`BREW` and `INSTALL_URL` are mutually exclusive. A tool must declare at least
 one package installer or a `SOURCE`/`DEST` pair. Package tokens may use fully
 qualified names such as `owner/tap/formula`.
 
-`module.conf` is parsed as data and never executed as Bash. Only the documented
+`tool.conf` is parsed as data and never executed as Bash. Only the documented
 uppercase fields are accepted. Values may be double quoted, single quoted, or
 unquoted when they contain no whitespace. Blank lines and full-line comments
 are allowed. Duplicate or unknown fields, command substitutions, and backticks
@@ -85,14 +85,14 @@ CHECK="$HOME/.local/bin/example"
 CHECK="/Applications/Example.app"
 ```
 
-For Homebrew modules, Dotlad also verifies every declared formula under
+For Homebrew tools, Dotlad also verifies every declared formula under
 Homebrew's `opt` directory or every cask under `Caskroom`. Installation is
 reported as successful only when both `CHECK` and all declared packages are
 present. Choose a `CHECK` that the installer makes available immediately.
 
 ### Formulae and casks
 
-All entries in one module use the same Homebrew kind:
+All entries in one tool use the same Homebrew kind:
 
 ```bash
 BREW="fd ripgrep"
@@ -105,7 +105,7 @@ CASK="1"
 CHECK="/Applications/Ghostty.app"
 ```
 
-Split formulae and casks into separate modules when they cannot share one
+Split formulae and casks into separate tools when they cannot share one
 `CASK` value.
 
 ### HTTPS installer
@@ -126,12 +126,12 @@ remote installers according to the consumer project's trust policy.
 ## Config deployment
 
 `SOURCE` and `DEST` are always declared together. `RESOLVER` defaults to
-`copy`, which copies a regular file or mirrors a directory exactly. A module
+`copy`, which copies a regular file or mirrors a directory exactly. A tool
 without either field is package-only.
 
 Passing `--symlink` changes the invocation-wide default to `symlink` for
-modules that omit `RESOLVER`. Declare `RESOLVER="copy"` explicitly when a
-module must always copy even under that flag.
+tools that omit `RESOLVER`. Declare `RESOLVER="copy"` explicitly when a
+tool must always copy even under that flag.
 
 ### Exact file copy
 
@@ -157,7 +157,7 @@ DEST="$HOME/.config/example"
 The destination becomes an exact mirror: changed files are replaced, missing
 files and empty directories are created, and stale files, directories, or
 symlinks are backed up and removed. Do not mirror a directory shared with
-another module or application.
+another tool or application.
 
 ### Repository symlink
 
@@ -171,7 +171,7 @@ RESOLVER="symlink"
 
 Both regular files and directories are supported. Dotlad creates an absolute
 symlink to `SOURCE`, so moving or removing the project makes the deployed link
-invalid until the module is applied again from its new location. Existing
+invalid until the tool is applied again from its new location. Existing
 destination files, symlinks, and directory contents are backed up before the
 link is swapped into place.
 
@@ -209,9 +209,9 @@ mode, installed as a Homebrew formula of the same name. The field cannot map a
 formula name to a differently named executable; preinstall that dependency or
 avoid declaring an inaccurate requirement.
 
-## Package-only module
+## Package-only tool
 
-Omit `SOURCE`, `DEST`, and `RESOLVER` when a module deploys no config:
+Omit `SOURCE`, `DEST`, and `RESOLVER` when a tool deploys no config:
 
 ```bash
 NAME="search-tools"
@@ -227,18 +227,18 @@ verified independently.
 
 ## Naming and ordering
 
-- Use the public command or application name for individual modules.
+- Use the public command or application name for individual tools.
 - Use plural `<purpose>-tools` names for coherent package groups.
 - Keep `DESC` to one sentence that explains value rather than installation.
 - Choose an `ICON` that renders clearly in one terminal cell. Nerd Font icons
   are fine when the consumer project documents that font requirement.
-- Use numeric gaps in `ORDER` so future modules can be inserted without a
-  renumbering sweep. The picker may regroup modules by state.
+- Use numeric gaps in `ORDER` so future tools can be inserted without a
+  renumbering sweep. The picker may regroup tools by state.
 
-## Add the module to a profile
+## Add the tool to a profile
 
 Profiles belong to the consumer project, so Dotlad does not prescribe names
-such as `core` or `full`. Add the module once to the lowest-level profile whose
+such as `core` or `full`. Add the tool once to the lowest-level profile whose
 users should receive it; inheritance supplies it to child profiles. See
 [Profiles](profiles.md).
 
@@ -267,13 +267,13 @@ installed-state check, backup behavior, or installer path.
 Loading fails before deployment when:
 
 - required presentation metadata is missing;
-- a module declares neither packages nor deployable configuration;
+- a tool declares neither packages nor deployable configuration;
 - `NAME` does not match its directory;
 - `SOURCE` and `DEST` are not declared together;
 - a resolver is unknown or does not support the declared source type;
 - a source path or payload contains symlinks or special filesystem entries;
 - a destination is `$HOME`, escapes it, traverses a parent symlink, or overlaps
-  another module destination;
+  another tool destination;
 - a package token or installer URL is malformed; or
 - Homebrew and an HTTPS installer are both declared.
 

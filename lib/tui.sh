@@ -1,7 +1,7 @@
 # shellcheck disable=SC2153,SC2034  # T_* are manifest arrays; UTD_CACHE lives in engine.sh
-# lib/tui.sh — full-screen module tree and interaction. Enter starts queued
+# lib/tui.sh — full-screen tool tree and interaction. Enter starts queued
 # work in the background or restores the focused restore point. The tree is the
-# whole UI; press `d` for a module diff or running log.
+# whole UI; press `d` for a tool diff or running log.
 #
 # State is kept in globals (not locals) so the small helper functions can share
 # it: the item/line model (I_*, L_*), the cursor, selection, viewport and the
@@ -140,7 +140,7 @@ tui_refresh_running() {
     rt="$(tui_running_tool || true)"; [[ -n "$rt" ]] || return 0
     for (( k = 0; k < SCAN_N; k++ )); do
         [[ "${SCAN_NAME[k]}" == "$rt" ]] || continue
-        i="$(manifest_find "$rt")" || return 0
+        i="$(tool_find "$rt")" || return 0
         SCAN_HEAD[k]="$(headline_line "$i" "$frame")"
         SCAN_ACT[k]="$(tool_activity "$i" "$frame")"
         return 0
@@ -525,7 +525,7 @@ tui_details() {  # focused tool's diff, or a running/failed tool's log, or a bac
     # so on the footer instead of dropping into an empty pager.
     if [[ "$it" == tool ]] \
        && ! { [[ -n "$run" && -f "$run/${nm}.log" ]] && { [[ -f "$run/${nm}.running" ]] || [[ -f "$run/${nm}.failed" ]]; }; }; then
-        i="$(manifest_find "$nm")" || return 0
+        i="$(tool_find "$nm")" || return 0
         compute_row "$i"
         if [[ "$RS_LABEL" == "up to date" || "$RS_LABEL" == "installed" ]]; then
             TOAST="✓ ${nm} — nothing to show"; return 0
@@ -546,7 +546,7 @@ tui_details() {  # focused tool's diff, or a running/failed tool's log, or a bac
                 tui_backup_preview "${nm#@}"
             elif [[ -n "$run" && -f "$run/${nm}.log" ]] && { [[ -f "$run/${nm}.running" ]] || [[ -f "$run/${nm}.failed" ]]; }; then
                 cat "$run/${nm}.log"
-            elif i="$(manifest_find "$nm")"; then
+            elif i="$(tool_find "$nm")"; then
                 printf '%s— %s —%s\n\n' "$C_BOLD" "$nm" "$C_RESET"; tool_diff "$i"
             fi
         ) | tui_pager

@@ -11,7 +11,7 @@ json_string() {
     printf '"%s"' "$value"
 }
 
-plan_module() {  # <idx> — populate PLAN_* globals without changing state
+plan_tool() {  # <idx> — populate PLAN_* globals without changing state
     local i="$1" counts=""
     PLAN_PACKAGES="none"; PLAN_CONFIG="none"; PLAN_DEST=""; PLAN_CHANGES=""
     PLAN_RESOLVER=""
@@ -42,9 +42,9 @@ plan_module() {  # <idx> — populate PLAN_* globals without changing state
     fi
 }
 
-plan_module_json() {  # <idx> <leading-comma 0|1>
+plan_tool_json() {  # <idx> <leading-comma 0|1>
     local i="$1" comma="$2" req blocker first=1 old_ifs
-    plan_module "$i"
+    plan_tool "$i"
     [[ "$comma" == 1 ]] && printf ','
     printf '\n    {"name":'; json_string "${T_NAME[$i]}"
     printf ',"packages":'; json_string "$PLAN_PACKAGES"
@@ -70,23 +70,23 @@ plan_module_json() {  # <idx> <leading-comma 0|1>
     printf ']}'
 }
 
-plan_selected() {  # <module names...>
+plan_selected() {  # <tool names...>
     local name i first=1
     UTD_CACHE=()
     if [[ "${DOTLAD_PLAN_JSON:-}" == 1 ]]; then
-        printf '{"mode":'; json_string "$DOTLAD_MODE"; printf ',"modules":['
+        printf '{"mode":'; json_string "$DOTLAD_MODE"; printf ',"tools":['
         for name in "$@"; do
-            i="$(manifest_find "$name")" || continue
-            if [[ "$first" == 1 ]]; then plan_module_json "$i" 0; first=0
-            else plan_module_json "$i" 1; fi
+            i="$(tool_find "$name")" || continue
+            if [[ "$first" == 1 ]]; then plan_tool_json "$i" 0; first=0
+            else plan_tool_json "$i" 1; fi
         done
         printf '\n]}\n'
         return 0
     fi
     title "Plan — $(mode_label)"
     for name in "$@"; do
-        i="$(manifest_find "$name")" || continue
-        plan_module "$i"
+        i="$(tool_find "$name")" || continue
+        plan_tool "$i"
         printf '\n%s— %s —%s\n' "$C_BOLD" "$name" "$C_RESET"
         case "$PLAN_PACKAGES" in
             install) printf '  packages: install %s\n' "${T_BREW[$i]:-${T_INSTALL_URL[$i]}}" ;;

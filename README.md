@@ -6,14 +6,14 @@
 
 Dotlad is a manifest-driven macOS CLI for installing packages and deploying
 dotfiles from a repository. It provides one interface for inspecting state,
-previewing changes, applying modules, and restoring replaced files.
+previewing changes, applying tools, and restoring replaced files.
 
-![Dotlad interactive module picker showing package and configuration state](.github/assets/demo/cli.gif)
+![Dotlad interactive tool picker showing package and configuration state](.github/assets/demo/cli.gif)
 
 ## Why Dotlad
 
 - Preview package and config actions before changing the machine.
-- Apply every module, a reusable profile, or an explicit selection.
+- Apply every tool, a reusable profile, or an explicit selection.
 - Run package-only or config-only workflows from the same manifests.
 - Preserve machine-local JSON, TOML, and Git values with named resolvers.
 - Deploy files or directories as repository symlinks when direct editing is preferred.
@@ -29,7 +29,7 @@ Dotlad targets the stock Bash 3.2 shipped with macOS and has no TUI framework
 dependency. A real terminal enables the interactive picker; `--plain` provides
 a read-only state view for scripts and non-interactive shells.
 
-Runtime dependencies are driven by each module:
+Runtime dependencies are driven by each tool:
 
 - Homebrew installs declared `BREW` packages and missing `REQUIRES` commands.
 - `curl` is required when an HTTPS installer must run.
@@ -59,17 +59,17 @@ prefix. The installer refuses to overwrite an unmanaged `bin/dotlad`.
 
 ## Create a first project
 
-A Dotlad project needs a `modules/` directory. Each module has a strict,
-non-executable `module.conf` and may include a config payload:
+A Dotlad project needs a `tools/` directory. Each tool has a strict,
+non-executable `tool.conf` and may include a config payload:
 
 ```bash
-mkdir -p "$HOME/dotfiles/modules/starship/files"
+mkdir -p "$HOME/dotfiles/tools/starship/files"
 
-cat > "$HOME/dotfiles/modules/starship/files/starship.toml" <<'EOF'
+cat > "$HOME/dotfiles/tools/starship/files/starship.toml" <<'EOF'
 format = "$directory$character"
 EOF
 
-cat > "$HOME/dotfiles/modules/starship/module.conf" <<'EOF'
+cat > "$HOME/dotfiles/tools/starship/tool.conf" <<'EOF'
 NAME="starship"
 DESC="Cross-shell prompt configuration."
 ICON="★"
@@ -98,48 +98,48 @@ optional when the current directory is already the project root.
 
 ```text
 my-dotfiles/
-├── modules/
+├── tools/
 │   └── starship/
-│       ├── module.conf
+│       ├── tool.conf
 │       └── files/starship.toml
 └── profiles/
     └── base.conf
 ```
 
-Modules may declare packages, config, or both. `RESOLVER` selects deployment
+Tools may declare packages, config, or both. `RESOLVER` selects deployment
 semantics and defaults to the built-in `copy` resolver, which copies a file or
 mirrors a directory exactly. Use `symlink` to point `DEST` at the repository
 source, or a merge resolver for machine-local file values.
 
-Profiles are optional named module selections with single-parent inheritance:
+Profiles are optional named tool selections with single-parent inheritance:
 
 ```bash
 # profiles/base.conf
 extends=""
-modules="starship git nvim"
+tools="starship git nvim"
 ```
 
-See [Adding or changing a module](docs/adding-a-module.md) and
+See [Adding or changing a tool](docs/adding-a-tool.md) and
 [Profiles](docs/profiles.md) for the complete schemas and validation rules.
 
 ## CLI at a glance
 
-| Command                            | Purpose                                      |
-| ---------------------------------- | -------------------------------------------- |
-| `dotlad`                           | Open the interactive module picker           |
-| `dotlad --plain`                   | Print read-only module and backup state       |
-| `dotlad <module>…`                 | Apply named modules                           |
-| `dotlad profile <name>`            | Apply a profile and inherited modules         |
-| `dotlad all`                       | Apply every module                            |
-| `dotlad plan [target]`             | Preview actions, requirements, and blockers   |
-| `dotlad --dry-run <action>`        | Plan a normal module/profile/all action       |
-| `dotlad brewfile`                  | Generate a Homebrew Bundle file               |
-| `dotlad backups`                   | List available restore points                 |
-| `dotlad restore <name>`            | Restore a restore point                       |
-| `dotlad backup delete <name>`      | Delete a restore point                        |
-| `dotlad --packages-only <action>`  | Install packages without deploying config     |
-| `dotlad --config-only <action>`    | Deploy config without installing packages     |
-| `dotlad --symlink <action>`        | Default implicit config deployment to links   |
+| Command                           | Purpose                                    |
+| --------------------------------- | ------------------------------------------ |
+| `dotlad`                          | Open the interactive tool picker           |
+| `dotlad --plain`                  | Print read-only tool and backup state       |
+| `dotlad <tool>…`                  | Apply named tools                          |
+| `dotlad profile <name>`           | Apply a profile and inherited tools        |
+| `dotlad all`                      | Apply every tool                           |
+| `dotlad plan [target]`            | Preview actions, requirements, and blockers |
+| `dotlad --dry-run <action>`       | Plan a normal tool/profile/all action      |
+| `dotlad brewfile`                 | Generate a Homebrew Bundle file            |
+| `dotlad backups`                  | List available restore points              |
+| `dotlad restore <name>`           | Restore a restore point                    |
+| `dotlad backup delete <name>`     | Delete a restore point                     |
+| `dotlad --packages-only <action>` | Install packages without deploying config  |
+| `dotlad --config-only <action>`   | Deploy config without installing packages  |
+| `dotlad --symlink <action>`       | Default implicit config deployment to links |
 
 See the [CLI reference](docs/cli.md) for option scope, JSON plans, picker
 controls, automation behavior, and exit statuses.
@@ -172,7 +172,7 @@ batch. Destinations must be non-overlapping strict descendants of `$HOME`, and
 existing parent symlinks cannot redirect writes outside it. Source payloads
 cannot contain symlinks or special filesystem entries.
 
-File writes are atomic. Directory modules are staged and swapped as a
+File writes are atomic. Directory tools are staged and swapped as a
 transaction; their destinations are exact mirrors, so stale files are backed
 up and pruned. Symlinks are also staged and swapped, and the repository must
 remain at the same absolute path while they are deployed. Merge resolvers
@@ -185,7 +185,7 @@ automation rather than exploratory runs.
 ## Documentation
 
 - [CLI reference](docs/cli.md) — commands, options, plans, and picker controls
-- [Adding or changing a module](docs/adding-a-module.md) — schema and deployment semantics
+- [Adding or changing a tool](docs/adding-a-tool.md) — schema and deployment semantics
 - [Profiles](docs/profiles.md) — reusable selections and inheritance
 - [Troubleshooting](docs/troubleshooting.md) — common setup and preflight failures
 - [Architecture](docs/architecture.md) — runtime boundaries and execution flow
