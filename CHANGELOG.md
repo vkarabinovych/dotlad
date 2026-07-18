@@ -4,6 +4,8 @@ All notable user-facing changes are documented here.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-18
+
 ### Added
 
 - Built-in `symlink` resolver for deploying file and directory links to their
@@ -38,4 +40,5 @@ All notable user-facing changes are documented here.
   reproducible release archives with SHA-256 checksums.
 
 [0.4.0]: https://github.com/vkarabinovych/dotlad/releases/tag/v0.4.0
-[Unreleased]: https://github.com/vkarabinovych/dotlad/compare/v0.4.0...HEAD
+[0.5.0]: https://github.com/vkarabinovych/dotlad/releases/tag/v0.5.0
+[Unreleased]: https://github.com/vkarabinovych/dotlad/compare/v0.5.0...HEAD
