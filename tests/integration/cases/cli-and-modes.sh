@@ -92,6 +92,13 @@ df --config-only mode-fixture >/dev/null 2>&1
 check "config-only deploys config" cmp -s "$FAKE/tools/mode-fixture/files/config.toml" "$H/.config/mode-fixture/config.toml"
 checknot "config-only does not install the declared package" test -e "$BREW_PREFIX/opt/mode-pkg"
 checknot "config-only performs no Homebrew install" test -s "$BREW_LOG"
+mode_headline="$(df --plain | grep 'mode-fixture' | head -1)"
+if [[ "$mode_headline" == *'not installed'*'config up to date'* \
+    && "$mode_headline" != *'✓'* ]]; then
+    pass "missing package dominates a ready config headline"
+else
+    fail "ready config masks a missing package: $mode_headline"
+fi
 
 printf 'repo = 2\n' > "$FAKE/tools/mode-fixture/files/config.toml"
 rm -f "$SB/bin/mode-req"; : > "$BREW_LOG"
@@ -127,7 +134,7 @@ rc_is "config-only rejects a package-only tool" 1 df --config-only package
 
 tui_probe="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" /bin/bash -c '
     . "$DOTLAD_RUNTIME_ROOT/lib/runtime.sh"
-    DOTLAD_RUNDIR=""; mode_set full
+    manifest_load; DOTLAD_RUNDIR=""; mode_set full
     modes=""
     tui_cycle_mode; modes="$DOTLAD_MODE"
     tui_cycle_mode; modes="$modes $DOTLAD_MODE"
@@ -145,9 +152,24 @@ tui_probe="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" /bin/bash -c '
     queue_out="$(queue_has_tool "$run" filecopy 2>&1)" || queue_rc=$?
     rm -rf "$run"
     queue_quiet=0; [[ -z "$queue_out" ]] && queue_quiet=1
-    printf "%s|%s|%s|%s|%s|%s|%s" "$modes" "$toggle_rc" "$selected" \
-        "$diff_key" "$aliases" "$queue_rc" "$queue_quiet"')"
-IFS='|' read -r mode_cycle toggle_rc toggle_selected diff_key key_aliases queue_rc queue_quiet <<< "$tui_probe"
+    log_heights="$(tui_log_height 24 3 0) $(tui_log_height 24 100 0) \
+$(tui_log_height 24 100 1) $(tui_log_height 42 100 0) $(tui_log_height 42 100 1)"
+    I_TYPE=(tool); I_NAME=(filecopy); CURSOR=0; SEL=" "; enqueue_calls=0; confirm_message=""
+    enqueue() { enqueue_calls=$((enqueue_calls + 1)); }
+    tui_confirm() { confirm_message="$1"; return 1; }
+    tui_enter
+    apply_cancel="$enqueue_calls:$TOAST:$confirm_message"
+    tui_confirm() { return 0; }
+    tui_enter
+    apply_confirm="$enqueue_calls"
+    tui_confirm() { confirm_message="$1"; return 1; }
+    I_NAME=(package); tui_enter; package_prompt="$confirm_message"
+    I_NAME=(jsonmerge); tui_enter; config_prompt="$confirm_message"
+    printf "%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s" "$modes" "$toggle_rc" "$selected" \
+        "$diff_key" "$aliases" "$queue_rc" "$queue_quiet" "$log_heights" \
+        "$apply_cancel" "$apply_confirm" "$package_prompt" "$config_prompt"')"
+IFS='|' read -r mode_cycle toggle_rc toggle_selected diff_key key_aliases queue_rc queue_quiet \
+    log_heights apply_cancel apply_confirm package_prompt config_prompt <<< "$tui_probe"
 [[ "$mode_cycle" == "packages config full" ]] && pass "TUI mode switch cycles through all modes" \
     || fail "TUI mode switch cycle (got '$mode_cycle')"
 [[ "$toggle_rc|$toggle_selected" == "0|1" ]] && pass "select-all succeeds with restore points after the tools" \
@@ -159,6 +181,21 @@ IFS='|' read -r mode_cycle toggle_rc toggle_selected diff_key key_aliases queue_
     || fail "Ukrainian hotkey aliases (got '$key_aliases')"
 [[ "$queue_rc|$queue_quiet" == "1|1" ]] && pass "empty TUI run checks a missing queue silently" \
     || fail "missing TUI queue probe (got '$queue_rc|$queue_quiet')"
+[[ "$log_heights" == "3 7 14 13 26" ]] \
+    && pass "log panel fits content and expands when focused" \
+    || fail "log panel height ignores content or focus (got '$log_heights')"
+if [[ "$apply_cancel" == *'0:apply cancelled:'*"Install packages and deploy config for 'filecopy'?"* \
+    && "$apply_confirm" == 1 ]]; then
+    pass "TUI apply requires explicit confirmation before queueing"
+else
+    fail "TUI apply confirmation is ineffective ($apply_cancel / $apply_confirm)"
+fi
+if [[ "$package_prompt" == "Install packages for 'package'?" \
+    && "$config_prompt" == "Deploy config for 'jsonmerge'? (replaced files are backed up)" ]]; then
+    pass "TUI confirmation describes only selected tool actions"
+else
+    fail "TUI confirmation mislabels package/config tools ($package_prompt / $config_prompt)"
+fi
 
 mkdir -p "$FAKE/tools/worker-fixture/files"
 printf 'worker = true\n' > "$FAKE/tools/worker-fixture/files/config.toml"

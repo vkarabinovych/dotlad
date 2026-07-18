@@ -188,13 +188,14 @@ main() {
     selection_explicit "${pos[@]}" \
         || { hint "run $DOTLAD_COMMAND_NAME to see the list"; exit 1; }
     names=("${SELECTED_NAMES[@]}")
-    title "$(mode_action): ${names[*]}"
+    title "$(selection_action "${names[@]}") ${names[*]}"
     for p in "${names[@]}"; do
         i="$(tool_find "$p")"; printf '\n%s— %s —%s\n' "$C_BOLD" "$p" "$C_RESET"; tool_diff "$i"
     done
     echo ""
-    confirm "$(mode_action) ${#names[@]} tool(s)?$(mode_backup_note)" || { hint "cancelled"; exit 0; }
-    mode_packages_enabled && ensure_brew
+    confirm "$(selection_prompt "${#names[@]} tool(s)" "${names[@]}")" \
+        || { hint "cancelled"; exit 0; }
+    selection_has_packages "${names[@]}" && ensure_brew
     run_selected "${names[@]}"
 }
 

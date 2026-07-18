@@ -4,6 +4,21 @@ All notable user-facing changes are documented here.
 
 ## [Unreleased]
 
+### Changed
+
+- Focused restore points fit their file list to the available picker height
+  and summarize the remainder; the complete diff remains available through
+  details.
+- The live apply log fits its content, grows to one third of the terminal, and
+  may use up to two thirds when focused while preserving space for the tree.
+- The `copy` resolver can replace a previously deployed directory symlink,
+  preserving the link in a restore point before materializing the directory.
+- Missing packages and executables now lead picker headlines instead of being
+  visually masked by an up-to-date config state.
+- Applying tools from the picker now requires explicit confirmation before
+  work is added to the background queue, with action text derived from the
+  selected tools rather than only the global mode.
+
 ## [0.5.0] - 2026-07-18
 
 ### Added

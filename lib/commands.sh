@@ -78,16 +78,44 @@ cmd_plan() {
     plan_selected "${SELECTED_NAMES[@]}"
 }
 
-mode_action() {
-    case "$DOTLAD_MODE" in
-        packages) printf 'Install packages for' ;;
-        config)   printf 'Deploy config for' ;;
-        *)        printf 'Install packages and deploy config for' ;;
-    esac
+selection_has_packages() {  # <tool names...>
+    local name i
+    mode_packages_enabled || return 1
+    for name in "$@"; do
+        i="$(tool_find "$name")" || continue
+        tool_has_packages "$i" && return 0
+    done
+    return 1
 }
 
-mode_backup_note() {
-    mode_config_enabled && printf ' (replaced files are backed up)'
+selection_has_config() {  # <tool names...>
+    local name i
+    mode_config_enabled || return 1
+    for name in "$@"; do
+        i="$(tool_find "$name")" || continue
+        tool_has_config "$i" && return 0
+    done
+    return 1
+}
+
+selection_action() {  # <tool names...>
+    local packages=0 config=0
+    selection_has_packages "$@" && packages=1
+    selection_has_config "$@" && config=1
+    if [[ "$packages" == 1 && "$config" == 1 ]]; then
+        printf 'Install packages and deploy config for'
+    elif [[ "$packages" == 1 ]]; then
+        printf 'Install packages for'
+    else
+        printf 'Deploy config for'
+    fi
+}
+
+selection_prompt() {  # <target-label> <tool names...>
+    local target="$1"
+    shift
+    printf '%s %s?' "$(selection_action "$@")" "$target"
+    selection_has_config "$@" && printf ' (replaced files are backed up)'
     return 0
 }
 
@@ -110,9 +138,10 @@ cmd_profile() {
     [[ ${#SELECTED_NAMES[@]} -gt 0 ]] \
         || fatal "profile '$profile' has no tools for $(mode_label) mode"
     title "Profile: $profile"
-    confirm "$(mode_action) ${#SELECTED_NAMES[@]} tool(s) from '$profile'?" \
+    confirm "$(selection_prompt "${#SELECTED_NAMES[@]} tool(s) from '$profile'" \
+        "${SELECTED_NAMES[@]}")" \
         || { hint "cancelled"; exit 0; }
-    mode_packages_enabled && ensure_brew
+    selection_has_packages "${SELECTED_NAMES[@]}" && ensure_brew
     DOTLAD_YES=1
     run_selected "${SELECTED_NAMES[@]}"
 }
@@ -121,10 +150,10 @@ cmd_all() {
     title "Set up this machine — $(mode_label)"
     print_list
     echo ""
-    confirm "$(mode_action) every relevant tool now?$(mode_backup_note)" \
-        || { hint "cancelled"; exit 0; }
-    mode_packages_enabled && ensure_brew
-    DOTLAD_YES=1
     selection_all
+    confirm "$(selection_prompt 'every relevant tool now' "${SELECTED_NAMES[@]}")" \
+        || { hint "cancelled"; exit 0; }
+    selection_has_packages "${SELECTED_NAMES[@]}" && ensure_brew
+    DOTLAD_YES=1
     run_selected "${SELECTED_NAMES[@]}"
 }

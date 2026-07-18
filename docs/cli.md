@@ -174,7 +174,16 @@ partial restore exits non-zero and reports restored and failed entry counts.
 |  `✓`   | up to date / installed     | Config matches the project or all packages are present |
 |  `↑`   | update available           | Applying the tool would change its config                 |
 |  `+`   | not set up / not installed | Config or packages are missing                         |
+|  `!`   | tool not found              | Config exists, but no installer or executable is available |
 |  `✗`   | failed                     | The latest queued operation failed                     |
+
+In full mode, a missing package or executable takes priority over a ready
+config. The config state remains visible as a secondary coloured note.
+
+Pressing `Enter` on a tool asks for confirmation before anything is added to
+the apply queue. The prompt lists only actions supported by the selected tools,
+so package-only and config-only selections are described accurately. Cancelling
+preserves the current selection.
 
 ## Keyboard controls
 
@@ -183,7 +192,7 @@ partial restore exits non-zero and reports restored and failed entry counts.
 | `↑` / `↓`, `j` / `k`      | Move in the tree, or scroll focused live output          |
 | `Home` / `End`, `g` / `G` | Jump to the first or last item                           |
 | `Space`                   | Select or deselect a tool                                |
-| `Enter`                   | Apply selected tools, retry, or restore a backup         |
+| `Enter`                   | Confirm and apply selected tools, retry, or restore      |
 | `a`                       | Select or clear all tools                                |
 | `m`                       | Switch package/config operation mode                     |
 | `d`                       | Show a config diff, operation log, or backup preview     |
@@ -194,6 +203,14 @@ partial restore exits non-zero and reports restored and failed entry counts.
 Letter shortcuts also follow the same physical keys on a Ukrainian layout:
 `j/о`, `k/л`, `g/п`, `G/П`, `a/ф`, `m/ь`, `d/в`, `x/ч`, `q/й`, and `y/н`
 in confirmation prompts.
+
+A focused restore point fits its file list to the available tree height and
+reports how many entries remain. Press `d` to inspect the complete paged
+restore diff.
+
+The live apply log shrinks to its content and grows up to one third of the
+available terminal height. Focusing it with `Tab` raises that limit to two
+thirds. At least four rows remain visible for the tool tree.
 
 ## Generate a Brewfile
 

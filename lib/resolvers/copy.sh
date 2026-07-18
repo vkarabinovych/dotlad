@@ -13,7 +13,7 @@ resolver_copy_files_to_sync() {  # <source-dir> <destination-dir>
     local src="$1" dest="$2" file rel
     while IFS= read -r file; do
         rel="${file#"$src"/}"
-        [[ -f "$dest/$rel" && ! -L "$dest/$rel" ]] \
+        [[ ! -L "$dest" && -f "$dest/$rel" && ! -L "$dest/$rel" ]] \
             && cmp -s "$file" "$dest/$rel" && continue
         printf '%s\n' "$rel"
     done < <(find "$src" -type f | sort)
@@ -56,11 +56,9 @@ resolver_copy_equal() {  # <repo> <live>
 resolver_copy_check() {  # <repo> <live>
     local bad
     if [[ -d "$1" && ! -L "$1" ]]; then
-        if [[ -L "$2" ]]; then
-            printf 'directory destination is a symlink\n'
-        elif [[ -e "$2" && ! -d "$2" ]]; then
+        if [[ -e "$2" && ! -d "$2" && ! -L "$2" ]]; then
             printf 'directory destination is not a directory\n'
-        elif [[ -d "$2" ]]; then
+        elif [[ -d "$2" && ! -L "$2" ]]; then
             bad="$(find "$2" ! -type d ! -type f ! -type l -print 2>/dev/null)"
             [[ -z "$bad" ]] || printf 'directory destination contains an unsupported entry\n'
         fi
@@ -72,13 +70,17 @@ resolver_copy_check() {  # <repo> <live>
 
 resolver_copy_apply_directory() {  # <repo> <live>
     local src="$1" dest="$2" parent stage staged rel
-    dest_safe "$dest/.dotlad-directory" || { err "unsafe directory destination"; return 1; }
+    dest_safe "$dest" || { err "unsafe directory destination"; return 1; }
     parent="$(dirname "$dest")"
     mkdir -p "$parent" || { err "cannot create $parent"; return 1; }
     stage="$(mktemp -d "$parent/.dotlad-dir.XXXXXX")" \
         || { err "cannot stage directory in $parent"; return 1; }
     staged="$stage/payload"
     if ! cp -R -p "$src" "$staged"; then rm -rf "$stage"; err "cannot stage $src"; return 1; fi
+
+    if [[ -L "$dest" ]]; then
+        backup_path "$dest" || { rm -rf "$stage"; return 1; }
+    fi
 
     while IFS= read -r rel; do
         [[ -n "$rel" ]] && AP_DEPLOYED=$((AP_DEPLOYED + 1))
@@ -104,6 +106,10 @@ resolver_copy_apply() {  # <repo> <live>
 resolver_copy_preview() {  # <repo> <live>
     local src="$1" dest="$2" rel shown=0
     if [[ -d "$src" && ! -L "$src" ]]; then
+        if [[ -L "$dest" ]]; then
+            warn "would replace symlink with directory copy: $(pretty_path "$dest")"
+            return 0
+        fi
         while IFS= read -r rel; do
             [[ -n "$rel" ]] || continue
             printf '%s— %s —%s\n' "$C_DIM" "$rel" "$C_RESET"

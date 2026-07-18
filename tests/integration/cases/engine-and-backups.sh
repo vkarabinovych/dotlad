@@ -147,6 +147,26 @@ backup_rel="${linked_backup#"$H/.dotlad_backup"/}"; backup_name="${backup_rel%%/
 backup_list="$(df backups)"
 printf '%s\n' "$backup_list" | grep -qF "$backup_name" \
     && pass "backup CLI lists restore points" || fail "backup CLI list"
+activity_root="$H/activity-backups"; activity_name="20000101_010101"
+mkdir -p "$activity_root/$activity_name/.activity"
+for activity_i in 1 2 3 4 5 6 7; do
+    printf '%s\n' "$activity_i" > "$activity_root/$activity_name/.activity/file-$activity_i"
+done
+backup_activity_probe="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" DOTLAD_PLAIN=1 \
+    DOTLAD_BACKUP_ROOT="$activity_root" /bin/bash -c '
+    . "$DOTLAD_RUNTIME_ROOT/lib/runtime.sh"
+    activity="$(backup_activity "20000101_010101")"
+    backup_activity_window "$activity" 4 7')"
+activity_lines="$(printf '%s\n' "$backup_activity_probe" | wc -l | tr -d ' ')"
+if [[ "$activity_lines" == 4 \
+    && "$backup_activity_probe" == *'.activity/file-3'* \
+    && "$backup_activity_probe" != *'.activity/file-4'* \
+    && "$backup_activity_probe" == *'… 4 more files · d details'* ]]; then
+    pass "focused backup activity fits its available row budget"
+else
+    fail "focused backup activity ignores its row budget: $backup_activity_probe"
+fi
+rm -rf "$activity_root"
 rc_is "backup CLI rejects an invalid restore name" 1 df --yes restore ../outside
 rc_is "backup CLI rejects an invalid delete name" 1 df --yes backup delete ../outside
 df --yes restore "$backup_name" >/dev/null 2>&1
@@ -231,6 +251,27 @@ check "restoring directory content rebuilds the original tree" \
     grep -qxF 'local tree' "$H/.config/symlink-directory/local.conf"
 check "restoring directory content rebuilds empty directories" \
     test -d "$H/.config/symlink-directory/empty-local"
+df --config-only symlink-directory >/dev/null 2>&1
+check "directory can be linked again before changing resolver" test -L "$H/.config/symlink-directory"
+cat > "$FAKE/tools/symlink-directory/tool.conf" <<EOF
+NAME="symlink-directory"
+DESC="Directory resolver transition fixture"
+ICON="!"
+ORDER="998"
+SOURCE="files"
+DEST="$H/.config/symlink-directory"
+EOF
+copy_transition_plan="$(df --config-only --json plan symlink-directory)"
+printf '%s' "$copy_transition_plan" | jq -e \
+    '.tools[0].resolver == "copy" and .tools[0].config == "update" and (.tools[0].blockers | length) == 0' \
+    >/dev/null && pass "symlink to directory-copy transition passes preflight" \
+    || fail "symlink to copy remains blocked: $copy_transition_plan"
+df --config-only symlink-directory >/dev/null 2>&1
+checknot "copy resolver replaces the managed directory symlink" test -L "$H/.config/symlink-directory"
+check "copy resolver materializes the directory contents" \
+    grep -qxF 'managed tree' "$H/.config/symlink-directory/nested/config"
+check "replaced directory symlink is backed up" sh -c \
+    "find '$H/.dotlad_backup' -path '*/.config/symlink-directory' -type l | grep -q ."
 rm -rf "$FAKE/tools/symlink-file" "$FAKE/tools/symlink-directory" \
     "$H/.config/symlink-file" "$H/.config/symlink-directory"
 

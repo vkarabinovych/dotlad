@@ -23,6 +23,8 @@ TUI_FRAME_TIMEOUT="0.15"; TUI_SEQUENCE_TIMEOUT="0.05"
 if [[ "${BASH_VERSINFO[0]}" -lt 4 ]]; then TUI_FRAME_TIMEOUT=1; TUI_SEQUENCE_TIMEOUT=1; fi
 # output-pane focus/scroll: Tab moves between the tree and the log pane.
 FOCUS_ZONE="tree"; PANEL_ON=0; PANEL_SCROLL=0; PANEL_FOLLOW=1
+# Row budget for a focused restore point, recalculated from each rendered tree.
+TUI_BACKUP_CHILD_ROWS=0
 
 # --- terminal setup / teardown ---------------------------------------------
 
@@ -197,7 +199,10 @@ tui_build() {
         I_TYPE[N_ITEMS]='backup'; I_NAME[N_ITEMS]="@${SCAN_BDIR[b]}"; I_FIRSTLINE[N_ITEMS]=$L_N
         L_TEXT[L_N]="$(backup_line "${SCAN_BDIR[b]}" "${SCAN_BCOUNT[b]}")"; L_ITEM[L_N]=$N_ITEMS; L_FIRST[L_N]=1
         L_N=$((L_N + 1))
-        [[ "@${SCAN_BDIR[b]}" == "$CUR_NAME" ]] && _append_children "${SCAN_BFILES[b]}"
+        if [[ "@${SCAN_BDIR[b]}" == "$CUR_NAME" ]]; then
+            _append_children "$(backup_activity_window "${SCAN_BFILES[b]}" \
+                "$TUI_BACKUP_CHILD_ROWS" "${SCAN_BCOUNT[b]}")"
+        fi
         N_ITEMS=$((N_ITEMS + 1))
     done
     return 0
@@ -277,6 +282,21 @@ tui_pscroll() {
     return 0
 }
 
+# Fit the panel to its content, capped at one third of the available height in
+# tree focus or two thirds in panel focus. Always preserve four tree rows.
+tui_log_height() {  # <terminal-rows> <content-lines> <panel-focused 0|1>
+    local available=$(( $1 - 3 )) content="$2" focused="${3:-0}" cap max height
+    [[ "$available" -gt 4 ]] || return 1
+    max=$((available - 4))
+    if [[ "$focused" == 1 ]]; then cap=$((available * 2 / 3))
+    else cap=$((available / 3)); fi
+    [[ "$cap" -gt "$max" ]] && cap="$max"
+    [[ "$content" -lt 1 ]] && content=1
+    if [[ "$content" -lt "$cap" ]]; then height="$content"; else height="$cap"; fi
+    [[ "$height" -gt 0 ]] || return 1
+    printf '%s' "$height"
+}
+
 tui_keybar() {
     local first=1 key label
     while [[ $# -ge 2 ]]; do
@@ -294,8 +314,8 @@ tui_keybar() {
 }
 
 tui_render() {
-    local rows cols bodyrows r j cfirst clast n run="${DOTLAD_RUNDIR:-}" rt
-    local ptool="" panel_log=0 label_row log_top ln
+    local rows cols bodyrows backup_rows r j cfirst clast n run="${DOTLAD_RUNDIR:-}" rt
+    local ptool="" panel_log=0 log_lines=0 log_focused=0 label_row log_top ln
     local logb=()
     read -r rows cols < <(stty size 2>/dev/null) || true
     : "${rows:=24}" "${cols:=80}"
@@ -315,15 +335,27 @@ tui_render() {
     fi
     [[ -n "$ptool" && -n "$run" && -f "$run/${ptool}.log" ]] || ptool=""
     if [[ -n "$ptool" ]]; then
-        panel_log=8
-        [[ $((rows - 3 - panel_log)) -lt 4 ]] && panel_log=$((rows - 3 - 4))
-        [[ $panel_log -lt 1 ]] && ptool=""
+        read -r log_lines < <(wc -l < "$run/${ptool}.log" 2>/dev/null) || log_lines=0
+        [[ "$FOCUS_ZONE" == panel ]] && log_focused=1
+        panel_log="$(tui_log_height "$rows" "$log_lines" "$log_focused" || true)"
+        [[ -n "$panel_log" ]] || ptool=""
     fi
     if [[ -n "$ptool" ]]; then PANEL_ON=1; else PANEL_ON=0; fi
     [[ $PANEL_ON == 0 && "$FOCUS_ZONE" == panel ]] && FOCUS_ZONE=tree   # pane vanished
 
     if [[ -n "$ptool" ]]; then bodyrows=$((rows - 3 - panel_log)); else bodyrows=$((rows - 2)); fi
     [[ $bodyrows -lt 1 ]] && bodyrows=1
+
+    # The focused restore-point headline consumes one tree row. Its children
+    # use every remaining visible row, including a final "N more" row when
+    # clipped. Rebuild only when terminal or log-panel height changes.
+    if [[ "${I_TYPE[$CURSOR]:-}" == backup ]]; then
+        backup_rows=$((bodyrows - 1)); [[ "$backup_rows" -lt 0 ]] && backup_rows=0
+        if [[ "$TUI_BACKUP_CHILD_ROWS" -ne "$backup_rows" ]]; then
+            TUI_BACKUP_CHILD_ROWS="$backup_rows"
+            tui_build; tui_fix_cursor
+        fi
+    fi
 
     # keep the focused item's lines within the viewport
     cfirst=${I_FIRSTLINE[$CURSOR]:-0}
@@ -466,9 +498,15 @@ tui_enter() {
     if [[ "${I_TYPE[$CURSOR]}" == backup ]]; then
         tui_restore "${I_NAME[$CURSOR]#@}"; return 0
     fi
-    local names=() x
+    local names=() x target
     for x in $SEL; do names+=("$x"); done
     [[ ${#names[@]} -eq 0 ]] && names=("${I_NAME[$CURSOR]}")
+    if [[ ${#names[@]} -eq 1 ]]; then target="'${names[0]}'"
+    else target="${#names[@]} selected tools"; fi
+    if ! tui_confirm "$(selection_prompt "$target" "${names[@]}")"; then
+        TOAST="apply cancelled"
+        return 0
+    fi
     if enqueue "${names[@]}"; then
         SEL=" "; GRACE=6; NEED_SCAN=1
     else

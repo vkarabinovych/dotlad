@@ -72,8 +72,9 @@ tree_activity_lines() {
 #   RS_GLYPH RS_COLOR RS_LABEL RS_NOTE RS_NOTECOLOR RS_WEIGHT RS_WANT
 # Failed / running / queued float to the top (negative weights) and always show
 # their subtree; otherwise the state comes from the config/install check. An
-# installable-but-missing tool leads with "not installed"; a config-only tool
-# (no installer) leads with its config state and just notes "tool not found".
+# A missing tool leads in full/package mode even when its config is ready; the
+# config state becomes a coloured note so a green check never masks missing
+# runtime state.
 compute_row() {
     local i="$1"
     local frame="${2:-}" run="${DOTLAD_RUNDIR:-}" nm="${T_NAME[$i]}"
@@ -88,13 +89,9 @@ compute_row() {
         tool_state "$i"
         local has_installer=0
         [[ -n "${T_BREW[$i]}" || -n "${T_INSTALL_URL[$i]}" ]] && has_installer=1
-        # Headline = the state relevant to the active mode. The full mode uses
-        # the CONFIG state (what this tool actually deploys and
-        # tracks). Whether the tool/package itself is present is a separate fact
-        # shown as a note — so a deployed config is never masked by "not
-        # installed" just because the binary is missing. The one exception: a
-        # brand-new installable tool (nothing deployed, package missing) leads
-        # with "not installed", since installing is the whole story there.
+        # Headline = the state relevant to the active mode. In full mode a
+        # missing runtime takes priority over config state because the tool is
+        # not usable yet; config readiness remains visible as the note.
         if [[ "$DOTLAD_MODE" == "packages" ]]; then
             if [[ "$ST_INSTALLED" == 1 ]]; then RS_GLYPH='✓'; RS_COLOR="$C_GREEN"; RS_LABEL='installed'; RS_WEIGHT=5
             else RS_GLYPH='+'; RS_COLOR="$C_MAGENTA"; RS_LABEL='not installed'; RS_WEIGHT=2; fi
@@ -107,21 +104,23 @@ compute_row() {
         elif ! tool_has_config "$i"; then
             if [[ "$ST_INSTALLED" == 1 ]]; then RS_GLYPH='✓'; RS_COLOR="$C_GREEN"; RS_LABEL='installed'; RS_WEIGHT=5
             else RS_GLYPH='+'; RS_COLOR="$C_MAGENTA"; RS_LABEL='not installed'; RS_WEIGHT=2; fi
-        elif [[ "$ST_INSTALLED" == "0" && "$has_installer" == 1 && "$ST_CFG" == "new" ]]; then
-            RS_GLYPH='+'; RS_COLOR="$C_MAGENTA"; RS_LABEL='not installed'; RS_WEIGHT=2
+        elif [[ "$ST_INSTALLED" == "0" ]]; then
+            if [[ "$has_installer" == 1 ]]; then
+                RS_GLYPH='+'; RS_COLOR="$C_MAGENTA"; RS_LABEL='not installed'
+            else
+                RS_GLYPH='!'; RS_COLOR="$C_YELLOW"; RS_LABEL='tool not found'
+            fi
+            case "$ST_CFG" in
+                update) RS_NOTE='config update available'; RS_NOTECOLOR="$C_YELLOW";  RS_WEIGHT=0 ;;
+                new)    RS_NOTE='config not set up';       RS_NOTECOLOR="$C_MAGENTA"; RS_WEIGHT=1 ;;
+                ready)  RS_NOTE='config up to date';       RS_NOTECOLOR="$C_GREEN";   RS_WEIGHT=2 ;;
+            esac
         else
             case "$ST_CFG" in
                 update) RS_GLYPH='↑'; RS_COLOR="$C_YELLOW";  RS_LABEL='update available'; RS_WEIGHT=0 ;;
                 new)    RS_GLYPH='+'; RS_COLOR="$C_MAGENTA"; RS_LABEL='not set up';       RS_WEIGHT=1 ;;
                 ready)  RS_GLYPH='✓'; RS_COLOR="$C_GREEN";   RS_LABEL='up to date';       RS_WEIGHT=5 ;;
             esac
-            if [[ "$ST_INSTALLED" == "0" ]]; then
-                if [[ "$has_installer" == 1 ]]; then
-                    RS_NOTE='not installed'; [[ "$RS_WEIGHT" == 5 ]] && RS_WEIGHT=2
-                else
-                    RS_NOTE='tool not found'
-                fi
-            fi
         fi
         [[ -n "$run" && -f "$run/${nm}.done" ]] && { RS_NOTE='just updated'; RS_NOTECOLOR="$C_GREEN"; }
         # Show the activity subtree for multi-package tools, an installable tool
@@ -241,8 +240,7 @@ tool_activity() {  # <idx> <spinner-frame>
 # headline_line <idx> [frame] — the single state row (runs compute_row, so the
 # caller can read RS_* afterwards). Name column is sized to the longest tool
 # name (computed once) so a long name can never break the state column's
-# alignment. The note is a success tag ("just updated") — green, not the
-# warning-yellow of a state.
+# alignment. The note carries secondary config state or a green completion tag.
 headline_line() {
     local i="$1"
     local nm="${T_NAME[$i]}" icon="${T_ICON[$i]}"
@@ -292,12 +290,35 @@ backup_file_line() {
     esac
 }
 
-backup_activity() {  # <dirname> — physical activity lines for a restore point
+backup_more_line() {  # <remaining-count>
+    printf '%s… %s more %s · d details%s' \
+        "$C_DIM" "$1" "$(file_noun "$1")" "$C_RESET"
+}
+
+backup_activity() {  # <dirname> — all restore-point child lines
     local dir="$1" mark rel tab
     tab="$(printf '\t')"
     while IFS="$tab" read -r mark rel; do
         [[ -n "$rel" ]] && { backup_file_line "$mark" "$rel"; printf '\n'; }
     done < <(backup_entries "$dir")
+}
+
+# Fit cached backup activity into a row budget. When clipping is required, the
+# final row reports the hidden entries and points to the complete paged diff.
+backup_activity_window() {  # <multiline-activity> <row-budget> <total>
+    local activity="$1" budget="$2" total="$3" line shown=0 limit remaining
+    [[ "$budget" -gt 0 ]] || return 0
+    if [[ "$total" -le "$budget" ]]; then limit="$total"
+    else limit=$((budget - 1)); fi
+    while IFS= read -r line; do
+        [[ -n "$line" ]] || continue
+        [[ "$shown" -lt "$limit" ]] || break
+        printf '%s\n' "$line"; shown=$((shown + 1))
+    done <<< "$activity"
+    remaining=$((total - shown))
+    if [[ "$remaining" -gt 0 ]]; then
+        backup_more_line "$remaining"; printf '\n'
+    fi
 }
 
 # tool_order — tool indices sorted by (weight, name); weight floats
