@@ -6,6 +6,8 @@ All notable user-facing changes are documented here.
 
 ### Changed
 
+- Built-in merge resolvers now declare their own `jq`, `yq`, or `git`
+  requirement; manifest `REQUIRES` remains available for additional commands.
 - Restore-point lists and counts exclude files and symlinks that already match
   the saved version, and restore skips those unchanged entries.
 - Operation modes with no relevant tools now report an explicit error, and

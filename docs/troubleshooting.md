@@ -60,15 +60,17 @@ it.
 
 ## `missing requirement: jq` (or `yq` / `git`)
 
-A config resolver or other config step declares a command in `REQUIRES`.
+A built-in config resolver declares its own command requirement. A tool may
+also declare additional commands in `REQUIRES`.
 
 - In the default mode, Dotlad can install a missing requirement through a
   same-named Homebrew formula.
 - In `--config-only` mode, package installation is disabled and the missing
   command is a blocker.
 
-Install the command first or run the full package + config mode. Confirm that
-the `REQUIRES` token is both the executable name and the Homebrew formula name.
+Install the command first or run the full package + config mode. For
+manifest-defined requirements, confirm that the `REQUIRES` token is both the
+executable name and the Homebrew formula name.
 
 ## A tool is missing from a profile or picker
 

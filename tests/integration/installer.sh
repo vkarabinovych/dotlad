@@ -92,7 +92,6 @@ CHECK="jsonmerge"
 SOURCE="files/settings.json"
 DEST="$H/.config/jsonmerge/settings.json"
 RESOLVER="json"
-REQUIRES="jq"
 EOF
 
 printf 'model = "repo"\n' > "$FAKE/tools/tomlmerge/files/config.toml"
@@ -105,7 +104,6 @@ CHECK="tomlmerge"
 SOURCE="files/config.toml"
 DEST="$H/.config/tomlmerge/config.toml"
 RESOLVER="toml"
-REQUIRES="yq"
 EOF
 
 printf 'font-family = fixture\n' > "$FAKE/tools/desktop/files/config"
@@ -132,7 +130,6 @@ CHECK="git"
 SOURCE="files/.gitconfig"
 DEST="$H/.gitconfig"
 RESOLVER="gitconfig"
-REQUIRES="git"
 EOF
 
 printf -- '-- init\n' > "$FAKE/tools/directory/files/init.lua"

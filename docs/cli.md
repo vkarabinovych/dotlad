@@ -133,10 +133,11 @@ first tool. The picker does the same before appending work to its serialized
 queue. A blocker in a later tool therefore prevents an earlier tool from
 partially applying.
 
-In full mode, Dotlad can install missing `REQUIRES` entries through Homebrew
-before processing config. Config-only mode never installs them and instead
-reports them as blockers. An `INSTALL_URL` tool displays its exact
-`curl -fsSL URL | sh` action and asks for confirmation unless `--yes` is active.
+In full mode, Dotlad can install missing resolver-owned and manifest
+`REQUIRES` entries through Homebrew before processing config. Config-only mode
+never installs them and instead reports them as blockers. An `INSTALL_URL` tool
+displays its exact `curl -fsSL URL | sh` action and asks for confirmation unless
+`--yes` is active.
 
 ## Operation modes
 

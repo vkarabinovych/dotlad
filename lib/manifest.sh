@@ -272,3 +272,16 @@ tool_find() {
     done
     return 1
 }
+
+# Resolver requirements are intrinsic to the selected implementation;
+# manifest REQUIRES adds tool-specific commands. Emit each command once.
+tool_requirements() {  # <idx>
+    local i="$1" req requirements seen=" "
+    requirements="$(resolver_requirements "${T_RESOLVER[$i]}")"
+    requirements="${requirements}${requirements:+ }${T_REQUIRES[$i]}"
+    for req in $requirements; do
+        [[ "$seen" == *" $req "* ]] && continue
+        printf '%s\n' "$req"
+        seen="${seen}${req} "
+    done
+}

@@ -30,7 +30,8 @@ install_tool() {
 
 ensure_requirements() {
     local i="$1" req
-    for req in ${T_REQUIRES[$i]}; do
+    while IFS= read -r req; do
+        [[ -n "$req" ]] || continue
         command -v "$req" >/dev/null 2>&1 && continue
         if ! mode_packages_enabled; then
             warn "${T_NAME[$i]}: needs $req (config-only mode does not install packages)"
@@ -41,5 +42,5 @@ ensure_requirements() {
         printf '%s▸%s installing requirement: %s\n' "$C_CYAN" "$C_RESET" "$req"
         brew install "$req" || { err "${T_NAME[$i]}: failed to install requirement $req"; return 1; }
         N_INSTALLED=$((N_INSTALLED + 1))
-    done
+    done < <(tool_requirements "$i")
 }

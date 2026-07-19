@@ -45,7 +45,6 @@ CHECK="example"
 SOURCE="files/config.toml"
 DEST="$HOME/.config/example/config.toml"
 RESOLVER="toml"
-REQUIRES="yq"
 ```
 
 | Field         | Required    | Meaning                                                                  |
@@ -60,7 +59,7 @@ REQUIRES="yq"
 | `SOURCE`      | with config | File or directory path relative to the tool directory                    |
 | `DEST`        | with config | Destination strictly below `$HOME`                                       |
 | `RESOLVER`    | no          | Built-in deployment resolver; defaults to `copy`                         |
-| `REQUIRES`    | no          | Space-separated commands needed before config deployment                 |
+| `REQUIRES`    | no          | Additional commands needed before config deployment                      |
 | `INSTALL_URL` | no          | Whitespace-free HTTPS script installer used instead of `BREW`            |
 
 `BREW` and `INSTALL_URL` are mutually exclusive. A tool must declare at least
@@ -181,7 +180,6 @@ Set `RESOLVER` when repository defaults must coexist with machine-local keys:
 
 ```bash
 RESOLVER="json"
-REQUIRES="jq"
 ```
 
 Built-in resolvers define both deployment and semantic equality:
@@ -201,11 +199,13 @@ repository entries are appended.
 Each resolver lives in `lib/resolvers/<name>.sh` and implements semantic
 `equal` plus either `apply` or `render`, with hyphens converted to underscores.
 Deployment resolvers may also define source support, preflight, preview, change
-summary, and action hooks. A resolver is runtime code, not project code; adding
-one requires shipping an updated Dotlad runtime.
+summary, action, and command-requirement hooks. A resolver is runtime code, not
+project code; adding one requires shipping an updated Dotlad runtime.
 
-Every `REQUIRES` token is checked as a command name and, when missing in full
-mode, installed as a Homebrew formula of the same name. The field cannot map a
+Built-in resolvers declare the commands in the table automatically. Every
+additional `REQUIRES` token is checked as a command name and, when missing in
+full mode, installed as a Homebrew formula of the same name. Duplicate
+resolver and manifest requirements are installed once. The field cannot map a
 formula name to a differently named executable; preinstall that dependency or
 avoid declaring an inaccurate requirement.
 

@@ -1,6 +1,8 @@
 # lib/resolvers/toml.sh — use live TOML as a base and repository values as
 # the overlay. A missing destination resolves to the repository document itself.
 
+resolver_toml_requires() { printf 'yq\n'; }
+
 resolver_toml_render() {  # <repo> <live>
     if [[ -f "$2" && ! -L "$2" ]]; then
         yq eval-all 'select(fileIndex==0) * select(fileIndex==1)' "$2" "$1" -o=toml

@@ -35,14 +35,15 @@ A Nerd Font is optional but recommended for the picker's branding and
 manifest-defined icons. Without one, state and keyboard behavior still work,
 but icon glyphs may use the terminal's missing-character fallback.
 
-Runtime dependencies are driven by each tool:
+Runtime dependencies are scoped to each tool and its resolver:
 
-- Homebrew installs declared `BREW` packages and missing `REQUIRES` commands.
+- Homebrew installs declared `BREW` packages and missing resolver or
+  manifest-defined requirements.
 - `curl` is required when an HTTPS installer must run.
 - `jq`, `yq`, or `git` is required only by the corresponding merge resolver.
 
-Declare resolver commands in `REQUIRES` so Dotlad can report or install missing
-requirements before config deployment.
+Built-in resolvers declare their own commands. Use `REQUIRES` only for
+additional commands needed by a particular tool's config deployment.
 
 ## Install
 

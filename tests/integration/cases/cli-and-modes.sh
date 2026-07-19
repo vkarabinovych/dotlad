@@ -29,6 +29,30 @@ printf '%s' "$plan_json" | jq -e \
 dry_json="$(df --dry-run --json filecopy)"
 [[ "$dry_json" == "$plan_json" ]] && pass "--dry-run matches plan" || fail "dry-run alias"
 
+# Built-in resolvers own their command requirements. Manifest REQUIRES adds
+# tool-specific commands, and duplicate names are installed only once.
+resolver_requirements_probe="$(cd "$FAKE" \
+    && PATH="$SB/brewprefix/bin:$SB/bin:$PATH" HOME="$H" ROOT="$FAKE" \
+    /bin/bash -c '
+    . "$DOTLAD_RUNTIME_ROOT/lib/runtime.sh"; manifest_load
+    i="$(tool_find jsonmerge)"
+    json_req="$(resolver_requirements json)"
+    resolver_json_requires() { printf "resolver-auto-req\n"; }
+    T_REQUIRES[$i]="tool-extra-req resolver-auto-req"
+    reqs="$(tool_requirements "$i")"; reqs="${reqs//$'\''\n'\''/,}"
+    preflight_inspect "$i" || true; missing="$PREFLIGHT_MISSING"
+    N_INSTALLED=0; ensure_requirements "$i" >/dev/null || exit 1
+    printf "%s|%s|%s|%s|%s|%s" "$json_req" "$reqs" "$missing" "$N_INSTALLED" \
+        "$(resolver_requirements toml)" "$(resolver_requirements gitconfig)"')"
+if [[ "$resolver_requirements_probe" \
+    == "jq|resolver-auto-req,tool-extra-req|resolver-auto-req tool-extra-req|2|yq|git" ]]; then
+    pass "resolvers own deduplicated installable requirements"
+else
+    fail "resolver requirement contract is inconsistent: $resolver_requirements_probe"
+fi
+rm -rf "$BREW_PREFIX/opt/resolver-auto-req" "$BREW_PREFIX/bin/resolver-auto-req" \
+    "$BREW_PREFIX/opt/tool-extra-req" "$BREW_PREFIX/bin/tool-extra-req"
+
 # --symlink changes only the implicit resolver. Explicit tool choices still
 # win, and JSON plans expose the effective resolver.
 mkdir -p "$FAKE/tools/symlink-flag/files" "$FAKE/tools/explicit-copy/files"

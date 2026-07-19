@@ -13,6 +13,8 @@ JSON_MERGE_FILTER='
         else $b end;
     merge(.[0]; .[1])'
 
+resolver_json_requires() { printf 'jq\n'; }
+
 resolver_json_render() {  # <repo> <live>
     local base='{}'
     [[ -s "$2" && ! -L "$2" ]] && base="$(cat "$2")"

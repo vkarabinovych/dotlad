@@ -77,7 +77,6 @@ ORDER="998"
 SOURCE="files/config.json"
 DEST="$H/.config/invalid-resolver/config.json"
 RESOLVER="json"
-REQUIRES="jq"
 EOF
 mkdir -p "$H/.config/multipkg"
 printf 'preflight-keep\n' > "$H/.config/multipkg/config"

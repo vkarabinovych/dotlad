@@ -100,7 +100,8 @@ change, not necessarily when its bytes equal the repository file.
 
 `preflight_inspect` produces the canonical read-only result for one tool. It
 checks installed state, requirements, resolver renderability, destination
-shape, and backup safety. Plans project this result; foreground batches and TUI
+shape, resolver-owned and manifest requirements, and backup safety. Plans
+project this result; foreground batches and TUI
 queueing enforce it. A full selection is preflighted before its first mutation.
 
 ```text

@@ -1,6 +1,8 @@
 # lib/resolvers/gitconfig.sh — repository keys win; unrelated live keys
 # survive.
 
+resolver_gitconfig_requires() { printf 'git\n'; }
+
 resolver_gitconfig_render() {  # <repo> <live>
     local repo="$1" live="$2" out records rec key value seen=$'\n' rc=0
     out="$(mktemp)" || return 1
