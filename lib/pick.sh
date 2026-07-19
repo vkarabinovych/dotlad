@@ -251,8 +251,8 @@ headline_line() {
     fi
     printf '  %s%s%s %s%s%s %-*s %s%-17s%s %s%s%s\n' \
         "$RS_COLOR" "$RS_GLYPH" "$C_RESET" "$C_CYAN" "$icon" "$C_RESET" "$NAME_W" "$nm" \
-        "$RS_COLOR" "$RS_LABEL" "$C_RESET" \
-        "$RS_NOTECOLOR" "$RS_NOTE" "$C_RESET"
+        "$C_ITALIC$RS_COLOR" "$RS_LABEL" "$C_RESET" \
+        "$C_ITALIC$RS_NOTECOLOR" "$RS_NOTE" "$C_RESET"
 }
 
 # tool_block <idx> [frame] — headline plus, when there's pending activity, its
@@ -276,7 +276,7 @@ backup_line() {
     local dir="$1" count="$2"
     printf '  %s⏮%s %s%s%s %s(%s %s)%s\n' \
         "$C_MAGENTA" "$C_RESET" "$C_BOLD" "$(fmt_backup_ts "$dir")" "$C_RESET" \
-        "$C_DIM" "$count" "$(file_noun "$count")" "$C_RESET"
+        "$C_ITALIC$C_DIM" "$count" "$(file_noun "$count")" "$C_RESET"
 }
 
 # backup_file_line <mark> <rel> — one file inside a restore point, tagged by

@@ -7,7 +7,7 @@ Require git
 Output .github/assets/demo/cli.gif
 
 Set Shell "bash"
-Set FontFamily "MesloLGS Nerd Font"
+Set FontFamily "FiraCode Nerd Font"
 Set FontSize 15
 Set Width 960
 Set Height 420

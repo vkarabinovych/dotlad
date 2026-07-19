@@ -51,19 +51,23 @@ tui_read_key() {
 # Normalize Ukrainian-layout characters by their physical Latin key so every
 # letter shortcut works without switching layouts.
 tui_normalize_key() {
-    case "$TUI_KEY" in
-        о) TUI_KEY="j" ;;
-        л) TUI_KEY="k" ;;
-        п) TUI_KEY="g" ;;
-        П) TUI_KEY="G" ;;
-        ф) TUI_KEY="a" ;;
-        ь) TUI_KEY="m" ;;
-        в) TUI_KEY="d" ;;
-        ч) TUI_KEY="x" ;;
-        й) TUI_KEY="q" ;;
-        н) TUI_KEY="y" ;;
-        Н) TUI_KEY="Y" ;;
+    local k=$TUI_KEY
+    case $k in
+        й) k=q ;; ц) k=w ;; у) k=e ;; к) k=r ;; е) k=t ;; н) k=y ;;
+        г) k=u ;; ш) k=i ;; щ) k=o ;; з) k=p ;; х) k='[' ;; ї) k=']' ;;
+        ф) k=a ;; і) k=s ;; в) k=d ;; а) k=f ;; п) k=g ;; р) k=h ;;
+        о) k=j ;; л) k=k ;; д) k=l ;; ж) k=';' ;; є) k="'" ;;
+        я) k=z ;; ч) k=x ;; с) k=c ;; м) k=v ;; и) k=b ;; т) k=n ;;
+        ь) k=m ;; б) k=',' ;; ю) k='.' ;;
+        Й) k=Q ;; Ц) k=W ;; У) k=E ;; К) k=R ;; Е) k=T ;; Н) k=Y ;;
+        Г) k=U ;; Ш) k=I ;; Щ) k=O ;; З) k=P ;; Х) k='{' ;; Ї) k='}' ;;
+        Ф) k=A ;; І) k=S ;; В) k=D ;; А) k=F ;; П) k=G ;; Р) k=H ;;
+        О) k=J ;; Л) k=K ;; Д) k=L ;; Ж) k=':' ;; Є) k='"' ;;
+        Я) k=Z ;; Ч) k=X ;; С) k=C ;; М) k=V ;; И) k=B ;; Т) k=N ;;
+        Ь) k=M ;; Б) k='<' ;; Ю) k='>' ;;
+        ґ) k='`' ;; Ґ) k='~' ;;
     esac
+    TUI_KEY=$k
 }
 
 tui_setup() {
@@ -365,9 +369,9 @@ tui_render() {
     [[ $TOP -lt 0 ]] && TOP=0
 
     # header
-    printf '\e[1;1H\e[K %sdotlad%s %s· %s ·%s %s%s%s' \
-        "$C_BOLD" "$C_RESET" "$C_DIM" "$HOSTNAME_S" "$C_RESET" \
-        "$C_BOLD$C_CYAN" "$(mode_label)" "$C_RESET"
+    printf '\e[1;1H\e[K %s󰆧 %s %s· %s ·%s %s%s%s' \
+        "$C_BOLD" "$APPNAME_S" "$C_RESET$C_BOLD$C_DIM" "$HOSTNAME_S" "$C_RESET" \
+        "$C_SKY_BLUE" "<$(mode_label)>" "$C_RESET"
     n="$(sel_count)"; [[ "$n" -gt 0 ]] && printf '   %s● %s selected%s' "$C_GREEN" "$n" "$C_RESET"
 
     # body (the tree)
@@ -626,6 +630,7 @@ tui_backup_preview() {  # <dirname>
 # --- main loop --------------------------------------------------------------
 
 tui_run() {
+    APPNAME_S="${DOTLAD_NAME:-dotlad}"
     HOSTNAME_S="$(hostname -s 2>/dev/null || printf 'this mac')"
     DOTLAD_RUNDIR="$(mktemp -d "${TMPDIR:-/tmp}/dotlad-run.XXXXXX")"; export DOTLAD_RUNDIR
     SEL=" "; CURSOR=0; CUR_NAME=""; TOP=0; TOAST=""; KEYCAST=""; FRAME_I=0; GRACE=0; NEED_SCAN=1; LAST_RUN=""; LAST_SIG=""
@@ -702,11 +707,11 @@ tui_run() {
                 continue
             fi
             case "$key" in
-                k) KEYCAST="↑↓"; tui_pscroll -1 ;;
-                j) KEYCAST="↑↓"; tui_pscroll 1 ;;
-                g) KEYCAST="g/G"; PANEL_SCROLL=0; PANEL_FOLLOW=0 ;;
-                G) KEYCAST="g/G"; PANEL_FOLLOW=1 ;;
-                q) tui_should_quit && break ;;
+                k|K) KEYCAST="↑↓"; tui_pscroll -1 ;;
+                j|J) KEYCAST="↑↓"; tui_pscroll 1 ;;
+                g)   KEYCAST="g/G"; PANEL_SCROLL=0; PANEL_FOLLOW=0 ;;
+                G)   KEYCAST="g/G"; PANEL_FOLLOW=1 ;;
+                q|Q) tui_should_quit && break ;;
                 *)   : ;;
             esac
             continue
@@ -724,16 +729,16 @@ tui_run() {
             continue
         fi
         case "$key" in
-            k)   KEYCAST="↑↓"; tui_move -1 ;;
-            j)   KEYCAST="↑↓"; tui_move 1 ;;
+            k|K) KEYCAST="↑↓"; tui_move -1 ;;
+            j|J) KEYCAST="↑↓"; tui_move 1 ;;
             g)   KEYCAST="g/G"; CURSOR=0; CUR_NAME="${I_NAME[0]}" ;;
             G)   KEYCAST="g/G"; CURSOR=$((N_ITEMS - 1)); CUR_NAME="${I_NAME[$CURSOR]}" ;;
             ' ') KEYCAST="space"; tui_toggle_sel ;;
-            a)   KEYCAST="a"; tui_toggle_all ;;
-            m)   KEYCAST="m"; tui_cycle_mode ;;
-            d)   KEYCAST="d"; tui_details ;;
-            x)   KEYCAST="x"; tui_delete_backup ;;
-            q)   tui_should_quit && break ;;
+            a|A) KEYCAST="a"; tui_toggle_all ;;
+            m|M) KEYCAST="m"; tui_cycle_mode ;;
+            d|D) KEYCAST="d"; tui_details ;;
+            x|X) KEYCAST="x"; tui_delete_backup ;;
+            q|Q) tui_should_quit && break ;;
             '')  KEYCAST="⏎"; tui_enter ;;      # Enter
             *)   : ;;
         esac

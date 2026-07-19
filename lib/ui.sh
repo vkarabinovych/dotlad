@@ -4,16 +4,16 @@
 ui_init_colors() {
     if [[ -z "${DOTLAD_PLAIN:-}" ]] \
        && { [[ -n "${DOTLAD_FORCE_COLOR:-}" ]] || [[ -t 1 && -z "${NO_COLOR:-}" ]]; }; then
-        C_RESET=$'\e[0m'; C_BOLD=$'\e[1m'; C_DIM=$'\e[2m'
+        C_RESET=$'\e[0m'; C_BOLD=$'\e[1m'; C_ITALIC=$'\e[3m'; C_DIM=$'\e[2m'
         C_RED=$'\e[31m'; C_GREEN=$'\e[32m'; C_YELLOW=$'\e[33m'
         C_MAGENTA=$'\e[35m'; C_CYAN=$'\e[36m'
-        C_HL=$'\e[48;2;68;71;90m'   # Dracula "current line" — the TUI cursor bar
-        C_KEY_HL=$'\e[48;2;98;114;164m' # muted accent for demo key highlighting
+        C_SKY_BLUE=$'\e[38;2;112;174;255m' # #70aeff
+        C_HL=$'\e[48;2;68;71;90m'          # Dracula "current line" — the TUI cursor bar
+        C_KEY_HL=$'\e[48;2;98;114;164m'    # muted accent for demo key highlighting
     else
-        C_RESET=''; C_BOLD=''; C_DIM=''
-        C_RED=''; C_GREEN=''; C_YELLOW=''; C_MAGENTA=''; C_CYAN=''
-        C_HL=''
-        C_KEY_HL=''
+        C_RESET=''; C_BOLD=''; C_ITALIC=''; C_DIM=''
+        C_RED=''; C_GREEN=''; C_YELLOW=''; C_MAGENTA=''; C_CYAN=''; C_SKY_BLUE=''
+        C_HL=''; C_KEY_HL=''
     fi
 }
 ui_init_colors
