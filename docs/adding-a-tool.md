@@ -155,9 +155,9 @@ DEST="$HOME/.config/example"
 ```
 
 The destination becomes an exact mirror: changed files are replaced, missing
-files and empty directories are created, and stale files, directories, or
-symlinks are backed up and removed. Do not mirror a directory shared with
-another tool or application.
+files and empty directories are created, stale leaves are backed up, and stale
+directories are removed. Do not mirror a directory shared with another tool
+or application.
 
 ### Repository symlink
 

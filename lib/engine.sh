@@ -262,14 +262,15 @@ replace_path_transaction() (  # <stage-root> <staged-path> <destination>
 # Apply one config (repo → system)
 # ---------------------------------------------------------------------------
 
-# apply_config writes the config and reports how much changed via AP_DEPLOYED /
-# AP_REMOVED (entries deployed / pruned) — no per-file output; sync_tool prints
-# the one-line summary. AP_DEPLOYED counts directory entries, files, or links.
+# apply_config reports changed file/link and directory counts; sync_tool prints
+# the one-line summary without per-entry output.
 AP_DEPLOYED=0
 AP_REMOVED=0
+AP_CREATED_DIRS=0
+AP_REMOVED_DIRS=0
 apply_config() {
     local i="$1"; tool_paths "$i"
-    AP_DEPLOYED=0; AP_REMOVED=0
+    AP_DEPLOYED=0; AP_REMOVED=0; AP_CREATED_DIRS=0; AP_REMOVED_DIRS=0
     resolver_apply "${T_RESOLVER[$i]}" "$TP_SRC" "$TP_DEST"
 }
 
@@ -297,7 +298,7 @@ tool_diff() {
 # the run log and shown in the picker's pane.
 # Also records per-stage markers so the picker's tree can show which step is
 # live (<tool>.stage = install|copy|link|done) and deployment result counts
-# (<tool>.result = "deployed removed backed").
+# (<tool>.result = "deployed removed backed created-dirs removed-dirs").
 sync_tool() {
     local i="$1"
     local did=0 nm="${T_NAME[$i]}" b0 nb sum action active result run="${DOTLAD_RUNDIR:-}"
@@ -330,11 +331,19 @@ sync_tool() {
         if apply_config "$i"; then
             nb=$(( N_BACKED - b0 ))
             if [[ -n "$run" ]]; then
-                printf '%s %s %s\n' "$AP_DEPLOYED" "$AP_REMOVED" "$nb" > "$run/${nm}.result" 2>/dev/null || true
+                printf '%s %s %s %s %s\n' "$AP_DEPLOYED" "$AP_REMOVED" "$nb" \
+                    "$AP_CREATED_DIRS" "$AP_REMOVED_DIRS" > "$run/${nm}.result" 2>/dev/null || true
             fi
-            sum="${AP_DEPLOYED} ${result}"
-            [[ "${AP_REMOVED:-0}" -gt 0 ]] && sum="${sum} · ${AP_REMOVED} removed"
-            [[ "$nb" -gt 0 ]] && sum="${sum} · ${nb} backed up"
+            sum=""
+            [[ "$AP_DEPLOYED" -gt 0 ]] && sum="${AP_DEPLOYED} ${result}"
+            [[ "$AP_CREATED_DIRS" -gt 0 ]] \
+                && sum="${sum:+${sum} · }${AP_CREATED_DIRS} $(directory_noun "$AP_CREATED_DIRS") created"
+            [[ "${AP_REMOVED:-0}" -gt 0 ]] \
+                && sum="${sum:+${sum} · }${AP_REMOVED} $(file_noun "$AP_REMOVED") removed"
+            [[ "$AP_REMOVED_DIRS" -gt 0 ]] \
+                && sum="${sum:+${sum} · }${AP_REMOVED_DIRS} $(directory_noun "$AP_REMOVED_DIRS") removed"
+            [[ "$nb" -gt 0 ]] && sum="${sum:+${sum} · }${nb} backed up"
+            [[ -n "$sum" ]] || sum="config updated"
             printf '%s  ✓ %s%s\n' "$C_GREEN" "$sum" "$C_RESET"
             N_UPDATED=$((N_UPDATED + 1)); did=1
         else

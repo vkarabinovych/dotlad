@@ -1,8 +1,10 @@
 # Dotlad
 
-[![CI](https://github.com/vkarabinovych/dotlad/actions/workflows/ci.yml/badge.svg)](https://github.com/vkarabinovych/dotlad/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/vkarabinovych/dotlad)](https://github.com/vkarabinovych/dotlad/releases/latest)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/vkarabinovych/dotlad/ci.yml?branch=main&style=flat-square&logo=githubactions&label=CI)](https://github.com/vkarabinovych/dotlad/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/vkarabinovych/dotlad?style=flat-square&logo=github&label=release)](https://github.com/vkarabinovych/dotlad/releases/latest)
+[![Platform](https://img.shields.io/badge/platform-macOS-000000?style=flat-square&logo=apple)](#requirements)
+[![Bash](https://img.shields.io/badge/bash-3.2%2B-4EAA25?style=flat-square&logo=gnubash&logoColor=white)](#requirements)
+[![License](https://img.shields.io/github/license/vkarabinovych/dotlad?style=flat-square&label=license)](LICENSE)
 
 Dotlad is a manifest-driven macOS CLI for installing packages and deploying
 dotfiles from a repository. It provides one interface for inspecting state,
@@ -28,6 +30,10 @@ source of truth; Dotlad never captures live configuration back into the project.
 Dotlad targets the stock Bash 3.2 shipped with macOS and has no TUI framework
 dependency. A real terminal enables the interactive picker; `--plain` provides
 a read-only state view for scripts and non-interactive shells.
+
+A Nerd Font is optional but recommended for the picker's branding and
+manifest-defined icons. Without one, state and keyboard behavior still work,
+but icon glyphs may use the terminal's missing-character fallback.
 
 Runtime dependencies are driven by each tool:
 

@@ -25,6 +25,10 @@ backup_name_valid() {
     [[ "$1" =~ ^[0-9]{8}_[0-9]{6}(-[0-9]{2})?$ ]]
 }
 
+backup_exists() {
+    backup_root_safe && backup_name_valid "$1" && [[ -d "$BACKUP_ROOT/$1" ]]
+}
+
 new_backup_dir() {
     backup_root_safe || { err "unsafe backup root: $BACKUP_ROOT" >&2; return 1; }
     mkdir -p "$BACKUP_ROOT" || { err "cannot create backup root: $BACKUP_ROOT" >&2; return 1; }
@@ -61,7 +65,7 @@ backup_paths_equal() {
     if [[ -L "$1" || -L "$2" ]]; then
         [[ -L "$1" && -L "$2" && "$(readlink "$1")" == "$(readlink "$2")" ]]
     else
-        cmp -s "$1" "$2"
+        [[ -f "$1" && -f "$2" ]] && cmp -s "$1" "$2"
     fi
 }
 
@@ -77,11 +81,11 @@ list_backups() {
 
 backup_entries() {
     local dir="$BACKUP_ROOT/$1" f rel cur mark
-    if ! backup_root_safe || ! backup_name_valid "$1" || [[ ! -d "$dir" ]]; then return 0; fi
+    backup_exists "$1" || return 0
     while IFS= read -r f; do
         rel="${f#"$dir"/}"; cur="$HOME/$rel"
         if [[ ! -e "$cur" && ! -L "$cur" ]]; then mark='+'
-        elif backup_paths_equal "$f" "$cur"; then mark='='
+        elif backup_paths_equal "$f" "$cur"; then continue
         else mark='~'; fi
         printf '%s\t%s\n' "$mark" "$rel"
     done < <(find "$dir" -path "$dir/$BACKUP_META_NAME" -prune -o \
@@ -89,13 +93,11 @@ backup_entries() {
 }
 
 backup_count() {
-    local dir="$BACKUP_ROOT/$1" n=0 f
-    if ! backup_root_safe || ! backup_name_valid "$1" || [[ ! -d "$dir" ]]; then
-        printf '0'; return 0
-    fi
-    while IFS= read -r f; do [[ -n "$f" ]] && n=$((n + 1)); done \
-        < <(find "$dir" -path "$dir/$BACKUP_META_NAME" -prune -o \
-            \( -type f -o -type l \) -print 2>/dev/null)
+    local n=0 mark rel tab
+    tab="$(printf '\t')"
+    while IFS="$tab" read -r mark rel; do
+        [[ -n "$rel" ]] && n=$((n + 1))
+    done < <(backup_entries "$1")
     printf '%s' "$n"
 }
 
@@ -127,7 +129,7 @@ restore_directory_nodes() {  # <snapshot-dir>
 }
 
 restore_backup() {
-    local dir="$BACKUP_ROOT/$1" f rel cur
+    local dir="$BACKUP_ROOT/$1" f rel cur mark tab
     RESTORE_N_RESTORED=0; RESTORE_N_FAILED=0
     backup_root_safe || { err "unsafe backup root: $BACKUP_ROOT"; return 1; }
     if ! backup_name_valid "$1" || [[ ! -d "$dir" ]]; then
@@ -135,8 +137,10 @@ restore_backup() {
         return 1
     fi
     restore_directory_nodes "$dir"
-    while IFS= read -r f; do
-        rel="${f#"$dir"/}"; cur="$HOME/$rel"
+    tab="$(printf '\t')"
+    while IFS="$tab" read -r mark rel; do
+        [[ -n "$rel" ]] || continue
+        f="$dir/$rel"; cur="$HOME/$rel"
         if ! dest_safe "$cur"; then
             err "unsafe restore destination: $rel"; RESTORE_N_FAILED=$((RESTORE_N_FAILED + 1)); continue
         fi
@@ -157,8 +161,7 @@ restore_backup() {
         else
             err "failed to restore ${rel}"; RESTORE_N_FAILED=$((RESTORE_N_FAILED + 1))
         fi
-    done < <(find "$dir" -path "$dir/$BACKUP_META_NAME" -prune -o \
-        \( -type f -o -type l \) -print 2>/dev/null | sort)
+    done < <(backup_entries "$1")
     if [[ "$RESTORE_N_FAILED" -gt 0 ]]; then
         err "restored ${RESTORE_N_RESTORED} file(s), ${RESTORE_N_FAILED} failed from ${1}"
         return 1

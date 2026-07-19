@@ -29,6 +29,10 @@ file_noun() {
     if [[ "$1" == "1" ]]; then printf 'file'; else printf 'files'; fi
 }
 
+directory_noun() {
+    if [[ "$1" == "1" ]]; then printf 'directory'; else printf 'directories'; fi
+}
+
 pretty_path() {
     case "$1" in
         "$HOME"/*) printf '~%s' "${1#"$HOME"}" ;;

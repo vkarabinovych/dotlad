@@ -200,7 +200,7 @@ tool_activity() {  # <idx> <spinner-frame>
         fi
     fi
     if mode_config_enabled && tool_has_config "$i"; then
-        local src="${T_SRC[$i]}" dest c m b counts cg cc verb action
+        local src="${T_SRC[$i]}" dest c m b dc dm counts cg cc verb action
         dest="$(pretty_path "${T_DEST[$i]}")"
         action="$(tool_config_action "$i")"
         # A pending change either creates a config that isn't there yet
@@ -213,7 +213,7 @@ tool_activity() {  # <idx> <spinner-frame>
         elif [[ -n "$run" && -f "$run/${nm}.result" ]]; then
             # `|| true`: read returns non-zero on a newline-less file, which
             # under set -e would abort before the result line is printed.
-            read -r c m b < "$run/${nm}.result" || true
+            read -r c m b dc dm < "$run/${nm}.result" || true
             counts=''
             if [[ "${c:-0}" -gt 0 && "$action" == link ]]; then
                 counts="${c} link synced"
@@ -221,6 +221,10 @@ tool_activity() {  # <idx> <spinner-frame>
                 counts="${c} $(file_noun "$c") synced"
             fi
             [[ "${m:-0}" -gt 0 ]] && counts="${counts:+${counts} · }${m} $(file_noun "$m") removed"
+            [[ "${dc:-0}" -gt 0 ]] \
+                && counts="${counts:+${counts} · }${dc} $(directory_noun "$dc") created"
+            [[ "${dm:-0}" -gt 0 ]] \
+                && counts="${counts:+${counts} · }${dm} $(directory_noun "$dm") removed"
             [[ "${b:-0}" -gt 0 ]] && counts="${counts:+${counts} · }${b} $(file_noun "$b") backed up"
             wrapped_activity "$C_GREEN" '✓' "$action" "$src → $dest${counts:+ · $counts}"
         elif tool_uptodate "$i"; then
@@ -279,14 +283,12 @@ backup_line() {
         "$C_ITALIC$C_DIM" "$count" "$(file_noun "$count")" "$C_RESET"
 }
 
-# backup_file_line <mark> <rel> — one file inside a restore point, tagged by
-# what restoring it would do: = unchanged (dim) · ~ differs (yellow) · +
-# would be recreated (green).
+# backup_file_line <mark> <rel> — one changed file inside a restore point,
+# tagged by what restoring it would do: ~ differs · + would be recreated.
 backup_file_line() {
     case "$1" in
         '~') printf '%s~%s %s' "$C_YELLOW" "$C_RESET" "$2" ;;
         '+') printf '%s+%s %s' "$C_GREEN" "$C_RESET" "$2" ;;
-        *)   printf '%s= %s%s' "$C_DIM" "$2" "$C_RESET" ;;
     esac
 }
 

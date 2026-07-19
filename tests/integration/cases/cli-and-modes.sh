@@ -132,6 +132,36 @@ fi
 rc_is "packages-only rejects a config-only tool" 1 df --packages-only jsonmerge
 rc_is "config-only rejects a package-only tool" 1 df --config-only package
 
+# A mode with no relevant tools is an explicit error, not a misleading config
+# prompt followed by a successful no-op.
+EMPTY_MODE_ROOT="$SB/empty-mode-project"
+mkdir -p "$EMPTY_MODE_ROOT/tools/config-only/files"
+printf 'config only\n' > "$EMPTY_MODE_ROOT/tools/config-only/files/config"
+cat > "$EMPTY_MODE_ROOT/tools/config-only/tool.conf" <<EOF
+NAME="config-only"
+DESC="Config-only empty-mode fixture"
+ICON="!"
+SOURCE="files/config"
+DEST="$H/.config/empty-mode/config"
+EOF
+empty_mode_rc=0
+empty_mode_out="$(cd "$EMPTY_MODE_ROOT" && HOME="$H" DOTLAD_PLAIN=1 DOTLAD_YES=1 \
+    /bin/bash "$ROOT/dotlad" --packages-only all 2>&1)" || empty_mode_rc=$?
+if [[ "$empty_mode_rc" == 1 && "$empty_mode_out" == *'no tools for packages only mode'* ]]; then
+    pass "all rejects a mode with no relevant tools"
+else
+    fail "empty-mode all is a successful or misleading no-op (rc=$empty_mode_rc: $empty_mode_out)"
+fi
+empty_picker_rc=0
+empty_picker_out="$(cd "$EMPTY_MODE_ROOT" && HOME="$H" DOTLAD_PLAIN=1 \
+    /bin/bash "$ROOT/dotlad" --packages-only 2>&1)" || empty_picker_rc=$?
+if [[ "$empty_picker_rc" == 1 && "$empty_picker_out" == *'no tools for packages only mode'* ]]; then
+    pass "picker reports an empty operation mode"
+else
+    fail "empty-mode picker has no explicit state (rc=$empty_picker_rc: $empty_picker_out)"
+fi
+rm -rf "$EMPTY_MODE_ROOT"
+
 tui_probe="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" /bin/bash -c '
     . "$DOTLAD_RUNTIME_ROOT/lib/runtime.sh"
     manifest_load; DOTLAD_RUNDIR=""; mode_set full
@@ -143,10 +173,23 @@ tui_probe="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" /bin/bash -c '
     toggle_rc=0; tui_toggle_all || toggle_rc=$?
     selected=0; is_selected filecopy && selected=1
     tui_read_key < <(printf "в"); diff_key="$TUI_KEY"
-    aliases=""
-    for input in о л п П ф ь в ч й н Н; do
-        TUI_KEY="$input"; tui_normalize_key
-        aliases="${aliases}${TUI_KEY} "
+    apostrophe="$(printf "\047")"; quote="$(printf "\042")"; backtick="$(printf "\140")"
+    layout_inputs=(
+        й ц у к е н г ш щ з х ї ф і в а п р о л д ж є я ч с м и т ь б ю ґ
+        Й Ц У К Е Н Г Ш Щ З Х Ї Ф І В А П Р О Л Д Ж Є Я Ч С М И Т Ь Б Ю Ґ
+    )
+    layout_expected=(
+        q w e r t y u i o p "[" "]" a s d f g h j k l ";" "$apostrophe"
+        z x c v b n m "," "." "$backtick"
+        Q W E R T Y U I O P "{" "}" A S D F G H J K L ":" "$quote"
+        Z X C V B N M "<" ">" "~"
+    )
+    layout_ok=1
+    for (( alias_i = 0; alias_i < ${#layout_inputs[@]}; alias_i++ )); do
+        TUI_KEY="${layout_inputs[$alias_i]}"; tui_normalize_key
+        if [[ "$TUI_KEY" != "${layout_expected[$alias_i]}" ]]; then
+            layout_ok=0; break
+        fi
     done
     run="$(mktemp -d)"; queue_rc=0
     queue_out="$(queue_has_tool "$run" filecopy 2>&1)" || queue_rc=$?
@@ -166,9 +209,9 @@ $(tui_log_height 24 100 1) $(tui_log_height 42 100 0) $(tui_log_height 42 100 1)
     I_NAME=(package); tui_enter; package_prompt="$confirm_message"
     I_NAME=(jsonmerge); tui_enter; config_prompt="$confirm_message"
     printf "%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s" "$modes" "$toggle_rc" "$selected" \
-        "$diff_key" "$aliases" "$queue_rc" "$queue_quiet" "$log_heights" \
+        "$diff_key" "$layout_ok" "$queue_rc" "$queue_quiet" "$log_heights" \
         "$apply_cancel" "$apply_confirm" "$package_prompt" "$config_prompt"')"
-IFS='|' read -r mode_cycle toggle_rc toggle_selected diff_key key_aliases queue_rc queue_quiet \
+IFS='|' read -r mode_cycle toggle_rc toggle_selected diff_key layout_ok queue_rc queue_quiet \
     log_heights apply_cancel apply_confirm package_prompt config_prompt <<< "$tui_probe"
 [[ "$mode_cycle" == "packages config full" ]] && pass "TUI mode switch cycles through all modes" \
     || fail "TUI mode switch cycle (got '$mode_cycle')"
@@ -176,9 +219,9 @@ IFS='|' read -r mode_cycle toggle_rc toggle_selected diff_key key_aliases queue_
     || fail "select-all restore-point probe (got '$toggle_rc|$toggle_selected')"
 [[ "$diff_key" == "в" ]] && pass "TUI reads the Ukrainian diff hotkey as one character" \
     || fail "Ukrainian diff hotkey probe (got '$diff_key')"
-[[ "$key_aliases" == "j k g G a m d x q y Y " ]] \
+[[ "$layout_ok" == 1 ]] \
     && pass "TUI normalizes every Ukrainian-layout letter hotkey" \
-    || fail "Ukrainian hotkey aliases (got '$key_aliases')"
+    || fail "Ukrainian keyboard normalization is incomplete"
 [[ "$queue_rc|$queue_quiet" == "1|1" ]] && pass "empty TUI run checks a missing queue silently" \
     || fail "missing TUI queue probe (got '$queue_rc|$queue_quiet')"
 [[ "$log_heights" == "3 7 14 13 26" ]] \

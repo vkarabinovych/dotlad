@@ -6,6 +6,16 @@ All notable user-facing changes are documented here.
 
 ### Changed
 
+- Restore-point lists and counts exclude files and symlinks that already match
+  the saved version, and restore skips those unchanged entries.
+- Operation modes with no relevant tools now report an explicit error, and
+  `all`, profile, and picker commands preserve failures in their exit status.
+- Directory mirror plans and apply results count empty directories created or
+  removed instead of reporting an unexplained update or `0 copied`.
+- The picker accepts shortcut letters in either case and normalizes the full
+  Ukrainian keyboard layout by physical key.
+- Picker state labels use italic styling, and the header uses configurable
+  application naming with updated terminal branding.
 - Focused restore points fit their file list to the available picker height
   and summarize the remainder; the complete diff remains available through
   details.

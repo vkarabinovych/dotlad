@@ -529,6 +529,10 @@ tui_confirm() {  # <msg> → 0/1 (drawn on the footer row)
 tui_restore() {  # <dirname>
     local dir="$1" n
     n="$(backup_count "$dir")"
+    if [[ "$n" -eq 0 ]]; then
+        TOAST="everything already matches this backup"
+        return 0
+    fi
     if tui_confirm "Restore ${n} file(s) from $(fmt_backup_ts "$dir")? (current versions backed up)"; then
         if restore_backup "$dir" >/dev/null 2>&1; then
             TOAST="✓ restored ${RESTORE_N_RESTORED} file(s)"
@@ -543,9 +547,8 @@ tui_restore() {  # <dirname>
 
 tui_delete_backup() {
     [[ "${I_TYPE[$CURSOR]:-}" == backup ]] || return 0
-    local dir="${I_NAME[$CURSOR]#@}" n
-    n="$(backup_count "$dir")"
-    if tui_confirm "Delete backup $(fmt_backup_ts "$dir") — ${n} file(s)? Cannot be undone."; then
+    local dir="${I_NAME[$CURSOR]#@}"
+    if tui_confirm "Delete backup $(fmt_backup_ts "$dir")? Cannot be undone."; then
         if delete_backup "$dir" >/dev/null 2>&1; then TOAST="✓ deleted backup $(fmt_backup_ts "$dir")"; else TOAST="✗ delete failed"; fi
     else
         TOAST="delete cancelled"
@@ -604,16 +607,14 @@ tui_details() {  # focused tool's diff, or a running/failed tool's log, or a bac
 # what restoring changes. Unchanged files are skipped; missing ones show the
 # whole content that would be recreated.
 tui_backup_preview() {  # <dirname>
-    local dir="$1" bdir tab mark rel cur src n=0 changed=0
+    local dir="$1" bdir tab mark rel cur src changed=0
     tab="$(printf '\t')"; bdir="$BACKUP_ROOT/$dir"
     printf '%s⏮ restore · %s%s\n' "$C_MAGENTA" "$(fmt_backup_ts "$dir")" "$C_RESET"
     printf '%sdiff is current → this backup (what restoring would change; your%s\n' "$C_DIM" "$C_RESET"
     printf '%scurrent versions are backed up first). enter on the row to restore.%s\n' "$C_DIM" "$C_RESET"
     while IFS="$tab" read -r mark rel; do
-        n=$((n + 1))
         cur="$HOME/$rel"; src="$bdir/$rel"
         case "$mark" in
-            '=') ;;   # identical to current — nothing to show
             '+') printf '\n%s— %s %s(recreated)%s —\n' "$C_BOLD" "$rel" "$C_DIM" "$C_RESET"
                  diff_file "$src" "$cur"; changed=$((changed + 1)) ;;
             *)   printf '\n%s— %s —%s\n' "$C_BOLD" "$rel" "$C_RESET"
@@ -623,7 +624,7 @@ tui_backup_preview() {  # <dirname>
     if [[ "$changed" == 0 ]]; then
         printf '\n%severything already matches this backup — nothing to restore%s\n' "$C_DIM" "$C_RESET"
     else
-        printf '\n%s%s of %s file(s) would change%s\n' "$C_DIM" "$changed" "$n" "$C_RESET"
+        printf '\n%s%s file(s) would change%s\n' "$C_DIM" "$changed" "$C_RESET"
     fi
 }
 
@@ -776,6 +777,8 @@ tui_running_tool() {
 
 # Entry point: interactive TUI on a real terminal, plain list otherwise.
 cmd_pick() {
+    selection_all
+    selection_require_any || return 1
     if [[ -n "${DOTLAD_PLAIN:-}" || ! -t 0 || ! -t 1 ]]; then
         print_list
         return 0

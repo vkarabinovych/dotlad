@@ -166,6 +166,8 @@ dotlad backup delete 20260718_120000
 Restore and delete require confirmation unless `--yes` is active. Restore
 first backs up the current versions, which makes the operation reversible. A
 partial restore exits non-zero and reports restored and failed entry counts.
+Restore-point counts and file lists include only entries that differ from the
+current filesystem. Identical files and symlinks are skipped during restore.
 
 ## Picker states
 
@@ -200,17 +202,22 @@ preserves the current selection.
 | `x`                       | Delete the focused restore point after confirmation      |
 | `q`                       | Quit; active work must be confirmed before it is stopped |
 
-Letter shortcuts also follow the same physical keys on a Ukrainian layout:
-`j/о`, `k/л`, `g/п`, `G/П`, `a/ф`, `m/ь`, `d/в`, `x/ч`, `q/й`, and `y/н`
-in confirmation prompts.
+Letter shortcuts are case-insensitive except for the distinct `g`/`G` jump
+directions. The picker normalizes the full Ukrainian layout by physical key,
+so shortcuts work without switching layouts; confirmation accepts `y`/`Y` and
+`н`/`Н`.
 
-A focused restore point fits its file list to the available tree height and
-reports how many entries remain. Press `d` to inspect the complete paged
+A focused restore point fits its changed-file list to the available tree height
+and reports how many entries remain. Press `d` to inspect the complete paged
 restore diff.
 
 The live apply log shrinks to its content and grows up to one third of the
 available terminal height. Focusing it with `Tab` raises that limit to two
 thirds. At least four rows remain visible for the tool tree.
+
+Set `DOTLAD_NAME` to replace `dotlad` in the interactive header when embedding
+the runtime under a project-specific command name. It changes presentation
+only.
 
 ## Generate a Brewfile
 
@@ -240,3 +247,6 @@ top-level confirmation. It exits non-zero for invalid input, unsafe manifests,
 preflight blockers, failed or skipped per-tool installation/deployment, and
 partial restore. As noted above, a valid plan uses its `blockers` data rather
 than its process status to describe executability.
+
+An operation mode with no relevant tools also exits non-zero instead of
+prompting for an empty apply.

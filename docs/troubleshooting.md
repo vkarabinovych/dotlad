@@ -77,6 +77,9 @@ Operation modes hide tools that have no relevant action:
 - `--packages-only` hides config-only tools;
 - `--config-only` hides package-only tools.
 
+If a mode leaves no relevant tools, picker and `all` commands exit non-zero
+with an explicit `no tools for … mode` message.
+
 Run without a mode flag or inspect the tool directly in a matching mode. If
 the tool should be in a profile, check the resolved parent chain and ensure
 the tool name exactly matches its directory and `NAME`.

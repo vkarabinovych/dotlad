@@ -173,13 +173,13 @@ main() {
     fi
 
     # No positional → the interactive picker.
-    if [[ ${#pos[@]} -eq 0 ]]; then cmd_pick; exit 0; fi
+    if [[ ${#pos[@]} -eq 0 ]]; then cmd_pick; exit $?; fi
 
     case "${pos[0]}" in
-        all)   cmd_all; exit 0 ;;
+        all)   cmd_all; exit $? ;;
         profile)
             [[ ${#pos[@]} -eq 2 ]] || { err "usage: $DOTLAD_COMMAND_NAME profile NAME"; exit 1; }
-            cmd_profile "${pos[1]}"; exit 0
+            cmd_profile "${pos[1]}"; exit $?
             ;;
         # hidden helper: the background install/update worker the TUI spawns.
         _worker) worker; exit 0 ;;

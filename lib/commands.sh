@@ -7,6 +7,12 @@ selection_all() {
     for (( i = 0; i < T_COUNT; i++ )); do
         tool_relevant "$i" && SELECTED_NAMES+=("${T_NAME[$i]}")
     done
+    return 0
+}
+
+selection_require_any() {
+    [[ ${#SELECTED_NAMES[@]} -gt 0 ]] \
+        || { err "no tools for $(mode_label) mode"; return 1; }
 }
 
 selection_profile() {  # <profile>
@@ -17,6 +23,7 @@ selection_profile() {  # <profile>
         i="$(tool_find "$name")"
         tool_relevant "$i" && SELECTED_NAMES+=("$name")
     done < <(profile_tools "$1")
+    return 0
 }
 
 selection_explicit() {  # <tool names...>
@@ -28,6 +35,7 @@ selection_explicit() {  # <tool names...>
             || { err "$name has nothing to do in $(mode_label) mode"; return 1; }
         SELECTED_NAMES+=("$name")
     done
+    return 0
 }
 
 cmd_backups() {
@@ -44,19 +52,20 @@ cmd_backups() {
 cmd_restore_cli() {
     local name="$1" count
     backup_name_valid "$name" || { err "bad backup name: $name"; return 1; }
+    backup_exists "$name" || { err "no such backup: $name"; return 1; }
     count="$(backup_count "$name")"
-    [[ "$count" -gt 0 ]] || { err "no such or empty backup: $name"; return 1; }
+    [[ "$count" -gt 0 ]] \
+        || { hint "everything already matches this backup"; return 0; }
     confirm "Restore ${count} file(s) from $(fmt_backup_ts "$name")? (current versions backed up)" \
         || { hint "cancelled"; return 0; }
     restore_backup "$name"
 }
 
 cmd_backup_delete_cli() {
-    local name="$1" count
+    local name="$1"
     backup_name_valid "$name" || { err "bad backup name: $name"; return 1; }
-    count="$(backup_count "$name")"
-    [[ "$count" -gt 0 ]] || { err "no such or empty backup: $name"; return 1; }
-    confirm "Delete backup $(fmt_backup_ts "$name") — ${count} file(s)? Cannot be undone." \
+    backup_exists "$name" || { err "no such backup: $name"; return 1; }
+    confirm "Delete backup $(fmt_backup_ts "$name")? Cannot be undone." \
         || { hint "cancelled"; return 0; }
     delete_backup "$name"
     ok "deleted backup $(fmt_backup_ts "$name")"
@@ -73,8 +82,7 @@ cmd_plan() {
     else
         selection_explicit "$@" || return 1
     fi
-    [[ ${#SELECTED_NAMES[@]} -gt 0 ]] \
-        || { err "plan has no tools for $(mode_label) mode"; return 1; }
+    selection_require_any || return 1
     plan_selected "${SELECTED_NAMES[@]}"
 }
 
@@ -151,6 +159,7 @@ cmd_all() {
     print_list
     echo ""
     selection_all
+    selection_require_any || return 1
     confirm "$(selection_prompt 'every relevant tool now' "${SELECTED_NAMES[@]}")" \
         || { hint "cancelled"; exit 0; }
     selection_has_packages "${SELECTED_NAMES[@]}" && ensure_brew

@@ -76,7 +76,14 @@ ORDER="997"
 SOURCE="files"
 DEST="$H/.config/empty-tree"
 EOF
-df --config-only empty-tree >/dev/null 2>&1
+empty_create_plan="$(df --config-only --json plan empty-tree)"
+printf '%s' "$empty_create_plan" | jq -e '.tools[0].changes == "2 directories to create"' >/dev/null \
+    && pass "empty directory creation is counted in plans" \
+    || fail "empty directory creation has no plan count: $empty_create_plan"
+empty_create_out="$(df --config-only empty-tree)"
+[[ "$empty_create_out" == *'2 directories created'* ]] \
+    && pass "empty directory creation is counted after apply" \
+    || fail "empty directory creation has no apply count: $empty_create_out"
 check "empty directory destination is created" test -d "$H/.config/empty-tree"
 check "source empty directory is mirrored" test -d "$H/.config/empty-tree/kept-empty"
 [[ "$(state_json empty-tree)" == "ready 0" ]] && pass "empty directory mirror reaches ready" \
@@ -84,7 +91,14 @@ check "source empty directory is mirrored" test -d "$H/.config/empty-tree/kept-e
 mkdir -p "$H/.config/empty-tree/stale-empty"
 [[ "$(state_json empty-tree)" == "update 0" ]] && pass "stale empty directory is detected" \
     || fail "stale empty directory was ignored"
-df --config-only empty-tree >/dev/null 2>&1
+empty_remove_plan="$(df --config-only --json plan empty-tree)"
+printf '%s' "$empty_remove_plan" | jq -e '.tools[0].changes == "1 directory to remove"' >/dev/null \
+    && pass "stale empty directory removal is counted in plans" \
+    || fail "empty directory removal has no plan count: $empty_remove_plan"
+empty_remove_out="$(df --config-only empty-tree)"
+[[ "$empty_remove_out" == *'1 directory removed'* ]] \
+    && pass "stale empty directory removal is counted after apply" \
+    || fail "empty directory removal has no apply count: $empty_remove_out"
 checknot "stale empty directory is pruned" test -e "$H/.config/empty-tree/stale-empty"
 check "declared empty directory survives prune" test -d "$H/.config/empty-tree/kept-empty"
 rm -rf "$FAKE/tools/empty-tree" "$H/.config/empty-tree"
@@ -148,25 +162,62 @@ backup_list="$(df backups)"
 printf '%s\n' "$backup_list" | grep -qF "$backup_name" \
     && pass "backup CLI lists restore points" || fail "backup CLI list"
 activity_root="$H/activity-backups"; activity_name="20000101_010101"
-mkdir -p "$activity_root/$activity_name/.activity"
+mkdir -p "$activity_root/$activity_name/.activity" "$H/.activity"
 for activity_i in 1 2 3 4 5 6 7; do
     printf '%s\n' "$activity_i" > "$activity_root/$activity_name/.activity/file-$activity_i"
 done
+cp "$activity_root/$activity_name/.activity/file-1" "$H/.activity/file-1"
+rm -f "$activity_root/$activity_name/.activity/file-6" \
+    "$activity_root/$activity_name/.activity/file-7"
+ln -s backup-target "$activity_root/$activity_name/.activity/file-6"
+ln -s current-target "$H/.activity/file-6"
+ln -s shared-target "$activity_root/$activity_name/.activity/file-7"
+ln -s shared-target "$H/.activity/file-7"
+backup_visibility_probe="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" DOTLAD_PLAIN=1 \
+    DOTLAD_BACKUP_ROOT="$activity_root" /bin/bash -c '
+    . "$DOTLAD_RUNTIME_ROOT/lib/runtime.sh"
+    printf "%s\n" "$(backup_count "20000101_010101")"
+    backup_activity "20000101_010101"')"
+visibility_count="$(printf '%s\n' "$backup_visibility_probe" | sed -n '1p')"
+visibility_activity="$(printf '%s\n' "$backup_visibility_probe" | sed '1d')"
+if [[ "$visibility_count" == 5 \
+    && "$visibility_activity" != *'.activity/file-1'* \
+    && "$visibility_activity" == *'.activity/file-6'* \
+    && "$visibility_activity" != *'.activity/file-7'* ]]; then
+    pass "backup lists and counts exclude identical entries"
+else
+    fail "backup includes identical entries: $backup_visibility_probe"
+fi
 backup_activity_probe="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" DOTLAD_PLAIN=1 \
     DOTLAD_BACKUP_ROOT="$activity_root" /bin/bash -c '
     . "$DOTLAD_RUNTIME_ROOT/lib/runtime.sh"
     activity="$(backup_activity "20000101_010101")"
-    backup_activity_window "$activity" 4 7')"
+    backup_activity_window "$activity" 4 "$(backup_count "20000101_010101")"')"
 activity_lines="$(printf '%s\n' "$backup_activity_probe" | wc -l | tr -d ' ')"
 if [[ "$activity_lines" == 4 \
     && "$backup_activity_probe" == *'.activity/file-3'* \
-    && "$backup_activity_probe" != *'.activity/file-4'* \
-    && "$backup_activity_probe" == *'… 4 more files · d details'* ]]; then
+    && "$backup_activity_probe" == *'.activity/file-4'* \
+    && "$backup_activity_probe" != *'.activity/file-5'* \
+    && "$backup_activity_probe" == *'… 2 more files · d details'* ]]; then
     pass "focused backup activity fits its available row budget"
 else
     fail "focused backup activity ignores its row budget: $backup_activity_probe"
 fi
-rm -rf "$activity_root"
+activity_restore_out="$(df --backup-root "$activity_root" --yes restore "$activity_name")"
+[[ "$activity_restore_out" == *'restored 5 file(s)'* ]] \
+    && pass "restore skips entries that already match the backup" \
+    || fail "restore counts identical entries: $activity_restore_out"
+activity_list_after="$(df --backup-root "$activity_root" backups)"
+[[ "$activity_list_after" == *$'20000101_010101\t0 files'* ]] \
+    && pass "fully matching backup remains visible with zero changes" \
+    || fail "fully matching backup has a nonzero count: $activity_list_after"
+activity_noop_out="$(df --backup-root "$activity_root" --yes restore "$activity_name")"
+[[ "$activity_noop_out" == *'everything already matches this backup'* ]] \
+    && pass "restoring a matching backup is a successful no-op" \
+    || fail "matching backup restore is misleading: $activity_noop_out"
+df --backup-root "$activity_root" --yes backup delete "$activity_name" >/dev/null 2>&1
+checknot "zero-change backup can still be deleted" test -e "$activity_root/$activity_name"
+rm -rf "$activity_root" "$H/.activity"
 rc_is "backup CLI rejects an invalid restore name" 1 df --yes restore ../outside
 rc_is "backup CLI rejects an invalid delete name" 1 df --yes backup delete ../outside
 df --yes restore "$backup_name" >/dev/null 2>&1
@@ -324,8 +375,8 @@ restore_toast="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" DOTLAD_PLAIN=1 /bin/bash -
     tui_confirm() { return 0; }
     tui_restore "'$partial_backup'"
     printf "%s" "$TOAST"')"
-[[ "$restore_toast" == "✗ restored 1 · 1 failed" ]] \
-    && pass "TUI reports partial restore counts" \
+[[ "$restore_toast" == "✗ restored 0 · 1 failed" ]] \
+    && pass "TUI partial restore counts only differing entries" \
     || fail "TUI partial restore toast (got '$restore_toast')"
 rm -f "$H/.restore-unsafe"
 df --yes backup delete "$partial_backup" >/dev/null 2>&1
@@ -357,7 +408,7 @@ result_counts="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" DOTLAD_PLAIN=1 /bin/bash -
     . "$DOTLAD_RUNTIME_ROOT/lib/runtime.sh"; manifest_load
     ACTIVITY_WIDTH=120
     DOTLAD_RUNDIR="$HOME/result-counts"; mkdir -p "$DOTLAD_RUNDIR"
-    printf "8 0 8\n" > "$DOTLAD_RUNDIR/directory.result"
+    printf "8 0 8 0 0\n" > "$DOTLAD_RUNDIR/directory.result"
     i="$(tool_find directory)"; tool_activity "$i" ""')"
 if printf '%s\n' "$result_counts" | grep -qF '8 files synced · 8 files backed up' \
     && ! printf '%s\n' "$result_counts" | grep -qF '+8/-0'; then

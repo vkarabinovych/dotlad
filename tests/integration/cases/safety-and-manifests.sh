@@ -297,7 +297,13 @@ BREW="broken"
 EOF
 printf 'broken\n' > "$BREW_FAIL_FILE"
 rc_is "foreground install failure exits non-zero" 1 df broken
-rm -f "$BREW_FAIL_FILE"; rm -rf "$FAKE/tools/broken"
+cat > "$FAKE/profiles/broken.conf" <<'EOF'
+extends=""
+tools="broken"
+EOF
+rc_is "profile propagates a tool failure" 1 df profile broken
+rc_is "all propagates a tool failure" 1 df all
+rm -f "$BREW_FAIL_FILE" "$FAKE/profiles/broken.conf"; rm -rf "$FAKE/tools/broken"
 
 # Package-manager success is not enough when CHECK still says the tool is
 # absent; automation must receive a failure instead of a false installed state.
