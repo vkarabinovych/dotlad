@@ -4,6 +4,8 @@ All notable user-facing changes are documented here.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-07-20
+
 ### Changed
 
 - Built-in merge resolvers now declare their own `jq`, `yq`, or `git`
@@ -68,4 +70,5 @@ All notable user-facing changes are documented here.
 
 [0.4.0]: https://github.com/vkarabinovych/dotlad/releases/tag/v0.4.0
 [0.5.0]: https://github.com/vkarabinovych/dotlad/releases/tag/v0.5.0
-[Unreleased]: https://github.com/vkarabinovych/dotlad/compare/v0.5.0...HEAD
+[0.6.0]: https://github.com/vkarabinovych/dotlad/releases/tag/v0.6.0
+[Unreleased]: https://github.com/vkarabinovych/dotlad/compare/v0.6.0...HEAD
