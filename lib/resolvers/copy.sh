@@ -50,22 +50,19 @@ resolver_copy_leaves_to_backup() {  # <source-dir> <destination-dir>
     done < <(find "$dest" \( -type f -o -type l \) | sort)
 }
 
-resolver_copy_directory_equal() {  # <repo> <live>
-    local src="$1" dest="$2" entry rel
-    [[ -d "$dest" && ! -L "$dest" ]] || return 1
-    while IFS= read -r entry; do
-        rel="${entry#"$src"/}"
-        [[ -d "$dest/$rel" && ! -L "$dest/$rel" ]] || return 1
-    done < <(find "$src" -mindepth 1 -type d)
-    while IFS= read -r rel; do [[ -z "$rel" ]] || return 1; done \
-        < <(resolver_copy_files_to_sync "$src" "$dest")
-    while IFS= read -r rel; do [[ -z "$rel" ]] || return 1; done \
-        < <(resolver_copy_leaves_to_backup "$src" "$dest")
-    while IFS= read -r entry; do
-        rel="${entry#"$dest"/}"
-        [[ -d "$src/$rel" && ! -L "$src/$rel" ]] || return 1
-    done < <(find "$dest" -mindepth 1 -type d)
+resolver_copy_no_entries() {
+    local entry
+    while IFS= read -r entry; do [[ -n "$entry" ]] && return 1; done
     return 0
+}
+
+resolver_copy_directory_equal() {  # <repo> <live>
+    local src="$1" dest="$2"
+    [[ -d "$dest" && ! -L "$dest" ]] || return 1
+    resolver_copy_no_entries < <(resolver_copy_directories_to_create "$src" "$dest") \
+        && resolver_copy_no_entries < <(resolver_copy_files_to_sync "$src" "$dest") \
+        && resolver_copy_no_entries < <(resolver_copy_leaves_to_backup "$src" "$dest") \
+        && resolver_copy_no_entries < <(resolver_copy_directories_to_remove "$src" "$dest")
 }
 
 resolver_copy_equal() {  # <repo> <live>

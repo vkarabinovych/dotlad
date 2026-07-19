@@ -33,7 +33,6 @@ resolver_requirements() {  # <resolver> — zero or more command names
     local fn
     resolver_method "$1" requires; fn="$RESOLVER_METHOD"
     if declare -F "$fn" >/dev/null 2>&1; then "$fn"; fi
-    return 0
 }
 
 resolver_action() {  # <resolver> — copy|link

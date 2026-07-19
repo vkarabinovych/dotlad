@@ -199,14 +199,12 @@ preflight_inspect() {  # <idx> — populate PREFLIGHT_MISSING/PREFLIGHT_BLOCKERS
     fi
     backup_root_safe || preflight_add_blocker "unsafe backup root: $BACKUP_ROOT"
     while IFS= read -r req; do
-        [[ -n "$req" ]] || continue
-        command -v "$req" >/dev/null 2>&1 && continue
         PREFLIGHT_MISSING="${PREFLIGHT_MISSING}${PREFLIGHT_MISSING:+ }$req"
         can_resolve=0
         if ! mode_packages_enabled || ! command -v brew >/dev/null 2>&1; then
             preflight_add_blocker "missing requirement: $req"
         fi
-    done < <(tool_requirements "$i")
+    done < <(tool_missing_requirements "$i")
     if [[ "$can_resolve" == 1 ]]; then
         while IFS= read -r blocker; do
             [[ -n "$blocker" ]] && preflight_add_blocker "$blocker"

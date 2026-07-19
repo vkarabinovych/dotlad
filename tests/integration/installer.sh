@@ -17,7 +17,10 @@ checknot() { local d="$1"; shift; if "$@" >/dev/null 2>&1; then fail "$d"; else 
 rc_is()    { local d="$1" want="$2"; shift 2; local r=0; "$@" >/dev/null 2>&1 || r=$?; [[ "$r" == "$want" ]] && pass "$d" || fail "$d (rc=$r want=$want)"; }
 lines_fit() { local width="$1" line stx; stx="$(printf '\002')"; while IFS= read -r line; do line="${line#"$stx"}"; [[ ${#line} -le $width ]] || return 1; done; }
 
-command -v jq >/dev/null 2>&1 || { echo "SKIP: jq required"; exit 0; }
+for required in jq yq git; do
+    command -v "$required" >/dev/null 2>&1 \
+        || { echo "SKIP: $required required"; exit 0; }
+done
 
 SB="$(mktemp -d "${TMPDIR:-/tmp}/dotlad-test.XXXXXX")"
 FAKE="$SB/repo"; H="$SB/home"
