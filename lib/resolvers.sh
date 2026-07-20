@@ -41,7 +41,59 @@ resolver_requirements() { # <resolver> — zero or more command names
     if declare -F "$fn" >/dev/null 2>&1; then "$fn"; fi
 }
 
-resolver_action() { # <resolver> — copy|link
+# Resolver options are stored opaquely as key/value pairs. The manifest owns
+# their transport; each resolver owns the supported names and semantics.
+resolver_option_at() { # <zero-based-index> — populate RESOLVER_OPTION_{KEY,VALUE}
+    local fields=()
+    IFS="$RS" read -ra fields <<<"${RESOLVER_OPTIONS:-.}"
+    # shellcheck disable=SC2034  # caller-visible dispatch result
+    RESOLVER_OPTION_KEY="${fields[$(($1 * 2))]:-}"
+    # shellcheck disable=SC2034  # caller-visible dispatch result
+    RESOLVER_OPTION_VALUE="${fields[$(($1 * 2 + 1))]:-}"
+}
+
+resolver_option_get() { # <key> — populate RESOLVER_OPTION_VALUE; fail if absent
+    local fields=() i
+    IFS="$RS" read -ra fields <<<"${RESOLVER_OPTIONS:-.}"
+    for ((i = 0; i + 1 < ${#fields[@]}; i += 2)); do
+        if [[ "${fields[$i]}" == "$1" ]]; then
+            RESOLVER_OPTION_VALUE="${fields[$((i + 1))]}"
+            return 0
+        fi
+    done
+    # shellcheck disable=SC2034  # caller-visible dispatch result
+    RESOLVER_OPTION_VALUE=""
+    return 1
+}
+
+resolver_option_supported() { # <resolver> <key>
+    local fn supported
+    resolver_method "$1" options
+    fn="$RESOLVER_METHOD"
+    declare -F "$fn" >/dev/null 2>&1 || return 1
+    while IFS= read -r supported; do
+        [[ "$supported" != "$2" ]] || return 0
+    done < <("$fn")
+    return 1
+}
+
+resolver_destination_key() { # <resolver> <source> — non-empty permits sharing DEST
+    local fn
+    resolver_method "$1" destination_key
+    fn="$RESOLVER_METHOD"
+    if declare -F "$fn" >/dev/null 2>&1; then "$fn" "$2"; fi
+}
+
+resolver_present() { # <resolver> <repo-source> <live-destination>
+    local resolver="$1" src="$2" dest="$3" fn
+    resolver_method "$resolver" present
+    fn="$RESOLVER_METHOD"
+    if declare -F "$fn" >/dev/null 2>&1; then
+        "$fn" "$src" "$dest"
+    else [[ -e "$dest" || -L "$dest" ]]; fi
+}
+
+resolver_action() { # <resolver> — copy|link|inject
     local fn
     resolver_method "$1" action
     fn="$RESOLVER_METHOD"

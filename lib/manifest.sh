@@ -13,6 +13,8 @@ C_NAME=()
 C_SRC=()
 C_DEST=()
 C_RESOLVER=()
+C_TOOL_NAME=()
+C_RESOLVER_OPTIONS=()
 C_COUNT=0
 T_INSTALL_URL=()
 T_INSTALL_SHA256=()
@@ -23,6 +25,9 @@ DOTLAD_DEFAULT_RESOLVER="${DOTLAD_DEFAULT_RESOLVER:-copy}"
 # ASCII unit separator: a non-whitespace record delimiter so empty fields
 # don't collapse (a tab would, via read's IFS whitespace folding).
 US="$(printf '\037')"
+# ASCII record separator: separates opaque resolver option keys and values
+# inside one config record without teaching the manifest about either.
+RS="$(printf '\036')"
 
 manifest_parse_error() {
     err "$1" >&2
@@ -75,7 +80,7 @@ manifest_parse_value() { # <raw-value> — result in MP_VALUE
         case "$raw" in *[[:space:]]*) return 1 ;; esac
         MP_VALUE="$raw"
     fi
-    [[ "$MP_VALUE" != *"$US"* ]] || return 1
+    [[ "$MP_VALUE" != *"$US"* && "$MP_VALUE" != *"$RS"* ]] || return 1
     return 0
 }
 
@@ -85,8 +90,8 @@ manifest_expand_home() {
 }
 
 # Parse the documented assignment formats without evaluating project code.
-# The allowlist makes printf -v safe and lets tools/profiles share the same
-# quoting, duplicate-field, and command-substitution rules.
+# Core-field allowlists make printf -v safe; resolver option sections accept
+# opaque uppercase keys while sharing the same value and duplicate rules.
 assignment_field_allowed() { # <tool|config|profile> <key>
     case "$1:$2" in
         tool:NAME | tool:DESC | tool:ICON | tool:ORDER | tool:BREW | tool:CASK | \
@@ -99,10 +104,35 @@ assignment_field_allowed() { # <tool|config|profile> <key>
 
 assignment_read_file() { # <file> <tool|profile> — populate caller variables/CONFIG_*
     local file="$1" kind="$2" line key raw value line_no=0 seen=$'\n' section="" section_key
+    local option_index=-1 i
     while IFS= read -r line || [[ -n "$line" ]]; do
         line_no=$((line_no + 1))
         [[ "$line" =~ ^[[:space:]]*$ || "$line" =~ ^[[:space:]]*# ]] && continue
-        if [[ "$line" =~ ^[[:space:]]*\[config\.([a-z0-9][a-z0-9-]*)\][[:space:]]*$ ]]; then
+        if [[ "$line" =~ ^[[:space:]]*\[config\.([a-z0-9][a-z0-9-]*)\.options\][[:space:]]*$ ]]; then
+            [[ "$kind" == tool ]] || {
+                manifest_parse_error "${file}:$line_no: sections are not allowed in profiles"
+                return 1
+            }
+            section="${BASH_REMATCH[1]}"
+            option_index=-1
+            for ((i = 0; i < ${#CONFIG_NAMES[@]}; i++)); do
+                if [[ "${CONFIG_NAMES[$i]}" == "$section" ]]; then
+                    option_index=$i
+                    break
+                fi
+            done
+            [[ "$option_index" -ge 0 ]] || {
+                manifest_parse_error "${file}:$line_no: options precede '[config.$section]'"
+                return 1
+            }
+            [[ "$seen" != *$'\n'"options:$section"$'\n'* ]] || {
+                manifest_parse_error "${file}:$line_no: duplicate section '[config.$section.options]'"
+                return 1
+            }
+            seen+="options:$section"$'\n'
+            section_key=options
+            continue
+        elif [[ "$line" =~ ^[[:space:]]*\[config\.([a-z0-9][a-z0-9-]*)\][[:space:]]*$ ]]; then
             [[ "$kind" == tool ]] || {
                 manifest_parse_error "${file}:$line_no: sections are not allowed in profiles"
                 return 1
@@ -117,6 +147,10 @@ assignment_read_file() { # <file> <tool|profile> — populate caller variables/C
             CONFIG_SOURCES+=("")
             CONFIG_DESTS+=("")
             CONFIG_RESOLVERS+=("")
+            CONFIG_OPTION_COUNTS+=(0)
+            CONFIG_OPTIONS+=(".")
+            option_index=$((${#CONFIG_NAMES[@]} - 1))
+            section_key=config
             continue
         fi
         if [[ ! "$line" =~ ^[[:space:]]*([A-Za-z][A-Za-z0-9_]*)[[:space:]]*=(.*)$ ]]; then
@@ -125,30 +159,41 @@ assignment_read_file() { # <file> <tool|profile> — populate caller variables/C
         fi
         key="${BASH_REMATCH[1]}"
         raw="${BASH_REMATCH[2]}"
-        if [[ -n "$section" ]]; then section_key=config; else section_key="$kind"; fi
-        assignment_field_allowed "$section_key" "$key" ||
+        if [[ -z "$section" ]]; then section_key="$kind"; fi
+        if [[ "$section_key" != options ]]; then
+            assignment_field_allowed "$section_key" "$key" ||
+                {
+                    manifest_parse_error "${file}:$line_no: unknown field '$key'"
+                    return 1
+                }
+        elif [[ ! "$key" =~ ^[A-Z][A-Z0-9_]*$ ]]; then
             {
-                manifest_parse_error "${file}:$line_no: unknown field '$key'"
+                manifest_parse_error "${file}:$line_no: invalid resolver option '$key'"
                 return 1
             }
-        [[ "$seen" != *$'\n'"${section:-top}:$key"$'\n'* ]] ||
+        fi
+        [[ "$seen" != *$'\n'"$section_key:${section:-top}:$key"$'\n'* ]] ||
             {
                 manifest_parse_error "${file}:$line_no: duplicate field '$key'"
                 return 1
             }
-        seen+="${section:-top}:$key"$'\n'
+        seen+="$section_key:${section:-top}:$key"$'\n'
         manifest_parse_value "$raw" ||
             {
                 manifest_parse_error "${file}:$line_no: invalid value for '$key'"
                 return 1
             }
         value="$MP_VALUE"
-        if [[ "$kind" == tool && ("$key" == DEST || "$key" == CHECK) ]]; then
+        if [[ ("$section_key" == config && "$key" == DEST) ||
+            ("$section_key" == tool && "$key" == CHECK) ]]; then
             MP_VALUE="$value"
             manifest_expand_home
             value="$MP_VALUE"
         fi
-        if [[ -n "$section" ]]; then
+        if [[ "$section_key" == options ]]; then
+            CONFIG_OPTIONS[option_index]="${CONFIG_OPTIONS[$option_index]%.}$key$RS$value$RS."
+            CONFIG_OPTION_COUNTS[option_index]=$((${CONFIG_OPTION_COUNTS[$option_index]} + 1))
+        elif [[ -n "$section" ]]; then
             case "$key" in
                 SOURCE) CONFIG_SOURCES[${#CONFIG_SOURCES[@]} - 1]="$value" ;;
                 DEST) CONFIG_DESTS[${#CONFIG_DESTS[@]} - 1]="$value" ;;
@@ -217,6 +262,8 @@ manifest_load() {
     C_SRC=()
     C_DEST=()
     C_RESOLVER=()
+    C_TOOL_NAME=()
+    C_RESOLVER_OPTIONS=()
     C_COUNT=0
     T_INSTALL_URL=()
     T_INSTALL_SHA256=()
@@ -244,14 +291,20 @@ manifest_load() {
                 CONFIG_SOURCES=()
                 CONFIG_DESTS=()
                 CONFIG_RESOLVERS=()
+                CONFIG_OPTION_COUNTS=()
+                CONFIG_OPTIONS=()
                 assignment_read_file "$f" tool || exit 1
                 printf '%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s' \
                     "$f" "$ORDER" "$NAME" "$DESC" "$ICON" "$BREW" "$CASK" \
                     "$CHECK" "$INSTALL_URL" "$INSTALL_SHA256" "$REQUIRES" "${#CONFIG_NAMES[@]}"
                 for ((config_i = 0; config_i < ${#CONFIG_NAMES[@]}; config_i++)); do
-                    printf '\037%s\037%s\037%s\037%s' "${CONFIG_NAMES[$config_i]}" \
+                    printf '\037%s\037%s\037%s\037%s\037%s' "${CONFIG_NAMES[$config_i]}" \
                         "${CONFIG_SOURCES[$config_i]}" "${CONFIG_DESTS[$config_i]}" \
-                        "${CONFIG_RESOLVERS[$config_i]}"
+                        "${CONFIG_RESOLVERS[$config_i]}" "${CONFIG_OPTION_COUNTS[$config_i]}"
+                    IFS="$RS" read -ra config_options <<<"${CONFIG_OPTIONS[$config_i]}"
+                    for ((option_i = 0; option_i < CONFIG_OPTION_COUNTS[config_i] * 2; option_i++)); do
+                        printf '\037%s' "${config_options[$option_i]}"
+                    done
                 done
                 # A terminal sentinel preserves an empty RESOLVER on Bash 3.2,
                 # whose read -a otherwise drops trailing empty fields.
@@ -260,10 +313,10 @@ manifest_load() {
         done
     )"
     local record fields=() file order name desc icon brew cask check url sha256 requires config_count
-    local config_name source dest resolver tool_dir src
-    local i j field_i prior token_chars='^[-[:space:]A-Za-z0-9@+._/]*$'
+    local config_name source dest resolver option_count options option_key option_value tool_dir src
+    local i j option_i field_i prior destination_key token_chars='^[-[:space:]A-Za-z0-9@+._/]*$'
     local token_pattern='^[A-Za-z0-9][A-Za-z0-9@+._-]*(/[A-Za-z0-9][A-Za-z0-9@+._-]*)*$'
-    local destinations=() destination_names=()
+    local destinations=() destination_names=() destination_resolvers=() destination_keys=()
     while IFS= read -r record; do
         IFS="$US" read -ra fields <<<"$record"
         file="${fields[0]:-}"
@@ -279,8 +332,7 @@ manifest_load() {
         sha256="${fields[9]:-}"
         requires="${fields[10]:-}"
         config_count="${fields[11]:-}"
-        [[ "$config_count" =~ ^[0-9]+$ && ${#fields[@]} -eq $((13 + config_count * 4)) &&
-            "${fields[$((12 + config_count * 4))]}" == . ]] ||
+        [[ "$config_count" =~ ^[0-9]+$ ]] ||
             fatal "corrupt manifest (newline in a value?)"
         [[ -f "$file" ]] || fatal "corrupt manifest (newline in a value?)"
         tool_dir="${file%/tool.conf}"
@@ -320,7 +372,17 @@ manifest_load() {
             source="${fields[$((field_i + 1))]}"
             dest="${fields[$((field_i + 2))]}"
             resolver="${fields[$((field_i + 3))]}"
-            field_i=$((field_i + 4))
+            option_count="${fields[$((field_i + 4))]}"
+            [[ "$option_count" =~ ^[0-9]+$ ]] || fatal "corrupt manifest (newline in a value?)"
+            options="."
+            field_i=$((field_i + 5))
+            for ((option_i = 0; option_i < option_count; option_i++)); do
+                option_key="${fields[$field_i]:-}"
+                option_value="${fields[$((field_i + 1))]:-}"
+                [[ -n "$option_key" ]] || fatal "corrupt manifest (newline in a value?)"
+                options="${options%.}$option_key$RS$option_value$RS."
+                field_i=$((field_i + 2))
+            done
             [[ -n "$source" && -n "$dest" ]] ||
                 fatal "tools/$name [config.$config_name]: SOURCE and DEST are required"
             resolver="${resolver:-$DOTLAD_DEFAULT_RESOLVER}"
@@ -328,6 +390,13 @@ manifest_load() {
                 fatal "tools/$name [config.$config_name]: invalid RESOLVER '$resolver'"
             resolver_known "$resolver" ||
                 fatal "tools/$name [config.$config_name]: unknown RESOLVER '$resolver'"
+            # shellcheck disable=SC2034  # consumed by resolver option helpers
+            RESOLVER_OPTIONS="$options"
+            for ((option_i = 0; option_i < option_count; option_i++)); do
+                resolver_option_at "$option_i"
+                resolver_option_supported "$resolver" "$RESOLVER_OPTION_KEY" ||
+                    fatal "tools/$name [config.$config_name.options]: unknown option '$RESOLVER_OPTION_KEY' for RESOLVER '$resolver'"
+            done
             case "$source" in
                 "" | /* | . | .. | */ | *//* | ./* | ../* | */./* | */../* | */. | */..)
                     fatal "tools/${name}/tool.conf: bad SOURCE"
@@ -348,6 +417,9 @@ manifest_load() {
             else
                 fatal "tools/$name: SOURCE must be a real file or directory"
             fi
+            # shellcheck disable=SC2034  # consumed by resolver context hooks
+            RESOLVER_TOOL_NAME="$name"
+            destination_key="$(resolver_destination_key "$resolver" "$ROOT/$src")"
             if [[ "$dest" != /* ]]; then
                 dest="$ROOT/$dest"
             fi
@@ -355,18 +427,31 @@ manifest_load() {
                 fatal "tools/${name}: DEST must be safely inside \$HOME: '$dest'"
             for ((i = 0; i < ${#destinations[@]}; i++)); do
                 prior="${destinations[$i]}"
-                if [[ "$dest" == "$prior" || "$dest" == "$prior"/* || "$prior" == "$dest"/* ]]; then
+                if [[ "$dest" == "$prior" ]]; then
+                    if [[ -n "$destination_key" && "$resolver" == "${destination_resolvers[$i]}" ]]; then
+                        [[ "$destination_key" != "${destination_keys[$i]}" ]] ||
+                            fatal "tools/$name [config.$config_name]: resolver destination key collides with ${destination_names[$i]}: '$destination_key'"
+                        continue
+                    fi
+                    fatal "tools/$name [config.$config_name]: DEST overlaps ${destination_names[$i]}: '$dest'"
+                elif [[ "$dest" == "$prior"/* || "$prior" == "$dest"/* ]]; then
                     fatal "tools/$name [config.$config_name]: DEST overlaps ${destination_names[$i]}: '$dest'"
                 fi
             done
             destinations+=("$dest")
             destination_names+=("tools/$name [config.$config_name]")
+            destination_resolvers+=("$resolver")
+            destination_keys+=("$destination_key")
             C_NAME+=("$config_name")
             C_SRC+=("$src")
             C_DEST+=("$dest")
             C_RESOLVER+=("$resolver")
+            C_TOOL_NAME+=("$name")
+            C_RESOLVER_OPTIONS+=("$options")
             C_COUNT=$((C_COUNT + 1))
         done
+        [[ ${#fields[@]} -eq $((field_i + 1)) && "${fields[$field_i]}" == . ]] ||
+            fatal "corrupt manifest (newline in a value?)"
         [[ -n "$brew" || -n "$url" || "$config_count" -gt 0 ]] ||
             fatal "tools/$name: declare BREW, INSTALL_URL, or a [config.name] section"
         check="${check:-$name}"

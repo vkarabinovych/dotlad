@@ -162,6 +162,10 @@ cmp "$EXAMPLE_ROOT/tools/copy-file/files/example.conf" \
     "$EXAMPLE_ROOT/.tmp/output/copy-file/example.conf"
 EXAMPLE_BACKUP="$(find "$EXAMPLE_ROOT/.tmp/backups" -type f | head -1)"
 grep -qFx 'local example value' "$EXAMPLE_BACKUP"
+HOME="$EXAMPLE_ROOT/.tmp" "$EXAMPLE_ROOT/mydot" \
+    --config-only --yes inject-block >/dev/null
+grep -qE '^# dotlad:begin tool=inject-block source=aliases\.sh$' \
+    "$EXAMPLE_ROOT/.tmp/output/inject-block/shellrc"
 rm -f "$BREW_CWD/Brewfile"
 (cd "$BREW_CWD" && HOME="$HOME_DIR" "$SB/archive-prefix/bin/dotlad" \
     --config="$PROJECT" brewfile >/dev/null)

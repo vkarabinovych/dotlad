@@ -18,6 +18,7 @@ previewing changes, applying tools, and restoring replaced files.
 - Apply every tool, a reusable profile, or an explicit selection.
 - Run package-only or config-only workflows from the same manifests.
 - Preserve machine-local JSON, TOML, and Git values with named resolvers.
+- Maintain source-backed blocks inside larger machine-local files.
 - Deploy files or directories as repository symlinks when direct editing is preferred.
 - Back up replaced files automatically and restore them from the CLI or picker.
 - Use the same runtime as a standalone command or a pinned Git submodule.
@@ -39,8 +40,8 @@ Runtime dependencies are scoped to each tool and its resolver:
 
 - Homebrew installs declared `BREW` packages and missing resolver or
   manifest-defined requirements.
-- `curl` is required when an HTTPS installer must run; checksum-pinned
-  installers also require `shasum`.
+- `curl` is required when an HTTPS installer must run.
+- `shasum` is required by checksum-pinned installers.
 - `jq`, `yq`, or `git` is required only by the corresponding merge resolver.
 
 Built-in resolvers declare their own commands. Use `REQUIRES` only for
@@ -119,7 +120,8 @@ Tools may declare packages, one or more named config sections, or both. Each
 `[config.<name>]` chooses its own `SOURCE`, `DEST`, and optional `RESOLVER`.
 The resolver defaults to `copy`, which copies a file or mirrors a directory
 exactly. Use `symlink` to point a destination at the repository source, or a
-merge resolver for machine-local file values.
+merge resolver for machine-local file values. The `inject` resolver maintains
+one metadata-marked source block while preserving the rest of a destination.
 
 Profiles are optional named tool selections with single-parent inheritance:
 

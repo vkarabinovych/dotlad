@@ -84,6 +84,85 @@ printf 'copied v2\n' >"$FAKE/tools/multi-config/files/settings"
     fail "stale config section was hidden by a ready sibling"
 rm -rf "$FAKE/tools/multi-config" "$H/.config/multi-config"
 
+# The inject resolver owns one metadata-marked block while preserving the
+# destination's surrounding machine-local content. Comment styles are inferred
+# from common extensions or overridden per config section.
+mkdir -p "$FAKE/tools/inject-block/files" "$H/.config/inject-block"
+printf 'export EDITOR=vim\n' >"$FAKE/tools/inject-block/files/shell-init.sh"
+printf 'export PAGER=less\n' >"$FAKE/tools/inject-block/files/shell-extra.sh"
+printf 'vim.opt.number = true\n' >"$FAKE/tools/inject-block/files/module.lua"
+printf 'managed=true\n' >"$FAKE/tools/inject-block/files/custom.conf"
+printf '# local before\nLOCAL=1\n' >"$H/.zshrc"
+printf -- '-- local lua\n' >"$H/.config/inject-block/init.lua"
+printf 'local=true\n' >"$H/.config/inject-block/custom.rc"
+cat >"$FAKE/tools/inject-block/tool.conf" <<EOF
+NAME="inject-block"
+DESC="Managed block injection fixture"
+ICON="i"
+ORDER="996"
+CHECK="sh"
+[config.shell]
+SOURCE="files/shell-init.sh"
+DEST="$H/.zshrc"
+RESOLVER="inject"
+[config.shell-extra]
+SOURCE="files/shell-extra.sh"
+DEST="$H/.zshrc"
+RESOLVER="inject"
+[config.lua]
+SOURCE="files/module.lua"
+DEST="$H/.config/inject-block/init.lua"
+RESOLVER="inject"
+[config.custom]
+SOURCE="files/custom.conf"
+DEST="$H/.config/inject-block/custom.rc"
+RESOLVER="inject"
+
+[config.custom.options]
+COMMENT_PREFIX="/*"
+COMMENT_SUFFIX="*/"
+EOF
+inject_plan="$(df --config-only --json plan inject-block)"
+printf '%s' "$inject_plan" | jq -e \
+    '.tools[0].configs | length == 4 and all(.resolver == "inject" and .state == "create" and .changes == "1 managed block to add")' \
+    >/dev/null && pass "inject plan exposes every managed block" ||
+    fail "inject plan contract is incomplete: $inject_plan"
+df --config-only inject-block >/dev/null 2>&1
+check "inject preserves shell destination content" grep -qxF 'LOCAL=1' "$H/.zshrc"
+check "multiple inject sources share one destination" grep -qxF 'export PAGER=less' "$H/.zshrc"
+check "inject defaults shell-like files to hash-sign comments" grep -qE \
+    '^# dotlad:begin tool=inject-block source=shell-init\.sh$' "$H/.zshrc"
+check "inject infers Lua comments" grep -qE \
+    '^-- dotlad:begin tool=inject-block source=module\.lua$' "$H/.config/inject-block/init.lua"
+check "inject supports custom comment delimiters" grep -qE \
+    '^/\* dotlad:begin tool=inject-block source=custom\.conf \*/$' \
+    "$H/.config/inject-block/custom.rc"
+check "inject marker records its owning tool" grep -qF \
+    'dotlad:end tool=inject-block source=shell-init.sh' "$H/.zshrc"
+[[ "$(state_json inject-block)" == "ready 1" ]] && pass "injected blocks reach ready" ||
+    fail "injected blocks remain pending"
+printf 'export EDITOR=nvim\n' >"$FAKE/tools/inject-block/files/shell-init.sh"
+[[ "$(state_json inject-block)" == "update 1" ]] && pass "inject detects a changed source" ||
+    fail "inject source update was not detected"
+inject_update_plan="$(df --config-only --json plan inject-block)"
+printf '%s' "$inject_update_plan" | jq -e \
+    '.tools[0].configs[] | select(.name == "shell") | .state == "update" and .changes == "1 managed block to update"' \
+    >/dev/null && pass "inject plan distinguishes block updates" ||
+    fail "inject plan did not report an existing changed block: $inject_update_plan"
+df --config-only inject-block >/dev/null 2>&1
+check "inject replaces managed content" grep -qxF 'export EDITOR=nvim' "$H/.zshrc"
+checknot "inject removes the previous managed content" grep -qxF 'export EDITOR=vim' "$H/.zshrc"
+[[ "$(grep -c 'dotlad:begin tool=inject-block source=shell-init.sh' "$H/.zshrc")" == 1 ]] &&
+    pass "inject update keeps one managed block" || fail "inject duplicated its managed block"
+printf '# dotlad:begin tool=inject-block source=shell-init.sh\n' >>"$H/.zshrc"
+inject_broken_before="$(shasum -a 256 "$H/.zshrc")"
+rc_is "inject rejects malformed or duplicate managed blocks" 1 df --config-only inject-block
+inject_broken_after="$(shasum -a 256 "$H/.zshrc")"
+[[ "$inject_broken_before" == "$inject_broken_after" ]] &&
+    pass "inject preflight leaves malformed destinations untouched" ||
+    fail "inject mutated a malformed destination"
+rm -rf "$FAKE/tools/inject-block" "$H/.config/inject-block" "$H/.zshrc"
+
 # --- dir mirror + prune of stale --------------------------------------------
 df directory >/dev/null 2>&1
 check "directory files deployed" cmp -s "$FAKE/tools/directory/files/lua/mod.lua" "$H/.config/directory/lua/mod.lua"

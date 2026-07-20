@@ -14,6 +14,11 @@ All notable user-facing changes are documented here.
 - Release archives include a runnable example project with copy, mirror,
   merge, symlink, multi-config, and package-only manifests plus the `mydot`
   wrapper.
+- The `inject` resolver maintains source-backed blocks inside larger local
+  files, with tool/source metadata, extension-based comment detection,
+  and optional custom comment delimiters.
+- Resolver-specific manifest settings use generic `[config.<name>.options]`
+  sections whose supported keys and validation belong to each resolver.
 
 ### Changed
 

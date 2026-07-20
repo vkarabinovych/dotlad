@@ -131,7 +131,8 @@ DEST="$HOME/.config/example/config.toml"
 Do not assign both a directory and a file inside it to different config
 sections, whether they belong to the same or different tools. If a parent
 below `$HOME` is a symlink, choose the real in-home destination or manage that
-path outside Dotlad.
+path outside Dotlad. The only exact-destination exception is multiple `inject`
+sections with distinct tool/source identities.
 
 ## Directory deployment would remove files
 
@@ -141,6 +142,14 @@ picker diff before applying.
 
 If the application shares that directory with machine-local state, narrow the
 tool to individual file sources or use a file resolver where appropriate.
+
+## Inject reports malformed managed blocks
+
+The `inject` resolver refuses to guess when a destination contains duplicate,
+nested, or unmatched `dotlad:begin` and `dotlad:end` markers for its source
+identity. Inspect the destination, retain the intended block, and remove the
+broken marker manually before planning again. Dotlad leaves the destination
+untouched while this blocker exists.
 
 ## Restore or delete cannot find a backup
 

@@ -310,12 +310,12 @@ tool_activity() { # <idx> <spinner-frame>
         fi
     fi
     if mode_config_enabled && tool_has_config "$i"; then
-        local j start count config_name src dest c m b dc dm counts cg cc verb action active_config active_action
+        local j start count config_name src dest c m b dc dm counts cg cc verb action active_config
         start="${T_CONFIG_START[$i]}"
         count="${T_CONFIG_COUNT[$i]}"
         active_config="${stage%%:*}"
-        active_action="${stage#*:}"
         for ((j = start; j < start + count; j++)); do
+            config_context "$j"
             config_name="${C_NAME[$j]}"
             src="${C_SRC[$j]}"
             dest="$(pretty_path "${C_DEST[$j]}")"
@@ -323,7 +323,7 @@ tool_activity() { # <idx> <spinner-frame>
             # A pending change either creates a config that isn't there yet
             # (+ create, magenta — like the "not set up" headline) or updates
             # an existing one (↑ update, yellow — like the parent headline).
-            if [[ -e "${C_DEST[$j]}" || -L "${C_DEST[$j]}" ]]; then
+            if resolver_present "${C_RESOLVER[$j]}" "$ROOT/$src" "${C_DEST[$j]}"; then
                 cg='↑'
                 cc="$C_YELLOW"
                 verb='update'
@@ -332,8 +332,7 @@ tool_activity() { # <idx> <spinner-frame>
                 cc="$C_MAGENTA"
                 verb='create'
             fi
-            if [[ "$running" == 1 && "$active_config" == "$config_name" &&
-                ("$active_action" == "copy" || "$active_action" == "link") ]]; then
+            if [[ "$running" == 1 && "$active_config" == "$config_name" ]]; then
                 wrapped_activity "$C_CYAN" "$frame" "$verb" "$config_name · $src → $dest"
             elif [[ -n "$run" && -f "$run/${nm}.${config_name}.result" ]]; then
                 # `|| true`: read returns non-zero on a newline-less file, which
@@ -342,6 +341,8 @@ tool_activity() { # <idx> <spinner-frame>
                 counts=''
                 if [[ "${c:-0}" -gt 0 && "$action" == link ]]; then
                     counts="${c} link synced"
+                elif [[ "${c:-0}" -gt 0 && "$action" == inject ]]; then
+                    counts="${c} managed block injected"
                 elif [[ "${c:-0}" -gt 0 ]]; then
                     counts="${c} $(file_noun "$c") synced"
                 fi
@@ -354,7 +355,7 @@ tool_activity() { # <idx> <spinner-frame>
                 wrapped_activity "$C_GREEN" '✓' "$action" "$config_name · $src → $dest${counts:+ · $counts}"
             elif resolver_equal "${C_RESOLVER[$j]}" "$ROOT/$src" "${C_DEST[$j]}"; then
                 wrapped_activity "$C_GREEN" '✓' 'up to date' "$config_name · $dest"
-            elif config_is_dir "$j" || [[ "$action" == link ]]; then
+            elif config_is_dir "$j" || [[ "$action" == link || "$action" == inject ]]; then
                 counts="$(resolver_changes "${C_RESOLVER[$j]}" "$ROOT/$src" "${C_DEST[$j]}")"
                 wrapped_activity "$cc" "$cg" "$verb" "$config_name · $src → $dest${counts:+ · $counts}"
             else

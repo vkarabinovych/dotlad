@@ -37,6 +37,13 @@ tool_has_config() { [[ "${T_CONFIG_COUNT[$1]}" -gt 0 ]]; }
 config_is_dir() { [[ -d "$ROOT/${C_SRC[$1]}" ]]; }
 config_action() { resolver_action "${C_RESOLVER[$1]}"; }
 
+config_context() { # <config-idx> — populate resolver invocation context
+    # shellcheck disable=SC2153  # populated by manifest_load in manifest.sh
+    RESOLVER_TOOL_NAME="${C_TOOL_NAME[$1]}"
+    # shellcheck disable=SC2153  # populated by manifest_load in manifest.sh
+    RESOLVER_OPTIONS="${C_RESOLVER_OPTIONS[$1]}"
+}
+
 tool_relevant() {
     case "$DOTLAD_MODE" in
         packages) tool_has_packages "$1" ;;
@@ -47,6 +54,7 @@ tool_relevant() {
 
 # shellcheck disable=SC2153  # C_SRC/C_DEST are the manifest arrays
 config_paths() {
+    config_context "$1"
     TP_SRC="$ROOT/${C_SRC[$1]}"
     TP_DEST="${C_DEST[$1]}"
 }
@@ -143,7 +151,8 @@ tool_state() {
     start="${T_CONFIG_START[$i]}"
     count="${T_CONFIG_COUNT[$i]}"
     for ((j = start; j < start + count; j++)); do
-        if [[ ! -e "${C_DEST[$j]}" && ! -L "${C_DEST[$j]}" ]]; then
+        config_paths "$j"
+        if ! resolver_present "${C_RESOLVER[$j]}" "$TP_SRC" "$TP_DEST"; then
             missing=1
             break
         fi
@@ -382,7 +391,7 @@ tool_diff() {
 # → done) with a one-line summary per stage. Output is captured per-tool into
 # the run log and shown in the picker's pane.
 # Also records per-stage markers so the picker's tree can show which step is
-# live (<tool>.stage = install|<config>:copy|<config>:link|done) and deployment
+# live (<tool>.stage = install|<config>:<action>|done) and deployment
 # result counts (<tool>.<config>.result =
 # "deployed removed backed created-dirs removed-dirs").
 sync_tool() {
@@ -415,13 +424,20 @@ sync_tool() {
             config_paths "$j"
             resolver_equal "${C_RESOLVER[$j]}" "$TP_SRC" "$TP_DEST" && continue
             action="$(config_action "$j")"
-            if [[ "$action" == link ]]; then
-                active="linking"
-                result="linked"
-            else
-                active="copying"
-                result="copied"
-            fi
+            case "$action" in
+                link)
+                    active="linking"
+                    result="linked"
+                    ;;
+                inject)
+                    active="injecting"
+                    result="injected"
+                    ;;
+                *)
+                    active="copying"
+                    result="copied"
+                    ;;
+            esac
             if [[ -n "$run" ]]; then
                 printf '%s:%s' "${C_NAME[$j]}" "$action" >"$run/${nm}.stage" 2>/dev/null || true
             fi

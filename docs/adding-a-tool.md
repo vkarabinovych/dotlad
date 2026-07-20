@@ -63,11 +63,11 @@ RESOLVER="toml"
 
 Every `[config.<name>]` section accepts these fields:
 
-| Field      | Required | Meaning                                                        |
-| ---------- | -------- | -------------------------------------------------------------- |
-| `SOURCE`   | yes      | File or directory path relative to the tool directory          |
-| `DEST`     | yes      | Path below `$HOME`; relative paths start at the project root    |
-| `RESOLVER` | no       | Built-in deployment resolver; defaults to `copy`               |
+| Field      | Required | Meaning                                                     |
+| ---------- | -------- | ----------------------------------------------------------- |
+| `SOURCE`   | yes      | File or directory path relative to the tool directory       |
+| `DEST`     | yes      | Path below `$HOME`; relative paths start at the project root |
+| `RESOLVER` | no       | Built-in deployment resolver; defaults to `copy`            |
 
 Section names use lowercase letters, digits, and hyphens, and must be unique
 within the tool. `BREW` and `INSTALL_URL` are mutually exclusive. A tool must
@@ -231,6 +231,7 @@ Built-in resolvers define both deployment and semantic equality:
 | ----------- | -------------- | ----------- | -------------------------------------------------------------- |
 | `copy`      | file/directory | none        | Exact file copy or exact directory mirror; the default         |
 | `symlink`   | file/directory | none        | Absolute link from the destination to the repository source    |
+| `inject`    | file           | none        | Maintain a metadata-marked block inside a local file            |
 | `json`      | file           | `jq`        | Recursive object merge and array union; repository scalars win |
 | `toml`      | file           | `yq`        | Deep merge with repository values taking precedence            |
 | `gitconfig` | file           | `git`       | Repository keys win while unrelated live keys remain           |
@@ -239,11 +240,65 @@ An explicitly declared JSON `null` is an overlay value and replaces the live
 value. JSON array entries already present in the live file are retained; new
 repository entries are appended.
 
+### Managed block injection
+
+Use `inject` when Dotlad should own one block inside a larger machine-local
+file instead of replacing or semantically merging the whole destination:
+
+```bash
+[config.aliases]
+SOURCE="files/aliases.sh"
+DEST="$HOME/.zshrc"
+RESOLVER="inject"
+```
+
+The resolver preserves surrounding destination content and adds markers with
+the tool name and source filename:
+
+```text
+# dotlad:begin tool=shell source=aliases.sh
+alias ll='ls -lah'
+# dotlad:end tool=shell source=aliases.sh
+```
+
+The tool name and source filename identify the managed block; rendered content
+detects source or live edits. A changed source replaces only that block.
+Multiple `inject` sections may share one destination when their tool/source
+identities differ. Malformed, nested, duplicate, or identity-colliding blocks
+preflight as blockers and are never rewritten automatically.
+
+Marker comments default to `#`. Dotlad recognizes common destination
+extensions and selects `//` for C-like languages, `--` for Lua and SQL,
+`/* … */` for CSS-family files, `<!-- … -->` for HTML/XML/Markdown, `;` for
+Lisp-family files, `%` for TeX, `REM` for batch files, and `"` for Vim files.
+Override the detected style when needed:
+
+```bash
+[config.generated]
+SOURCE="files/generated.conf"
+DEST="$HOME/.config/example/custom.rc"
+RESOLVER="inject"
+
+[config.generated.options]
+COMMENT_PREFIX="/*"
+COMMENT_SUFFIX="*/"
+```
+
+Resolver-specific settings live in `[config.<name>.options]`. The manifest
+transports these key/value pairs without interpreting them; the selected
+resolver defines their supported names and validation. For `inject`,
+`COMMENT_SUFFIX` requires `COMMENT_PREFIX`. Source basenames used as marker
+metadata may contain letters, digits, dots, underscores, and hyphens. Because
+insertion is line-oriented, the managed block is written with a trailing
+newline.
+
 Each resolver lives in `lib/resolvers/<name>.sh` and implements semantic
 `equal` plus either `apply` or `render`, with hyphens converted to underscores.
-Deployment resolvers may also define source support, preflight, preview, change
-summary, action, and command-requirement hooks. A resolver is runtime code, not
-project code; adding one requires shipping an updated Dotlad runtime.
+A resolver that accepts options exposes their names through its `options` hook
+and reads values with `resolver_option_get`. Deployment resolvers may also
+define source support, managed-presence, preflight, preview, change summary,
+action, and command-requirement hooks. A resolver is runtime code, not project
+code; adding one requires shipping an updated Dotlad runtime.
 
 Built-in resolvers declare the commands in the table automatically. Every
 additional `REQUIRES` token is checked as a command name and, when missing in
@@ -316,7 +371,7 @@ Loading fails before deployment when:
 - a resolver is unknown or does not support the declared source type;
 - a source path or payload contains symlinks or special filesystem entries;
 - a destination is `$HOME`, escapes it, traverses a parent symlink, or overlaps
-  another config destination;
+  another config destination outside the distinct-basename `inject` exception;
 - a package token or installer URL is malformed; or
 - Homebrew and an HTTPS installer are both declared.
 

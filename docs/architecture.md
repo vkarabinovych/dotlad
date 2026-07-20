@@ -70,7 +70,8 @@ strict section-aware assignment reader. Project files are data: they cannot
 source files, run substitutions, or define executable hooks. Tool values are
 normalized into parallel `T_*` arrays ordered by numeric `ORDER` and then
 `NAME`; named config sections occupy contiguous ranges in parallel `C_*`
-arrays.
+arrays. Resolver options are carried as opaque key/value records and interpreted
+only by the selected resolver.
 
 A tool may declare packages, multiple `[config.<name>]` sections, or both. No
 config section means package-only. Every section owns a `SOURCE`/`DEST` pair

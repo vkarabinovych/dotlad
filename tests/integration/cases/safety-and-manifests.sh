@@ -184,6 +184,44 @@ EOF
 rc_is "overlapping destinations within one tool are rejected" 1 df section-overlap
 rm -rf "$FAKE/tools/section-overlap"
 
+mkdir -p "$FAKE/tools/inject-collision/files/a" "$FAKE/tools/inject-collision/files/b"
+printf 'a\n' >"$FAKE/tools/inject-collision/files/a/shared.conf"
+printf 'b\n' >"$FAKE/tools/inject-collision/files/b/shared.conf"
+cat >"$FAKE/tools/inject-collision/tool.conf" <<EOF
+NAME="inject-collision"
+DESC="Inject metadata collision fixture"
+ICON="!"
+ORDER="997"
+[config.first]
+SOURCE="files/a/shared.conf"
+DEST="$H/.config/inject-collision.rc"
+RESOLVER="inject"
+[config.second]
+SOURCE="files/b/shared.conf"
+DEST="$H/.config/inject-collision.rc"
+RESOLVER="inject"
+EOF
+rc_is "inject sections in one tool require unique source identities" 1 df inject-collision
+rm -rf "$FAKE/tools/inject-collision"
+
+for inject_owner in inject-owner-a inject-owner-b; do
+    mkdir -p "$FAKE/tools/$inject_owner/files"
+    printf '%s\n' "$inject_owner" >"$FAKE/tools/$inject_owner/files/shared.conf"
+    cat >"$FAKE/tools/$inject_owner/tool.conf" <<EOF
+NAME="$inject_owner"
+DESC="Inject owner identity fixture"
+ICON="i"
+ORDER="997"
+[config.main]
+SOURCE="files/shared.conf"
+DEST="$H/.config/inject-owner.rc"
+RESOLVER="inject"
+EOF
+done
+check "inject tool identity permits shared source filenames" \
+    df --config-only --json plan inject-owner-a inject-owner-b
+rm -rf "$FAKE/tools/inject-owner-a" "$FAKE/tools/inject-owner-b"
+
 # Existing parent symlinks must not redirect a deployment outside HOME.
 mkdir -p "$SB/outside" "$FAKE/tools/evil/files"
 ln -s "$SB/outside" "$H/.unsafe"
@@ -290,6 +328,32 @@ SOURCE="files/config"
 DEST="\$HOME/.config/strict-manifest"
 EOF
 rc_is "strict manifest rejects duplicate fields" 1 df all
+cat >"$FAKE/tools/strict-manifest/tool.conf" <<EOF
+NAME="strict-manifest"
+DESC="Strict manifest fixture"
+ICON="!"
+[config.main]
+SOURCE="files/config"
+DEST="\$HOME/.config/strict-manifest"
+RESOLVER="copy"
+
+[config.main.options]
+COMMENT_PREFIX="#"
+EOF
+rc_is "resolver options are validated by their resolver" 1 df all
+cat >"$FAKE/tools/strict-manifest/tool.conf" <<EOF
+NAME="strict-manifest"
+DESC="Strict manifest fixture"
+ICON="!"
+[config.main]
+SOURCE="files/config"
+DEST="\$HOME/.config/strict-manifest"
+RESOLVER="inject"
+
+[config.main.options]
+COMMENT_SUFFIX="-->"
+EOF
+rc_is "custom comment suffix requires a prefix" 1 df all
 cat >"$FAKE/tools/strict-manifest/tool.conf" <<EOF
 NAME="strict-manifest"
 DESC="broken"quote"

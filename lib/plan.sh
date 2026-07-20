@@ -36,7 +36,7 @@ plan_tool() { # <idx> — populate PLAN_* globals without changing state
         config_paths "$j"
         if ! mode_config_enabled; then
             state="skipped"
-        elif [[ ! -e "$TP_DEST" && ! -L "$TP_DEST" ]]; then
+        elif ! resolver_present "${C_RESOLVER[$j]}" "$TP_SRC" "$TP_DEST"; then
             state="create"
         elif resolver_equal "${C_RESOLVER[$j]}" "$TP_SRC" "$TP_DEST"; then
             state="ready"

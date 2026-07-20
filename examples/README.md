@@ -6,6 +6,7 @@ main manifest patterns:
 - `copy-file` copies one file exactly;
 - `directory-mirror` owns and mirrors a directory tree;
 - `json-merge` overlays repository JSON while retaining machine-local keys;
+- `inject-block` maintains a metadata-marked block inside a local file;
 - `multi-config` deploys two files from one tool with different resolvers;
 - `package-only` installs packages without managing configuration.
 
