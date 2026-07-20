@@ -48,26 +48,26 @@ DEST="$HOME/.config/example/config.toml"
 RESOLVER="toml"
 ```
 
-| Field            | Required    | Meaning                                                                  |
-| ---------------- | ----------- | ------------------------------------------------------------------------ |
-| `NAME`           | yes         | Lowercase hyphenated identifier; must match the tool directory           |
-| `DESC`           | yes         | Concise user-facing description shown in the picker                      |
-| `ICON`           | yes         | Short glyph shown in the picker                                          |
-| `ORDER`          | no          | Numeric manifest and batch order; defaults to `500`                      |
-| `BREW`           | no          | Space-separated Homebrew formula or cask names                           |
-| `CASK`           | no          | `1` when every `BREW` item is a cask; defaults to `0`                    |
-| `CHECK`          | no          | Command or absolute path used to verify installation; defaults to `NAME` |
-| `REQUIRES`       | no          | Additional commands needed before config deployment                      |
-| `INSTALL_URL`    | no          | Whitespace-free HTTPS script installer used instead of `BREW`            |
-| `INSTALL_SHA256` | no          | Optional 64-character SHA-256 digest for the downloaded installer        |
+| Field            | Required | Meaning                                                                  |
+| ---------------- | -------- | ------------------------------------------------------------------------ |
+| `NAME`           | yes      | Lowercase hyphenated identifier; must match the tool directory           |
+| `DESC`           | yes      | Concise user-facing description shown in the picker                      |
+| `ICON`           | yes      | Short glyph shown in the picker                                          |
+| `ORDER`          | no       | Numeric manifest and batch order; defaults to `500`                      |
+| `BREW`           | no       | Space-separated Homebrew formula or cask names                           |
+| `CASK`           | no       | `1` when every `BREW` item is a cask; defaults to `0`                    |
+| `CHECK`          | no       | Command or absolute path used to verify installation; defaults to `NAME` |
+| `REQUIRES`       | no       | Additional commands needed before config deployment                      |
+| `INSTALL_URL`    | no       | Whitespace-free HTTPS script installer used instead of `BREW`            |
+| `INSTALL_SHA256` | no       | Optional 64-character SHA-256 digest for the downloaded installer        |
 
 Every `[config.<name>]` section accepts these fields:
 
-| Field      | Required | Meaning                                                     |
-| ---------- | -------- | ----------------------------------------------------------- |
-| `SOURCE`   | yes      | File or directory path relative to the tool directory       |
+| Field      | Required | Meaning                                                      |
+| ---------- | -------- | ------------------------------------------------------------ |
+| `SOURCE`   | yes      | File or directory path relative to the tool directory        |
 | `DEST`     | yes      | Path below `$HOME`; relative paths start at the project root |
-| `RESOLVER` | no       | Built-in deployment resolver; defaults to `copy`            |
+| `RESOLVER` | no       | Built-in deployment resolver; defaults to `copy`             |
 
 Section names use lowercase letters, digits, and hyphens, and must be unique
 within the tool. `BREW` and `INSTALL_URL` are mutually exclusive. A tool must
@@ -231,7 +231,7 @@ Built-in resolvers define both deployment and semantic equality:
 | ----------- | -------------- | ----------- | -------------------------------------------------------------- |
 | `copy`      | file/directory | none        | Exact file copy or exact directory mirror; the default         |
 | `symlink`   | file/directory | none        | Absolute link from the destination to the repository source    |
-| `inject`    | file           | none        | Maintain a metadata-marked block inside a local file            |
+| `inject`    | file           | none        | Maintain a metadata-marked block inside a local file           |
 | `json`      | file           | `jq`        | Recursive object merge and array union; repository scalars win |
 | `toml`      | file           | `yq`        | Deep merge with repository values taking precedence            |
 | `gitconfig` | file           | `git`       | Repository keys win while unrelated live keys remain           |
