@@ -11,6 +11,7 @@ NAME="evil"
 DESC="Safety fixture"
 ICON="!"
 ORDER="999"
+[config.main]
 SOURCE="files"
 DEST="${d}"
 EOF
@@ -28,6 +29,7 @@ NAME="evil"
 DESC="Inferred directory fixture"
 ICON="!"
 ORDER="999"
+[config.main]
 SOURCE="files"
 DEST="$H/.config/evil"
 EOF
@@ -42,6 +44,7 @@ NAME="evil"
 DESC="Unknown resolver fixture"
 ICON="!"
 ORDER="999"
+[config.main]
 SOURCE="files/config"
 DEST="$H/.config/evil/config"
 RESOLVER="missing-resolver"
@@ -52,6 +55,7 @@ NAME="evil"
 DESC="Directory resolver fixture"
 ICON="!"
 ORDER="999"
+[config.main]
 SOURCE="files"
 DEST="$H/.config/evil"
 RESOLVER="json"
@@ -62,6 +66,7 @@ NAME="evil"
 DESC="Valid companion fixture"
 ICON="!"
 ORDER="999"
+[config.main]
 SOURCE="files/config"
 DEST="$H/.config/evil/config"
 EOF
@@ -75,6 +80,7 @@ NAME="invalid-resolver"
 DESC="Resolver preflight fixture"
 ICON="!"
 ORDER="998"
+[config.main]
 SOURCE="files/config.json"
 DEST="$H/.config/invalid-resolver/config.json"
 RESOLVER="json"
@@ -83,7 +89,7 @@ mkdir -p "$H/.config/multipkg"
 printf 'preflight-keep\n' >"$H/.config/multipkg/config"
 invalid_plan="$(df --config-only --json plan invalid-resolver)"
 printf '%s' "$invalid_plan" | jq -e \
-    ".tools[0].blockers | index(\"cannot resolve config with 'json'\")" >/dev/null &&
+    ".tools[0].blockers | index(\"config.main: cannot resolve config with 'json'\")" >/dev/null &&
     pass "plan reports a resolver blocker" ||
     fail "plan missed a resolver blocker (got '$invalid_plan')"
 rc_is "resolver failure blocks the full foreground batch" 1 \
@@ -97,6 +103,7 @@ NAME="evil"
 DESC="Incomplete config fixture"
 ICON="!"
 ORDER="999"
+[config.main]
 SOURCE="files/config"
 EOF
 rc_is "SOURCE without DEST is rejected" 1 df evil
@@ -111,6 +118,7 @@ NAME="evil"
 DESC="Destination type fixture"
 ICON="!"
 ORDER="999"
+[config.main]
 SOURCE="files/config"
 DEST="$H/.config/existing-dir"
 EOF
@@ -122,6 +130,7 @@ NAME="evil"
 DESC="Symlink destination safety fixture"
 ICON="!"
 ORDER="999"
+[config.main]
 SOURCE="files/config"
 DEST="$H/.config/unsupported-link-destination"
 RESOLVER="symlink"
@@ -141,6 +150,7 @@ NAME="overlap-a"
 DESC="Overlap fixture A"
 ICON="!"
 ORDER="997"
+[config.main]
 SOURCE="files/config"
 DEST="$H/.config/shared"
 EOF
@@ -149,11 +159,30 @@ NAME="overlap-b"
 DESC="Overlap fixture B"
 ICON="!"
 ORDER="998"
+[config.main]
 SOURCE="files/config"
 DEST="$H/.config/shared/child"
 EOF
 rc_is "overlapping tool destinations are rejected" 1 df all
 rm -rf "$FAKE/tools/overlap-a" "$FAKE/tools/overlap-b"
+
+mkdir -p "$FAKE/tools/section-overlap/files"
+printf 'a\n' >"$FAKE/tools/section-overlap/files/a"
+printf 'b\n' >"$FAKE/tools/section-overlap/files/b"
+cat >"$FAKE/tools/section-overlap/tool.conf" <<EOF
+NAME="section-overlap"
+DESC="Overlapping config sections fixture"
+ICON="!"
+ORDER="997"
+[config.parent]
+SOURCE="files/a"
+DEST="$H/.config/section-overlap"
+[config.child]
+SOURCE="files/b"
+DEST="$H/.config/section-overlap/child"
+EOF
+rc_is "overlapping destinations within one tool are rejected" 1 df section-overlap
+rm -rf "$FAKE/tools/section-overlap"
 
 # Existing parent symlinks must not redirect a deployment outside HOME.
 mkdir -p "$SB/outside" "$FAKE/tools/evil/files"
@@ -164,6 +193,7 @@ NAME="evil"
 DESC="Safety fixture"
 ICON="!"
 ORDER="999"
+[config.main]
 SOURCE="files/config"
 DEST="$H/.unsafe/config"
 EOF
@@ -180,6 +210,7 @@ NAME="evil"
 DESC="Source symlink fixture"
 ICON="!"
 ORDER="999"
+[config.main]
 SOURCE="files/config"
 DEST="$H/.config/source-escape"
 EOF
@@ -243,6 +274,7 @@ cat >"$FAKE/tools/strict-manifest/tool.conf" <<EOF
 NAME="strict-manifest"
 DESC="Strict manifest fixture"
 ICON="!"
+[config.main]
 SOURCE="files/config"
 DEST="\$HOME/.config/strict-manifest"
 UNKNOWN="nope"
@@ -253,6 +285,7 @@ NAME="strict-manifest"
 NAME="strict-manifest"
 DESC="Strict manifest fixture"
 ICON="!"
+[config.main]
 SOURCE="files/config"
 DEST="\$HOME/.config/strict-manifest"
 EOF
@@ -261,6 +294,7 @@ cat >"$FAKE/tools/strict-manifest/tool.conf" <<EOF
 NAME="strict-manifest"
 DESC="broken"quote"
 ICON="!"
+[config.main]
 SOURCE="files/config"
 DEST="\$HOME/.config/strict-manifest"
 EOF
@@ -270,6 +304,7 @@ cat >"$FAKE/tools/strict-manifest/tool.conf" <<EOF
 NAME="strict-manifest"
 DESC="\$(touch $marker)"
 ICON="!"
+[config.main]
 SOURCE="files/config"
 DEST="\$HOME/.config/strict-manifest"
 EOF
@@ -279,6 +314,7 @@ cat >"$FAKE/tools/strict-manifest/tool.conf" <<'EOF'
 NAME="strict-manifest"
 DESC="Strict manifest fixture"
 ICON="!"
+[config.main]
 SOURCE="files/config"
 DEST="$HOME/.config/strict-manifest"
 EOF

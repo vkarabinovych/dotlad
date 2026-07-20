@@ -26,12 +26,12 @@ rc_is "output option is brewfile-only" 1 df --output "$SB/nope" all
 plan_out="$(df plan filecopy)"
 printf '%s\n' "$plan_out" | grep -qF 'packages: install filecopy' &&
     pass "plan reports package installation" || fail "plan package action"
-printf '%s\n' "$plan_out" | grep -qF 'config:   create' &&
+printf '%s\n' "$plan_out" | grep -qF 'config.main         create' &&
     pass "plan reports config creation" || fail "plan config action"
 checknot "plan is read-only" test -e "$H/.config/filecopy/config.toml"
 plan_json="$(df plan filecopy --json)"
 printf '%s' "$plan_json" | jq -e \
-    '.mode == "full" and .tools[0].name == "filecopy" and .tools[0].config == "create"' \
+    '.mode == "full" and .tools[0].name == "filecopy" and .tools[0].configs[0].name == "main" and .tools[0].configs[0].state == "create"' \
     >/dev/null && pass "plan emits machine-readable JSON" || fail "plan JSON contract"
 dry_json="$(df --dry-run --json filecopy)"
 [[ "$dry_json" == "$plan_json" ]] && pass "--dry-run matches plan" || fail "dry-run alias"
@@ -69,6 +69,7 @@ NAME="symlink-flag"
 DESC="CLI symlink default fixture"
 ICON="!"
 ORDER="997"
+[config.main]
 SOURCE="files/config"
 DEST="$H/.config/symlink-flag/config"
 EOF
@@ -77,13 +78,14 @@ NAME="explicit-copy"
 DESC="Explicit copy resolver fixture"
 ICON="!"
 ORDER="997"
+[config.main]
 SOURCE="files/config"
 DEST="$H/.config/explicit-copy/config"
 RESOLVER="copy"
 EOF
 symlink_flag_plan="$(df plan symlink-flag --symlink --json)"
 printf '%s' "$symlink_flag_plan" | jq -e \
-    '.tools[0].resolver == "symlink" and .tools[0].changes == "1 link to sync"' >/dev/null &&
+    '.tools[0].configs[0].resolver == "symlink" and .tools[0].configs[0].changes == "1 link to sync"' >/dev/null &&
     pass "--symlink changes the planned default resolver" ||
     fail "--symlink plan did not expose the effective resolver"
 df --config-only symlink-flag --symlink >/dev/null 2>&1
@@ -105,9 +107,10 @@ ICON="!"
 ORDER="999"
 BREW="mode-pkg"
 CHECK="mode-pkg"
+REQUIRES="mode-req"
+[config.main]
 SOURCE="files/config.toml"
 DEST="$H/.config/mode-fixture/config.toml"
-REQUIRES="mode-req"
 EOF
 : >"$BREW_LOG"
 df --packages-only mode-fixture >/dev/null 2>&1
@@ -173,6 +176,7 @@ cat >"$EMPTY_MODE_ROOT/tools/config-only/tool.conf" <<EOF
 NAME="config-only"
 DESC="Config-only empty-mode fixture"
 ICON="!"
+[config.main]
 SOURCE="files/config"
 DEST="$H/.config/empty-mode/config"
 EOF
@@ -279,6 +283,7 @@ NAME="worker-fixture"
 DESC="External project worker fixture"
 ICON="w"
 ORDER="997"
+[config.main]
 SOURCE="files/config.toml"
 DEST="$H/.config/worker-fixture/config.toml"
 EOF
@@ -299,7 +304,7 @@ worker_probe="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" \
         && -L "$HOME/.config/worker-fixture/config.toml" ]]; then
         printf done
     else
-        printf failed
+        printf "failed: %s" "$(cat "$DOTLAD_RUNDIR/worker-fixture.log" 2>/dev/null)"
     fi
     tui_cleanup >/dev/null 2>&1')"
 [[ "$worker_probe" == "done" ]] && pass "background worker preserves project root and default resolver" ||

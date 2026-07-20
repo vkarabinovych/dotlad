@@ -8,6 +8,12 @@ All notable user-facing changes are documented here.
 
 - Remote installer manifests may declare `INSTALL_SHA256`; Dotlad verifies the
   downloaded script before executing it.
+- Tool manifests may declare multiple named `[config.<name>]` sections with
+  independent sources, destinations, and resolvers; plans and picker activity
+  expose every section separately.
+- Release archives include a runnable example project with copy, mirror,
+  merge, symlink, multi-config, and package-only manifests plus the `mydot`
+  wrapper.
 
 ### Changed
 
@@ -18,6 +24,8 @@ All notable user-facing changes are documented here.
   `DOTLAD_DISPLAY_NAME` for help headings, version output, the TUI header, and
   generated-file attribution.
 - Shell sources now share a checked `shfmt` profile through `.editorconfig`.
+- Relative config destinations resolve from the project root while retaining
+  the existing `$HOME` containment and symlink-safety checks.
 
 ## [0.6.0] - 2026-07-20
 

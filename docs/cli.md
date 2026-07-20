@@ -45,7 +45,7 @@ corresponding commands.
 | `--yes`                 | mutating commands       | Accept confirmation prompts                        |
 | `--packages-only`       | tool/profile/all/plan   | Include package actions and omit config actions    |
 | `--config-only`         | tool/profile/all/plan   | Include config actions and omit package actions    |
-| `--symlink`             | tool/profile/all/plan   | Default tools without `RESOLVER` to `symlink`      |
+| `--symlink`             | tool/profile/all/plan   | Default omitted config resolvers to `symlink`      |
 | `--dry-run`             | tool/profile/all        | Convert the requested action into a read-only plan |
 | `--json`                | `plan` or `--dry-run`   | Emit the plan as JSON                              |
 | `--output PATH`         | `brewfile` only         | Write somewhere other than `./Brewfile`            |
@@ -54,8 +54,8 @@ corresponding commands.
 
 The two operation-mode flags are mutually exclusive in effect: if both are
 present, the last one wins. Prefer passing only one so automation is obvious.
-`--symlink` is independent of operation mode: it changes only tools that omit
-`RESOLVER`; an explicit resolver in a manifest always takes precedence.
+`--symlink` is independent of operation mode: it changes only config sections
+that omit `RESOLVER`; an explicit section resolver always takes precedence.
 `--plain` is only a presentation flag: with no command it selects the read-only
 state view, but it does not make a named tool/profile/all action read-only.
 Use `plan` or `--dry-run` for that guarantee. Options such as `--output` and

@@ -1,5 +1,5 @@
-# lib/manifest.sh — component loader. Each tools/<name>/tool.conf
-# is flat KEY="VALUE" and lives beside the files and tests it describes.
+# lib/manifest.sh — component loader. Each tools/<name>/tool.conf contains
+# top-level tool fields and zero or more named [config.<name>] sections.
 
 T_NAME=()
 T_DESC=()
@@ -7,9 +7,13 @@ T_ICON=()
 T_BREW=()
 T_CASK=()
 T_CHECK=()
-T_SRC=()
-T_DEST=()
-T_RESOLVER=()
+T_CONFIG_START=()
+T_CONFIG_COUNT=()
+C_NAME=()
+C_SRC=()
+C_DEST=()
+C_RESOLVER=()
+C_COUNT=0
 T_INSTALL_URL=()
 T_INSTALL_SHA256=()
 T_REQUIRES=()
@@ -80,41 +84,59 @@ manifest_expand_home() {
     MP_VALUE="${MP_VALUE//\$HOME/$HOME}"
 }
 
-# Parse the documented flat assignment formats without evaluating project
-# code. The allowlist makes printf -v safe and lets tools/profiles share the
-# same quoting, duplicate-field, and command-substitution rules.
-assignment_field_allowed() { # <tool|profile> <key>
+# Parse the documented assignment formats without evaluating project code.
+# The allowlist makes printf -v safe and lets tools/profiles share the same
+# quoting, duplicate-field, and command-substitution rules.
+assignment_field_allowed() { # <tool|config|profile> <key>
     case "$1:$2" in
         tool:NAME | tool:DESC | tool:ICON | tool:ORDER | tool:BREW | tool:CASK | \
-            tool:CHECK | tool:SOURCE | tool:DEST | tool:RESOLVER | tool:INSTALL_URL | \
-            tool:INSTALL_SHA256 | \
-            tool:REQUIRES | profile:extends | profile:tools) return 0 ;;
+            tool:CHECK | tool:INSTALL_URL | tool:INSTALL_SHA256 | tool:REQUIRES | \
+            config:SOURCE | config:DEST | config:RESOLVER | \
+            profile:extends | profile:tools) return 0 ;;
         *) return 1 ;;
     esac
 }
 
-assignment_read_file() { # <file> <tool|profile> — populate caller variables
-    local file="$1" kind="$2" line key raw value line_no=0 seen=$'\n'
+assignment_read_file() { # <file> <tool|profile> — populate caller variables/CONFIG_*
+    local file="$1" kind="$2" line key raw value line_no=0 seen=$'\n' section="" section_key
     while IFS= read -r line || [[ -n "$line" ]]; do
         line_no=$((line_no + 1))
         [[ "$line" =~ ^[[:space:]]*$ || "$line" =~ ^[[:space:]]*# ]] && continue
+        if [[ "$line" =~ ^[[:space:]]*\[config\.([a-z0-9][a-z0-9-]*)\][[:space:]]*$ ]]; then
+            [[ "$kind" == tool ]] || {
+                manifest_parse_error "${file}:$line_no: sections are not allowed in profiles"
+                return 1
+            }
+            section="${BASH_REMATCH[1]}"
+            [[ "$seen" != *$'\n'"section:$section"$'\n'* ]] || {
+                manifest_parse_error "${file}:$line_no: duplicate section '[config.$section]'"
+                return 1
+            }
+            seen+="section:$section"$'\n'
+            CONFIG_NAMES+=("$section")
+            CONFIG_SOURCES+=("")
+            CONFIG_DESTS+=("")
+            CONFIG_RESOLVERS+=("")
+            continue
+        fi
         if [[ ! "$line" =~ ^[[:space:]]*([A-Za-z][A-Za-z0-9_]*)[[:space:]]*=(.*)$ ]]; then
-            manifest_parse_error "${file}:$line_no: expected KEY=VALUE"
+            manifest_parse_error "${file}:$line_no: expected KEY=VALUE or [config.name]"
             return 1
         fi
         key="${BASH_REMATCH[1]}"
         raw="${BASH_REMATCH[2]}"
-        assignment_field_allowed "$kind" "$key" ||
+        if [[ -n "$section" ]]; then section_key=config; else section_key="$kind"; fi
+        assignment_field_allowed "$section_key" "$key" ||
             {
                 manifest_parse_error "${file}:$line_no: unknown field '$key'"
                 return 1
             }
-        [[ "$seen" != *$'\n'"$key"$'\n'* ]] ||
+        [[ "$seen" != *$'\n'"${section:-top}:$key"$'\n'* ]] ||
             {
                 manifest_parse_error "${file}:$line_no: duplicate field '$key'"
                 return 1
             }
-        seen+="$key"$'\n'
+        seen+="${section:-top}:$key"$'\n'
         manifest_parse_value "$raw" ||
             {
                 manifest_parse_error "${file}:$line_no: invalid value for '$key'"
@@ -126,7 +148,15 @@ assignment_read_file() { # <file> <tool|profile> — populate caller variables
             manifest_expand_home
             value="$MP_VALUE"
         fi
-        printf -v "$key" '%s' "$value"
+        if [[ -n "$section" ]]; then
+            case "$key" in
+                SOURCE) CONFIG_SOURCES[${#CONFIG_SOURCES[@]} - 1]="$value" ;;
+                DEST) CONFIG_DESTS[${#CONFIG_DESTS[@]} - 1]="$value" ;;
+                RESOLVER) CONFIG_RESOLVERS[${#CONFIG_RESOLVERS[@]} - 1]="$value" ;;
+            esac
+        else
+            printf -v "$key" '%s' "$value"
+        fi
     done <"$file"
 }
 
@@ -181,9 +211,13 @@ manifest_load() {
     T_BREW=()
     T_CASK=()
     T_CHECK=()
-    T_SRC=()
-    T_DEST=()
-    T_RESOLVER=()
+    T_CONFIG_START=()
+    T_CONFIG_COUNT=()
+    C_NAME=()
+    C_SRC=()
+    C_DEST=()
+    C_RESOLVER=()
+    C_COUNT=0
     T_INSTALL_URL=()
     T_INSTALL_SHA256=()
     T_REQUIRES=()
@@ -203,26 +237,51 @@ manifest_load() {
                 BREW=""
                 CASK=""
                 CHECK=""
-                SOURCE=""
-                DEST=""
-                RESOLVER=""
                 INSTALL_URL=""
                 INSTALL_SHA256=""
                 REQUIRES=""
+                CONFIG_NAMES=()
+                CONFIG_SOURCES=()
+                CONFIG_DESTS=()
+                CONFIG_RESOLVERS=()
                 assignment_read_file "$f" tool || exit 1
-                printf '%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\n' \
+                printf '%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s' \
                     "$f" "$ORDER" "$NAME" "$DESC" "$ICON" "$BREW" "$CASK" \
-                    "$CHECK" "$SOURCE" "$DEST" "$RESOLVER" "$INSTALL_URL" \
-                    "$INSTALL_SHA256" "$REQUIRES"
+                    "$CHECK" "$INSTALL_URL" "$INSTALL_SHA256" "$REQUIRES" "${#CONFIG_NAMES[@]}"
+                for ((config_i = 0; config_i < ${#CONFIG_NAMES[@]}; config_i++)); do
+                    printf '\037%s\037%s\037%s\037%s' "${CONFIG_NAMES[$config_i]}" \
+                        "${CONFIG_SOURCES[$config_i]}" "${CONFIG_DESTS[$config_i]}" \
+                        "${CONFIG_RESOLVERS[$config_i]}"
+                done
+                # A terminal sentinel preserves an empty RESOLVER on Bash 3.2,
+                # whose read -a otherwise drops trailing empty fields.
+                printf '\037.\n'
             ) || fatal "cannot read $f"
         done
     )"
-    local file order name desc icon brew cask check source dest resolver url sha256 requires tool_dir src
-    local i prior token_chars='^[-[:space:]A-Za-z0-9@+._/]*$'
+    local record fields=() file order name desc icon brew cask check url sha256 requires config_count
+    local config_name source dest resolver tool_dir src
+    local i j field_i prior token_chars='^[-[:space:]A-Za-z0-9@+._/]*$'
     local token_pattern='^[A-Za-z0-9][A-Za-z0-9@+._-]*(/[A-Za-z0-9][A-Za-z0-9@+._-]*)*$'
     local destinations=() destination_names=()
-    while IFS="$US" read -r file order name desc icon brew cask check source dest resolver url sha256 requires; do
+    while IFS= read -r record; do
+        IFS="$US" read -ra fields <<<"$record"
+        file="${fields[0]:-}"
         [[ -n "$file" ]] || continue
+        order="${fields[1]:-}"
+        name="${fields[2]:-}"
+        desc="${fields[3]:-}"
+        icon="${fields[4]:-}"
+        brew="${fields[5]:-}"
+        cask="${fields[6]:-}"
+        check="${fields[7]:-}"
+        url="${fields[8]:-}"
+        sha256="${fields[9]:-}"
+        requires="${fields[10]:-}"
+        config_count="${fields[11]:-}"
+        [[ "$config_count" =~ ^[0-9]+$ && ${#fields[@]} -eq $((13 + config_count * 4)) &&
+            "${fields[$((12 + config_count * 4))]}" == . ]] ||
+            fatal "corrupt manifest (newline in a value?)"
         [[ -f "$file" ]] || fatal "corrupt manifest (newline in a value?)"
         tool_dir="${file%/tool.conf}"
         [[ "$name" =~ ^[a-z0-9][a-z0-9-]*$ ]] ||
@@ -253,14 +312,22 @@ manifest_load() {
         for prior in $requires; do
             [[ "$prior" =~ $token_pattern ]] || fatal "tools/$name: invalid requirement '$prior'"
         done
-        if [[ -n "$source" || -n "$dest" || -n "$resolver" ]]; then
+        T_CONFIG_START+=("$C_COUNT")
+        T_CONFIG_COUNT+=("$config_count")
+        field_i=12
+        for ((j = 0; j < config_count; j++)); do
+            config_name="${fields[$field_i]}"
+            source="${fields[$((field_i + 1))]}"
+            dest="${fields[$((field_i + 2))]}"
+            resolver="${fields[$((field_i + 3))]}"
+            field_i=$((field_i + 4))
             [[ -n "$source" && -n "$dest" ]] ||
-                fatal "tools/$name: SOURCE and DEST must be declared together"
+                fatal "tools/$name [config.$config_name]: SOURCE and DEST are required"
             resolver="${resolver:-$DOTLAD_DEFAULT_RESOLVER}"
             [[ "$resolver" =~ ^[a-z0-9][a-z0-9-]*$ ]] ||
-                fatal "tools/$name: invalid RESOLVER '$resolver'"
+                fatal "tools/$name [config.$config_name]: invalid RESOLVER '$resolver'"
             resolver_known "$resolver" ||
-                fatal "tools/$name: unknown RESOLVER '$resolver'"
+                fatal "tools/$name [config.$config_name]: unknown RESOLVER '$resolver'"
             case "$source" in
                 "" | /* | . | .. | */ | *//* | ./* | ../* | */./* | */../* | */. | */..)
                     fatal "tools/${name}/tool.conf: bad SOURCE"
@@ -272,30 +339,36 @@ manifest_load() {
             [[ -e "$ROOT/$src" ]] || fatal "tools/${name}: SOURCE does not exist: '$source'"
             if [[ -d "$ROOT/$src" && ! -L "$ROOT/$src" ]]; then
                 resolver_supports "$resolver" directory ||
-                    fatal "tools/$name: RESOLVER '$resolver' does not support a directory SOURCE"
+                    fatal "tools/$name [config.$config_name]: RESOLVER '$resolver' does not support a directory SOURCE"
                 prior="$(find "$ROOT/$src" ! -type d ! -type f -print 2>/dev/null)"
                 [[ -z "$prior" ]] || fatal "tools/$name: directory SOURCE contains a non-regular entry"
             elif [[ -f "$ROOT/$src" && ! -L "$ROOT/$src" ]]; then
                 resolver_supports "$resolver" file ||
-                    fatal "tools/$name: RESOLVER '$resolver' does not support a file SOURCE"
+                    fatal "tools/$name [config.$config_name]: RESOLVER '$resolver' does not support a file SOURCE"
             else
                 fatal "tools/$name: SOURCE must be a real file or directory"
+            fi
+            if [[ "$dest" != /* ]]; then
+                dest="$ROOT/$dest"
             fi
             dest_safe "$dest" ||
                 fatal "tools/${name}: DEST must be safely inside \$HOME: '$dest'"
             for ((i = 0; i < ${#destinations[@]}; i++)); do
                 prior="${destinations[$i]}"
                 if [[ "$dest" == "$prior" || "$dest" == "$prior"/* || "$prior" == "$dest"/* ]]; then
-                    fatal "tools/$name: DEST overlaps tools/${destination_names[$i]}: '$dest'"
+                    fatal "tools/$name [config.$config_name]: DEST overlaps ${destination_names[$i]}: '$dest'"
                 fi
             done
             destinations+=("$dest")
-            destination_names+=("$name")
-        else
-            src=""
-        fi
-        [[ -n "$brew" || -n "$url" || -n "$src" ]] ||
-            fatal "tools/$name: declare BREW, INSTALL_URL, or SOURCE and DEST"
+            destination_names+=("tools/$name [config.$config_name]")
+            C_NAME+=("$config_name")
+            C_SRC+=("$src")
+            C_DEST+=("$dest")
+            C_RESOLVER+=("$resolver")
+            C_COUNT=$((C_COUNT + 1))
+        done
+        [[ -n "$brew" || -n "$url" || "$config_count" -gt 0 ]] ||
+            fatal "tools/$name: declare BREW, INSTALL_URL, or a [config.name] section"
         check="${check:-$name}"
         T_NAME+=("$name")
         T_DESC+=("$desc")
@@ -303,9 +376,6 @@ manifest_load() {
         T_BREW+=("$brew")
         T_CASK+=("$cask")
         T_CHECK+=("$check")
-        T_SRC+=("$src")
-        T_DEST+=("$dest")
-        T_RESOLVER+=("$resolver")
         T_INSTALL_URL+=("$url")
         T_INSTALL_SHA256+=("$sha256")
         T_REQUIRES+=("$requires")
@@ -352,8 +422,13 @@ tool_find() {
 # Resolver requirements are intrinsic to the selected implementation;
 # manifest REQUIRES adds tool-specific commands. Emit each command once.
 tool_requirements() { # <idx>
-    local i="$1" req requirements seen=" "
-    requirements="$(resolver_requirements "${T_RESOLVER[$i]}")"
+    local i="$1" req requirements="" seen=" " j start count
+    start="${T_CONFIG_START[$i]}"
+    count="${T_CONFIG_COUNT[$i]}"
+    for ((j = start; j < start + count; j++)); do
+        req="$(resolver_requirements "${C_RESOLVER[$j]}")"
+        requirements="${requirements}${requirements:+ }$req"
+    done
     requirements="${requirements}${requirements:+ }${T_REQUIRES[$i]}"
     for req in $requirements; do
         [[ "$seen" == *" $req "* ]] && continue

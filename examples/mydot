@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+EXAMPLE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DOTLAD_EXAMPLE_BIN="${DOTLAD_EXAMPLE_BIN:-$EXAMPLE_ROOT/../dotlad}"
+
+export DOTLAD_COMMAND_NAME="${DOTLAD_COMMAND_NAME:-mydot}"
+export DOTLAD_DISPLAY_NAME="${DOTLAD_DISPLAY_NAME:-My Dotfiles}"
+
+exec "$DOTLAD_EXAMPLE_BIN" \
+    -C "$EXAMPLE_ROOT" \
+    --backup-root "$EXAMPLE_ROOT/.tmp/backups" \
+    "$@"

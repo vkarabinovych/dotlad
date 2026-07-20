@@ -68,7 +68,7 @@ prefix. The installer refuses to overwrite an unmanaged `bin/dotlad`.
 ## Create a first project
 
 A Dotlad project needs a `tools/` directory. Each tool has a strict,
-non-executable `tool.conf` and may include a config payload:
+non-executable `tool.conf` and may include one or more config payloads:
 
 ```bash
 mkdir -p "$HOME/dotfiles/tools/starship/files"
@@ -82,6 +82,7 @@ NAME="starship"
 DESC="Cross-shell prompt configuration."
 ICON="★"
 BREW="starship"
+[config.main]
 SOURCE="files/starship.toml"
 DEST="$HOME/.config/starship.toml"
 EOF
@@ -114,10 +115,11 @@ my-dotfiles/
     └── base.conf
 ```
 
-Tools may declare packages, config, or both. `RESOLVER` selects deployment
-semantics and defaults to the built-in `copy` resolver, which copies a file or
-mirrors a directory exactly. Use `symlink` to point `DEST` at the repository
-source, or a merge resolver for machine-local file values.
+Tools may declare packages, one or more named config sections, or both. Each
+`[config.<name>]` chooses its own `SOURCE`, `DEST`, and optional `RESOLVER`.
+The resolver defaults to `copy`, which copies a file or mirrors a directory
+exactly. Use `symlink` to point a destination at the repository source, or a
+merge resolver for machine-local file values.
 
 Profiles are optional named tool selections with single-parent inheritance:
 
@@ -127,8 +129,10 @@ extends=""
 tools="starship git nvim"
 ```
 
-See [Adding or changing a tool](docs/adding-a-tool.md) and
-[Profiles](docs/profiles.md) for the complete schemas and validation rules.
+See [Adding or changing a tool](docs/adding-a-tool.md),
+[Profiles](docs/profiles.md), and the [complete example project](examples/)
+for the schemas, validation rules, and copy, mirror, merge, symlink,
+multi-config, and package-only manifests.
 
 ## CLI at a glance
 

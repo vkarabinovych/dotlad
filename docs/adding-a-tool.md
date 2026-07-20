@@ -1,8 +1,8 @@
 # Adding or changing a tool
 
 A tool is the smallest independently selectable unit in a Dotlad project. It
-owns package metadata, an optional config payload, and the rules Dotlad uses to
-recognize installed state.
+owns package metadata, optional named config payloads, and the rules Dotlad
+uses to recognize installed state.
 
 ## Choose the tool boundary
 
@@ -27,9 +27,9 @@ tools/example/
     └── config.toml
 ```
 
-Only `tool.conf` is always required. A config tool also needs the file or
-directory named by `SOURCE`. Dotlad ignores other tool-local paths, so a
-consumer project may add its own notes or tests without affecting runtime
+Only `tool.conf` is always required. A config tool also needs every file or
+directory named by its config sections. Dotlad ignores other tool-local paths,
+so a consumer project may add its own notes or tests without affecting runtime
 loading.
 
 ## Manifest fields
@@ -42,6 +42,7 @@ ORDER="500"
 BREW="example"
 CASK="0"
 CHECK="example"
+[config.settings]
 SOURCE="files/config.toml"
 DEST="$HOME/.config/example/config.toml"
 RESOLVER="toml"
@@ -56,23 +57,35 @@ RESOLVER="toml"
 | `BREW`           | no          | Space-separated Homebrew formula or cask names                           |
 | `CASK`           | no          | `1` when every `BREW` item is a cask; defaults to `0`                    |
 | `CHECK`          | no          | Command or absolute path used to verify installation; defaults to `NAME` |
-| `SOURCE`         | with config | File or directory path relative to the tool directory                    |
-| `DEST`           | with config | Destination strictly below `$HOME`                                       |
-| `RESOLVER`       | no          | Built-in deployment resolver; defaults to `copy`                         |
 | `REQUIRES`       | no          | Additional commands needed before config deployment                      |
 | `INSTALL_URL`    | no          | Whitespace-free HTTPS script installer used instead of `BREW`            |
 | `INSTALL_SHA256` | no          | Optional 64-character SHA-256 digest for the downloaded installer        |
 
-`BREW` and `INSTALL_URL` are mutually exclusive. A tool must declare at least
-one package installer or a `SOURCE`/`DEST` pair. Package tokens may use fully
-qualified names such as `owner/tap/formula`.
+Every `[config.<name>]` section accepts these fields:
+
+| Field      | Required | Meaning                                                        |
+| ---------- | -------- | -------------------------------------------------------------- |
+| `SOURCE`   | yes      | File or directory path relative to the tool directory          |
+| `DEST`     | yes      | Path below `$HOME`; relative paths start at the project root    |
+| `RESOLVER` | no       | Built-in deployment resolver; defaults to `copy`               |
+
+Section names use lowercase letters, digits, and hyphens, and must be unique
+within the tool. `BREW` and `INSTALL_URL` are mutually exclusive. A tool must
+declare at least one package installer or config section. Package tokens may
+use fully qualified names such as `owner/tap/formula`.
 
 `tool.conf` is parsed as data and never executed as Bash. Only the documented
 uppercase fields are accepted. Values may be double quoted, single quoted, or
 unquoted when they contain no whitespace. Blank lines and full-line comments
-are allowed. Duplicate or unknown fields, command substitutions, and backticks
-are rejected. Values are always treated as text; `$HOME` and `${HOME}` are
-expanded only in `DEST` and `CHECK`.
+are allowed. Tool-level fields must appear before the first config section;
+subsequent fields belong to that section. Duplicate sections, duplicate or
+unknown fields, command substitutions, and backticks are rejected. Values are
+always treated as text; `$HOME` and `${HOME}` are expanded only in `DEST` and
+`CHECK`.
+
+A relative `DEST` is resolved from the Dotlad project root. Its resolved path
+must still be a strict descendant of the active `$HOME`; relative paths do not
+bypass destination containment or symlink checks.
 
 ## Package state
 
@@ -116,6 +129,7 @@ Use `INSTALL_URL` only when Homebrew is not an appropriate source:
 CHECK="example"
 INSTALL_URL="https://example.com/install.sh"
 INSTALL_SHA256="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+[config.main]
 SOURCE="files/config.toml"
 DEST="$HOME/.config/example/config.toml"
 ```
@@ -128,19 +142,39 @@ the publisher provides an immutable installer artifact.
 
 ## Config deployment
 
-`SOURCE` and `DEST` are always declared together. `RESOLVER` defaults to
+Each config section requires `SOURCE` and `DEST`. Its `RESOLVER` defaults to
 `copy`, which copies a regular file or mirrors a directory exactly. A tool
-without either field is package-only.
+without any config sections is package-only.
 
 Passing `--symlink` changes the invocation-wide default to `symlink` for
-tools that omit `RESOLVER`. Declare `RESOLVER="copy"` explicitly when a
-tool must always copy even under that flag.
+sections that omit `RESOLVER`. Declare `RESOLVER="copy"` explicitly when a
+section must always copy even under that flag.
+
+Use multiple named sections when one application owns several files with
+different deployment semantics:
+
+```bash
+[config.settings]
+SOURCE="files/settings.json"
+DEST="$HOME/.config/example/settings.json"
+RESOLVER="json"
+
+[config.theme]
+SOURCE="files/theme.toml"
+DEST="$HOME/.config/example/theme.toml"
+RESOLVER="symlink"
+```
+
+Dotlad validates, plans, previews, and applies every section independently;
+the tool is `ready` only when all of them are up to date. Destinations may not
+overlap, including destinations declared by sibling sections of the same tool.
 
 ### Exact file copy
 
 Use a file source when the live file should match the repository byte for byte:
 
 ```bash
+[config.main]
 SOURCE="files/config.toml"
 DEST="$HOME/.config/example/config.toml"
 ```
@@ -153,6 +187,7 @@ file mode.
 Point `SOURCE` at a directory for an owned config tree:
 
 ```bash
+[config.main]
 SOURCE="files"
 DEST="$HOME/.config/example"
 ```
@@ -167,6 +202,7 @@ or application.
 Use `symlink` when an application should read the repository source directly:
 
 ```bash
+[config.main]
 SOURCE="files/config.toml"
 DEST="$HOME/.config/example/config.toml"
 RESOLVER="symlink"
@@ -183,6 +219,9 @@ link is swapped into place.
 Set `RESOLVER` when repository defaults must coexist with machine-local keys:
 
 ```bash
+[config.settings]
+SOURCE="files/settings.json"
+DEST="$HOME/.config/example/settings.json"
 RESOLVER="json"
 ```
 
@@ -215,7 +254,7 @@ avoid declaring an inaccurate requirement.
 
 ## Package-only tool
 
-Omit `SOURCE`, `DEST`, and `RESOLVER` when a tool deploys no config:
+Omit config sections when a tool deploys no config:
 
 ```bash
 NAME="search-tools"
@@ -273,11 +312,11 @@ Loading fails before deployment when:
 - required presentation metadata is missing;
 - a tool declares neither packages nor deployable configuration;
 - `NAME` does not match its directory;
-- `SOURCE` and `DEST` are not declared together;
+- a config section omits `SOURCE` or `DEST`;
 - a resolver is unknown or does not support the declared source type;
 - a source path or payload contains symlinks or special filesystem entries;
 - a destination is `$HOME`, escapes it, traverses a parent symlink, or overlaps
-  another tool destination;
+  another config destination;
 - a package token or installer URL is malformed; or
 - Homebrew and an HTTPS installer are both declared.
 

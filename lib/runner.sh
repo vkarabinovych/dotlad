@@ -54,7 +54,12 @@ queue_lock() {
 queue_unlock() { rmdir "$1/queue.lock" 2>/dev/null || true; }
 
 runner_clear_result() { # <run-dir> <tool>
-    rm -f "$1/$2.done" "$1/$2.failed" "$1/$2.result" "$1/$2.stage"
+    local result
+    rm -f "$1/$2.done" "$1/$2.failed" "$1/$2.stage"
+    for result in "$1/$2".*.result; do
+        [[ -e "$result" ]] && rm -f "$result"
+    done
+    return 0
 }
 
 # Terminate a worker process and all descendants, youngest first.

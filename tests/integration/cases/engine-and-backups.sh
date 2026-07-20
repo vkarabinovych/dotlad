@@ -7,7 +7,7 @@ check "declared requirement installed before deploy" command -v "$SB/brewprefix/
 [[ "$(state_json filecopy)" == "ready 1" ]] && pass "after update: filecopy = ready, installed" || fail "after update: filecopy (got '$(state_json filecopy)')"
 default_resolver="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" DOTLAD_PLAIN=1 /bin/bash -c '
     . "$DOTLAD_RUNTIME_ROOT/lib/runtime.sh"; manifest_load
-    i="$(tool_find filecopy)"; printf "%s" "${T_RESOLVER[$i]}"')"
+    i="$(tool_find filecopy)"; j="${T_CONFIG_START[$i]}"; printf "%s" "${C_RESOLVER[$j]}"')"
 [[ "$default_resolver" == copy ]] && pass "copy is the default built-in resolver" ||
     fail "default resolver is '$default_resolver'"
 
@@ -48,6 +48,42 @@ df jsonmerge >/dev/null 2>&1
 check "jsonmerge: explicit repo null wins" jq -e '.model == null' "$H/.config/jsonmerge/settings.json"
 check "jsonmerge: local key survives a null overlay" jq -e '.localOnly == "x"' "$H/.config/jsonmerge/settings.json"
 
+# One tool may own multiple named configs and choose a resolver independently
+# for each one.
+mkdir -p "$FAKE/tools/multi-config/files"
+printf 'copied v1\n' >"$FAKE/tools/multi-config/files/settings"
+printf 'linked v1\n' >"$FAKE/tools/multi-config/files/theme"
+cat >"$FAKE/tools/multi-config/tool.conf" <<EOF
+NAME="multi-config"
+DESC="Multiple config sections fixture"
+ICON="m"
+ORDER="996"
+[config.settings]
+SOURCE="files/settings"
+DEST="$H/.config/multi-config/settings"
+RESOLVER="copy"
+[config.theme]
+SOURCE="files/theme"
+DEST="$H/.config/multi-config/theme"
+RESOLVER="symlink"
+EOF
+multi_plan="$(df --config-only --json plan multi-config)"
+printf '%s' "$multi_plan" | jq -e \
+    '.tools[0].configs | map({name, resolver}) == [{"name":"settings","resolver":"copy"},{"name":"theme","resolver":"symlink"}]' \
+    >/dev/null && pass "plan exposes every named config and resolver" ||
+    fail "plan lost multiple config sections: $multi_plan"
+df --config-only multi-config >/dev/null 2>&1
+check "first config section is copied" cmp -s \
+    "$FAKE/tools/multi-config/files/settings" "$H/.config/multi-config/settings"
+checknot "copy section is not linked" test -L "$H/.config/multi-config/settings"
+check "second config section uses its symlink resolver" test -L "$H/.config/multi-config/theme"
+[[ "$(state_json multi-config)" == "ready 0" ]] && pass "multiple configs aggregate to ready" ||
+    fail "multiple config state did not become ready"
+printf 'copied v2\n' >"$FAKE/tools/multi-config/files/settings"
+[[ "$(state_json multi-config)" == "update 0" ]] && pass "one stale config marks its tool for update" ||
+    fail "stale config section was hidden by a ready sibling"
+rm -rf "$FAKE/tools/multi-config" "$H/.config/multi-config"
+
 # --- dir mirror + prune of stale --------------------------------------------
 df directory >/dev/null 2>&1
 check "directory files deployed" cmp -s "$FAKE/tools/directory/files/lua/mod.lua" "$H/.config/directory/lua/mod.lua"
@@ -56,8 +92,8 @@ printf -- '-- stale\n' >"$H/.config/directory/stale.lua"
 [[ "$(state_json directory)" == "update 1" ]] && pass "stale live file → update available" || fail "stale → update (got '$(state_json directory)')"
 directory_counts="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" DOTLAD_PLAIN=1 /bin/bash -c '
     . "$DOTLAD_RUNTIME_ROOT/lib/runtime.sh"; manifest_load
-    i="$(tool_find directory)"; tool_paths "$i"
-    resolver_changes "${T_RESOLVER[$i]}" "$TP_SRC" "$TP_DEST"')"
+    i="$(tool_find directory)"; j="${T_CONFIG_START[$i]}"; config_paths "$j"
+    resolver_changes "${C_RESOLVER[$j]}" "$TP_SRC" "$TP_DEST"')"
 [[ "$directory_counts" == "1 file to sync · 1 file to remove" ]] &&
     pass "directory update counts describe sync and removal" ||
     fail "directory update counts are ambiguous (got '$directory_counts')"
@@ -73,11 +109,12 @@ NAME="empty-tree"
 DESC="Empty directory mirror fixture"
 ICON="!"
 ORDER="997"
+[config.main]
 SOURCE="files"
 DEST="$H/.config/empty-tree"
 EOF
 empty_create_plan="$(df --config-only --json plan empty-tree)"
-printf '%s' "$empty_create_plan" | jq -e '.tools[0].changes == "2 directories to create"' >/dev/null &&
+printf '%s' "$empty_create_plan" | jq -e '.tools[0].configs[0].changes == "2 directories to create"' >/dev/null &&
     pass "empty directory creation is counted in plans" ||
     fail "empty directory creation has no plan count: $empty_create_plan"
 empty_create_out="$(df --config-only empty-tree)"
@@ -92,7 +129,7 @@ mkdir -p "$H/.config/empty-tree/stale-empty"
 [[ "$(state_json empty-tree)" == "update 0" ]] && pass "stale empty directory is detected" ||
     fail "stale empty directory was ignored"
 empty_remove_plan="$(df --config-only --json plan empty-tree)"
-printf '%s' "$empty_remove_plan" | jq -e '.tools[0].changes == "1 directory to remove"' >/dev/null &&
+printf '%s' "$empty_remove_plan" | jq -e '.tools[0].configs[0].changes == "1 directory to remove"' >/dev/null &&
     pass "stale empty directory removal is counted in plans" ||
     fail "empty directory removal has no plan count: $empty_remove_plan"
 empty_remove_out="$(df --config-only empty-tree)"
@@ -113,6 +150,7 @@ NAME="tree-conflict"
 DESC="Directory conflict fixture"
 ICON="!"
 ORDER="997"
+[config.main]
 SOURCE="files"
 DEST="$H/.config/tree-conflict"
 EOF
@@ -150,6 +188,7 @@ NAME="linked"
 DESC="Symlink backup fixture"
 ICON="!"
 ORDER="998"
+[config.main]
 SOURCE="files/config"
 DEST="$H/.config/linked/config"
 EOF
@@ -240,13 +279,14 @@ NAME="symlink-file"
 DESC="File symlink resolver fixture"
 ICON="!"
 ORDER="998"
+[config.main]
 SOURCE="files/config"
 DEST="$H/.config/symlink-file/config"
 RESOLVER="symlink"
 EOF
 symlink_plan="$(df --config-only --json plan symlink-file)"
 printf '%s' "$symlink_plan" | jq -e \
-    '.tools[0].config == "update" and .tools[0].changes == "1 link to sync"' >/dev/null &&
+    '.tools[0].configs[0].state == "update" and .tools[0].configs[0].changes == "1 link to sync"' >/dev/null &&
     pass "symlink plan describes one link" || fail "symlink plan is ambiguous: $symlink_plan"
 df --config-only symlink-file >/dev/null 2>&1
 check "file symlink is deployed" test -L "$H/.config/symlink-file/config"
@@ -282,6 +322,7 @@ NAME="symlink-directory"
 DESC="Directory symlink resolver fixture"
 ICON="!"
 ORDER="998"
+[config.main]
 SOURCE="files"
 DEST="$H/.config/symlink-directory"
 RESOLVER="symlink"
@@ -311,12 +352,13 @@ NAME="symlink-directory"
 DESC="Directory resolver transition fixture"
 ICON="!"
 ORDER="998"
+[config.main]
 SOURCE="files"
 DEST="$H/.config/symlink-directory"
 EOF
 copy_transition_plan="$(df --config-only --json plan symlink-directory)"
 printf '%s' "$copy_transition_plan" | jq -e \
-    '.tools[0].resolver == "copy" and .tools[0].config == "update" and (.tools[0].blockers | length) == 0' \
+    '.tools[0].configs[0].resolver == "copy" and .tools[0].configs[0].state == "update" and (.tools[0].blockers | length) == 0' \
     >/dev/null && pass "symlink to directory-copy transition passes preflight" ||
     fail "symlink to copy remains blocked: $copy_transition_plan"
 df --config-only symlink-directory >/dev/null 2>&1
@@ -410,7 +452,7 @@ result_counts="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" DOTLAD_PLAIN=1 /bin/bash -
     . "$DOTLAD_RUNTIME_ROOT/lib/runtime.sh"; manifest_load
     ACTIVITY_WIDTH=120
     DOTLAD_RUNDIR="$HOME/result-counts"; mkdir -p "$DOTLAD_RUNDIR"
-    printf "8 0 8 0 0\n" > "$DOTLAD_RUNDIR/directory.result"
+    printf "8 0 8 0 0\n" > "$DOTLAD_RUNDIR/directory.main.result"
     i="$(tool_find directory)"; tool_activity "$i" ""')"
 if printf '%s\n' "$result_counts" | grep -qF '8 files synced · 8 files backed up' &&
     ! printf '%s\n' "$result_counts" | grep -qF '+8/-0'; then

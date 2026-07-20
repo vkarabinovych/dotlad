@@ -6,6 +6,17 @@
 # shellcheck disable=SC2034  # SPIN is consumed by tui.sh
 SPIN=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
 
+tool_has_config_result() { # <idx>
+    local i="$1" run="${DOTLAD_RUNDIR:-}" j start count
+    [[ -n "$run" ]] || return 1
+    start="${T_CONFIG_START[$i]}"
+    count="${T_CONFIG_COUNT[$i]}"
+    for ((j = start; j < start + count; j++)); do
+        [[ -f "$run/${T_NAME[$i]}.${C_NAME[$j]}.result" ]] && return 0
+    done
+    return 1
+}
+
 # Print an activity row and wrap its payload to ACTIVITY_WIDTH visible columns.
 # Used by both package lists and config source → destination rows. Continuations
 # use a shallow indent so paths and long formula names fit on narrow screens;
@@ -229,7 +240,7 @@ compute_row() {
         fi
         if mode_config_enabled; then
             tool_has_config "$i" && [[ "$ST_CFG" == "update" || "$ST_CFG" == "new" ]] && RS_WANT=1
-            [[ -n "$run" && -f "$run/${nm}.result" ]] && RS_WANT=1
+            tool_has_config_result "$i" && RS_WANT=1
         fi
     fi
     return 0 # the trailing `[[ … ]] &&` above must not become our exit status
@@ -299,48 +310,57 @@ tool_activity() { # <idx> <spinner-frame>
         fi
     fi
     if mode_config_enabled && tool_has_config "$i"; then
-        local src="${T_SRC[$i]}" dest c m b dc dm counts cg cc verb action
-        dest="$(pretty_path "${T_DEST[$i]}")"
-        action="$(tool_config_action "$i")"
-        # A pending change either creates a config that isn't there yet
-        # (+ create, magenta — like the "not set up" headline) or updates an
-        # existing one (↑ update, yellow — like "update available").
-        if [[ -e "${T_DEST[$i]}" || -L "${T_DEST[$i]}" ]]; then
-            cg='↑'
-            cc="$C_YELLOW"
-            verb='update'
-        else
-            cg='+'
-            cc="$C_MAGENTA"
-            verb='create'
-        fi
-        if [[ "$running" == 1 && ("$stage" == "copy" || "$stage" == "link") ]]; then
-            wrapped_activity "$C_CYAN" "$frame" "$verb" "$src → $dest"
-        elif [[ -n "$run" && -f "$run/${nm}.result" ]]; then
-            # `|| true`: read returns non-zero on a newline-less file, which
-            # under set -e would abort before the result line is printed.
-            read -r c m b dc dm <"$run/${nm}.result" || true
-            counts=''
-            if [[ "${c:-0}" -gt 0 && "$action" == link ]]; then
-                counts="${c} link synced"
-            elif [[ "${c:-0}" -gt 0 ]]; then
-                counts="${c} $(file_noun "$c") synced"
+        local j start count config_name src dest c m b dc dm counts cg cc verb action active_config active_action
+        start="${T_CONFIG_START[$i]}"
+        count="${T_CONFIG_COUNT[$i]}"
+        active_config="${stage%%:*}"
+        active_action="${stage#*:}"
+        for ((j = start; j < start + count; j++)); do
+            config_name="${C_NAME[$j]}"
+            src="${C_SRC[$j]}"
+            dest="$(pretty_path "${C_DEST[$j]}")"
+            action="$(config_action "$j")"
+            # A pending change either creates a config that isn't there yet
+            # (+ create, magenta — like the "not set up" headline) or updates
+            # an existing one (↑ update, yellow — like the parent headline).
+            if [[ -e "${C_DEST[$j]}" || -L "${C_DEST[$j]}" ]]; then
+                cg='↑'
+                cc="$C_YELLOW"
+                verb='update'
+            else
+                cg='+'
+                cc="$C_MAGENTA"
+                verb='create'
             fi
-            [[ "${m:-0}" -gt 0 ]] && counts="${counts:+${counts} · }${m} $(file_noun "$m") removed"
-            [[ "${dc:-0}" -gt 0 ]] &&
-                counts="${counts:+${counts} · }${dc} $(directory_noun "$dc") created"
-            [[ "${dm:-0}" -gt 0 ]] &&
-                counts="${counts:+${counts} · }${dm} $(directory_noun "$dm") removed"
-            [[ "${b:-0}" -gt 0 ]] && counts="${counts:+${counts} · }${b} $(file_noun "$b") backed up"
-            wrapped_activity "$C_GREEN" '✓' "$action" "$src → $dest${counts:+ · $counts}"
-        elif tool_uptodate "$i"; then
-            wrapped_activity "$C_GREEN" '✓' 'up to date' "$dest"
-        elif tool_config_is_dir "$i" || [[ "$action" == link ]]; then
-            counts="$(resolver_changes "${T_RESOLVER[$i]}" "$ROOT/$src" "${T_DEST[$i]}")"
-            wrapped_activity "$cc" "$cg" "$verb" "$src → $dest${counts:+ · $counts}"
-        else
-            wrapped_activity "$cc" "$cg" "$verb" "$src → $dest"
-        fi
+            if [[ "$running" == 1 && "$active_config" == "$config_name" &&
+                ("$active_action" == "copy" || "$active_action" == "link") ]]; then
+                wrapped_activity "$C_CYAN" "$frame" "$verb" "$config_name · $src → $dest"
+            elif [[ -n "$run" && -f "$run/${nm}.${config_name}.result" ]]; then
+                # `|| true`: read returns non-zero on a newline-less file, which
+                # under set -e would abort before the result line is printed.
+                read -r c m b dc dm <"$run/${nm}.${config_name}.result" || true
+                counts=''
+                if [[ "${c:-0}" -gt 0 && "$action" == link ]]; then
+                    counts="${c} link synced"
+                elif [[ "${c:-0}" -gt 0 ]]; then
+                    counts="${c} $(file_noun "$c") synced"
+                fi
+                [[ "${m:-0}" -gt 0 ]] && counts="${counts:+${counts} · }${m} $(file_noun "$m") removed"
+                [[ "${dc:-0}" -gt 0 ]] &&
+                    counts="${counts:+${counts} · }${dc} $(directory_noun "$dc") created"
+                [[ "${dm:-0}" -gt 0 ]] &&
+                    counts="${counts:+${counts} · }${dm} $(directory_noun "$dm") removed"
+                [[ "${b:-0}" -gt 0 ]] && counts="${counts:+${counts} · }${b} $(file_noun "$b") backed up"
+                wrapped_activity "$C_GREEN" '✓' "$action" "$config_name · $src → $dest${counts:+ · $counts}"
+            elif resolver_equal "${C_RESOLVER[$j]}" "$ROOT/$src" "${C_DEST[$j]}"; then
+                wrapped_activity "$C_GREEN" '✓' 'up to date' "$config_name · $dest"
+            elif config_is_dir "$j" || [[ "$action" == link ]]; then
+                counts="$(resolver_changes "${C_RESOLVER[$j]}" "$ROOT/$src" "${C_DEST[$j]}")"
+                wrapped_activity "$cc" "$cg" "$verb" "$config_name · $src → $dest${counts:+ · $counts}"
+            else
+                wrapped_activity "$cc" "$cg" "$verb" "$config_name · $src → $dest"
+            fi
+        done
     fi
 }
 

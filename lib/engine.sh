@@ -33,9 +33,9 @@ mode_label() {
 mode_packages_enabled() { [[ "$DOTLAD_MODE" != "config" ]]; }
 mode_config_enabled() { [[ "$DOTLAD_MODE" != "packages" ]]; }
 tool_has_packages() { [[ -n "${T_BREW[$1]}" || -n "${T_INSTALL_URL[$1]}" ]]; }
-tool_has_config() { [[ -n "${T_SRC[$1]}" ]]; }
-tool_config_is_dir() { tool_has_config "$1" && [[ -d "$ROOT/${T_SRC[$1]}" ]]; }
-tool_config_action() { resolver_action "${T_RESOLVER[$1]}"; }
+tool_has_config() { [[ "${T_CONFIG_COUNT[$1]}" -gt 0 ]]; }
+config_is_dir() { [[ -d "$ROOT/${C_SRC[$1]}" ]]; }
+config_action() { resolver_action "${C_RESOLVER[$1]}"; }
 
 tool_relevant() {
     case "$DOTLAD_MODE" in
@@ -45,10 +45,10 @@ tool_relevant() {
     esac
 }
 
-# shellcheck disable=SC2153  # T_SRC/T_DEST are the manifest arrays
-tool_paths() {
-    TP_SRC="$ROOT/${T_SRC[$1]}"
-    TP_DEST="${T_DEST[$1]}"
+# shellcheck disable=SC2153  # C_SRC/C_DEST are the manifest arrays
+config_paths() {
+    TP_SRC="$ROOT/${C_SRC[$1]}"
+    TP_DEST="${C_DEST[$1]}"
 }
 
 # ---------------------------------------------------------------------------
@@ -109,13 +109,14 @@ install_hint() {
 # directories/resolvers it is the expensive part (find+cmp, jq, yq).
 UTD_CACHE=()
 tool_uptodate() {
-    local i="$1"
+    local i="$1" j start count rc=0
     [[ -n "${UTD_CACHE[$i]:-}" ]] && return "$((${UTD_CACHE[$i]} - 1))"
-    tool_paths "$i"
-    local rc=0
-    if tool_has_config "$i"; then
-        resolver_equal "${T_RESOLVER[$i]}" "$TP_SRC" "$TP_DEST" || rc=1
-    fi
+    start="${T_CONFIG_START[$i]}"
+    count="${T_CONFIG_COUNT[$i]}"
+    for ((j = start; j < start + count; j++)); do
+        config_paths "$j"
+        resolver_equal "${C_RESOLVER[$j]}" "$TP_SRC" "$TP_DEST" || rc=1
+    done
     UTD_CACHE[i]=$((rc == 0 ? 1 : 2))
     return "$rc"
 }
@@ -125,8 +126,7 @@ tool_uptodate() {
 # ---------------------------------------------------------------------------
 
 tool_state() {
-    local i="$1"
-    tool_paths "$i"
+    local i="$1" j start count missing=0
     if mode_packages_enabled; then
         if tool_installed "$i"; then ST_INSTALLED=1; else ST_INSTALLED=0; fi
     else
@@ -140,7 +140,15 @@ tool_state() {
         ST_CFG="pkg"
         return 0
     fi
-    if [[ ! -e "$TP_DEST" && ! -L "$TP_DEST" ]]; then
+    start="${T_CONFIG_START[$i]}"
+    count="${T_CONFIG_COUNT[$i]}"
+    for ((j = start; j < start + count; j++)); do
+        if [[ ! -e "${C_DEST[$j]}" && ! -L "${C_DEST[$j]}" ]]; then
+            missing=1
+            break
+        fi
+    done
+    if [[ "$missing" == 1 ]]; then
         ST_CFG="new"
     elif tool_uptodate "$i"; then
         ST_CFG="ready"
@@ -218,7 +226,7 @@ preflight_add_blocker() {
 }
 
 preflight_inspect() { # <idx> — populate PREFLIGHT_MISSING/PREFLIGHT_BLOCKERS
-    local i="$1" req blocker can_resolve=1
+    local i="$1" req blocker can_resolve j start count label
     PREFLIGHT_MISSING=""
     PREFLIGHT_BLOCKERS=""
     PREFLIGHT_INSTALLED=-1
@@ -241,11 +249,6 @@ preflight_inspect() { # <idx> — populate PREFLIGHT_MISSING/PREFLIGHT_BLOCKERS
         [[ -z "$PREFLIGHT_BLOCKERS" ]]
         return
     fi
-    tool_paths "$i"
-    if ! dest_safe "$TP_DEST"; then
-        preflight_add_blocker "unsafe destination: $TP_DEST"
-        can_resolve=0
-    fi
     backup_root_safe || preflight_add_blocker "unsafe backup root: $BACKUP_ROOT"
     while IFS= read -r req; do
         PREFLIGHT_MISSING="${PREFLIGHT_MISSING}${PREFLIGHT_MISSING:+ }$req"
@@ -254,11 +257,24 @@ preflight_inspect() { # <idx> — populate PREFLIGHT_MISSING/PREFLIGHT_BLOCKERS
             preflight_add_blocker "missing requirement: $req"
         fi
     done < <(tool_missing_requirements "$i")
-    if [[ "$can_resolve" == 1 ]]; then
+    start="${T_CONFIG_START[$i]}"
+    count="${T_CONFIG_COUNT[$i]}"
+    for ((j = start; j < start + count; j++)); do
+        can_resolve=1
+        label="config.${C_NAME[$j]}"
+        config_paths "$j"
+        if ! dest_safe "$TP_DEST"; then
+            preflight_add_blocker "$label: unsafe destination: $TP_DEST"
+            can_resolve=0
+        fi
+        [[ -z "$PREFLIGHT_MISSING" ]] || can_resolve=0
+        if [[ "$can_resolve" != 1 ]]; then
+            continue
+        fi
         while IFS= read -r blocker; do
-            [[ -n "$blocker" ]] && preflight_add_blocker "$blocker"
-        done < <(resolver_check "${T_RESOLVER[$i]}" "$TP_SRC" "$TP_DEST")
-    fi
+            [[ -n "$blocker" ]] && preflight_add_blocker "$label: $blocker"
+        done < <(resolver_check "${C_RESOLVER[$j]}" "$TP_SRC" "$TP_DEST")
+    done
     [[ -z "$PREFLIGHT_BLOCKERS" ]]
 }
 
@@ -318,7 +334,7 @@ replace_path_transaction() ( # <stage-root> <staged-path> <destination>
 )
 
 # ---------------------------------------------------------------------------
-# Apply one config (repo → system)
+# Apply one named config (repo → system)
 # ---------------------------------------------------------------------------
 
 # apply_config reports changed file/link and directory counts; sync_tool prints
@@ -328,19 +344,18 @@ AP_REMOVED=0
 AP_CREATED_DIRS=0
 AP_REMOVED_DIRS=0
 apply_config() {
-    local i="$1"
-    tool_paths "$i"
+    local config_i="$1"
+    config_paths "$config_i"
     AP_DEPLOYED=0
     AP_REMOVED=0
     AP_CREATED_DIRS=0
     AP_REMOVED_DIRS=0
-    resolver_apply "${T_RESOLVER[$i]}" "$TP_SRC" "$TP_DEST"
+    resolver_apply "${C_RESOLVER[$config_i]}" "$TP_SRC" "$TP_DEST"
 }
 
 # What updating this tool's config would change (preview + pre-write review).
 tool_diff() {
-    local i="$1"
-    tool_paths "$i"
+    local i="$1" j start count
     if ! mode_config_enabled; then
         if tool_installed "$i"; then hint "installed · config skipped"; else hint "not installed · $(install_hint "$i")"; fi
         return 0
@@ -349,7 +364,13 @@ tool_diff() {
         if tool_installed "$i"; then hint "installed · no config"; else hint "not installed · $(install_hint "$i")"; fi
         return 0
     fi
-    resolver_preview "${T_RESOLVER[$i]}" "$TP_SRC" "$TP_DEST"
+    start="${T_CONFIG_START[$i]}"
+    count="${T_CONFIG_COUNT[$i]}"
+    for ((j = start; j < start + count; j++)); do
+        config_paths "$j"
+        [[ "$count" -eq 1 ]] || hint "config.${C_NAME[$j]} → $(pretty_path "$TP_DEST")"
+        resolver_preview "${C_RESOLVER[$j]}" "$TP_SRC" "$TP_DEST"
+    done
     return 0
 }
 
@@ -361,11 +382,13 @@ tool_diff() {
 # → done) with a one-line summary per stage. Output is captured per-tool into
 # the run log and shown in the picker's pane.
 # Also records per-stage markers so the picker's tree can show which step is
-# live (<tool>.stage = install|copy|link|done) and deployment result counts
-# (<tool>.result = "deployed removed backed created-dirs removed-dirs").
+# live (<tool>.stage = install|<config>:copy|<config>:link|done) and deployment
+# result counts (<tool>.<config>.result =
+# "deployed removed backed created-dirs removed-dirs").
 sync_tool() {
     local i="$1"
-    local did=0 nm="${T_NAME[$i]}" b0 nb sum action active result run="${DOTLAD_RUNDIR:-}"
+    local did=0 config_did=0 nm="${T_NAME[$i]}" b0 nb sum action active result run="${DOTLAD_RUNDIR:-}"
+    local j start count
     UTD_CACHE=() # this call mutates config — never trust a stale up-to-date memo
     if mode_packages_enabled && ! tool_installed "$i" && tool_has_packages "$i"; then
         if [[ -n "$run" ]]; then
@@ -386,44 +409,52 @@ sync_tool() {
             N_FAILED=$((N_FAILED + 1))
             return 1
         fi
-        tool_paths "$i"
-        action="$(tool_config_action "$i")"
-        if [[ "$action" == link ]]; then
-            active="linking"
-            result="linked"
-        else
-            active="copying"
-            result="copied"
-        fi
-        if [[ -n "$run" ]]; then
-            printf '%s' "$action" >"$run/${nm}.stage" 2>/dev/null || true
-        fi
-        printf '%s▸%s %s config → %s\n' "$C_CYAN" "$C_RESET" "$active" "$(pretty_path "$TP_DEST")"
-        b0="$N_BACKED"
-        if apply_config "$i"; then
-            nb=$((N_BACKED - b0))
-            if [[ -n "$run" ]]; then
-                printf '%s %s %s %s %s\n' "$AP_DEPLOYED" "$AP_REMOVED" "$nb" \
-                    "$AP_CREATED_DIRS" "$AP_REMOVED_DIRS" >"$run/${nm}.result" 2>/dev/null || true
+        start="${T_CONFIG_START[$i]}"
+        count="${T_CONFIG_COUNT[$i]}"
+        for ((j = start; j < start + count; j++)); do
+            config_paths "$j"
+            resolver_equal "${C_RESOLVER[$j]}" "$TP_SRC" "$TP_DEST" && continue
+            action="$(config_action "$j")"
+            if [[ "$action" == link ]]; then
+                active="linking"
+                result="linked"
+            else
+                active="copying"
+                result="copied"
             fi
-            sum=""
-            [[ "$AP_DEPLOYED" -gt 0 ]] && sum="${AP_DEPLOYED} ${result}"
-            [[ "$AP_CREATED_DIRS" -gt 0 ]] &&
-                sum="${sum:+${sum} · }${AP_CREATED_DIRS} $(directory_noun "$AP_CREATED_DIRS") created"
-            [[ "${AP_REMOVED:-0}" -gt 0 ]] &&
-                sum="${sum:+${sum} · }${AP_REMOVED} $(file_noun "$AP_REMOVED") removed"
-            [[ "$AP_REMOVED_DIRS" -gt 0 ]] &&
-                sum="${sum:+${sum} · }${AP_REMOVED_DIRS} $(directory_noun "$AP_REMOVED_DIRS") removed"
-            [[ "$nb" -gt 0 ]] && sum="${sum:+${sum} · }${nb} backed up"
-            [[ -n "$sum" ]] || sum="config updated"
-            printf '%s  ✓ %s%s\n' "$C_GREEN" "$sum" "$C_RESET"
-            N_UPDATED=$((N_UPDATED + 1))
-            did=1
-        else
-            printf '%s  ✗ %s failed%s\n' "$C_RED" "$action" "$C_RESET"
-            N_FAILED=$((N_FAILED + 1))
-            return 1
-        fi
+            if [[ -n "$run" ]]; then
+                printf '%s:%s' "${C_NAME[$j]}" "$action" >"$run/${nm}.stage" 2>/dev/null || true
+            fi
+            printf '%s▸%s %s config.%s → %s\n' "$C_CYAN" "$C_RESET" "$active" \
+                "${C_NAME[$j]}" "$(pretty_path "$TP_DEST")"
+            b0="$N_BACKED"
+            if apply_config "$j"; then
+                nb=$((N_BACKED - b0))
+                if [[ -n "$run" ]]; then
+                    printf '%s %s %s %s %s\n' "$AP_DEPLOYED" "$AP_REMOVED" "$nb" \
+                        "$AP_CREATED_DIRS" "$AP_REMOVED_DIRS" \
+                        >"$run/${nm}.${C_NAME[$j]}.result" 2>/dev/null || true
+                fi
+                sum=""
+                [[ "$AP_DEPLOYED" -gt 0 ]] && sum="${AP_DEPLOYED} ${result}"
+                [[ "$AP_CREATED_DIRS" -gt 0 ]] &&
+                    sum="${sum:+${sum} · }${AP_CREATED_DIRS} $(directory_noun "$AP_CREATED_DIRS") created"
+                [[ "${AP_REMOVED:-0}" -gt 0 ]] &&
+                    sum="${sum:+${sum} · }${AP_REMOVED} $(file_noun "$AP_REMOVED") removed"
+                [[ "$AP_REMOVED_DIRS" -gt 0 ]] &&
+                    sum="${sum:+${sum} · }${AP_REMOVED_DIRS} $(directory_noun "$AP_REMOVED_DIRS") removed"
+                [[ "$nb" -gt 0 ]] && sum="${sum:+${sum} · }${nb} backed up"
+                [[ -n "$sum" ]] || sum="config updated"
+                printf '%s  ✓ %s%s\n' "$C_GREEN" "$sum" "$C_RESET"
+                config_did=1
+                did=1
+            else
+                printf '%s  ✗ %s failed%s\n' "$C_RED" "$action" "$C_RESET"
+                N_FAILED=$((N_FAILED + 1))
+                return 1
+            fi
+        done
+        [[ "$config_did" == 0 ]] || N_UPDATED=$((N_UPDATED + 1))
     fi
     if [[ -n "$run" ]]; then
         printf "done" >"$run/${nm}.stage" 2>/dev/null || true

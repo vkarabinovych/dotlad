@@ -46,6 +46,7 @@ NAME="demo"
 DESC="Standalone install fixture"
 ICON="•"
 BREW="demo"
+[config.main]
 SOURCE="files/config.toml"
 DEST="$HOME/.config/demo/config.toml"
 EOF
@@ -142,12 +143,25 @@ tar -C "$EXTRACTED" -xzf "$ARCHIVE"
 [[ -f "$EXTRACTED/dotlad-$VERSION/lib/tui/input.sh" ]]
 [[ -f "$EXTRACTED/dotlad-$VERSION/lib/tui/model.sh" ]]
 [[ -f "$EXTRACTED/dotlad-$VERSION/lib/tui/screen.sh" ]]
+[[ -f "$EXTRACTED/dotlad-$VERSION/examples/.gitignore" ]]
+[[ -x "$EXTRACTED/dotlad-$VERSION/examples/mydot" ]]
+[[ -f "$EXTRACTED/dotlad-$VERSION/examples/tools/multi-config/tool.conf" ]]
 [[ ! -e "$EXTRACTED/dotlad-$VERSION/lib/dotlad" ]]
 [[ -f "$EXTRACTED/dotlad-$VERSION/scripts/check.sh" ]]
 [[ -f "$EXTRACTED/dotlad-$VERSION/tests/run.sh" ]]
 /bin/bash "$EXTRACTED/dotlad-$VERSION/scripts/check.sh" --syntax-only
 "$EXTRACTED/dotlad-$VERSION/install.sh" --prefix "$SB/archive-prefix" >/dev/null
 [[ "$("$SB/archive-prefix/bin/dotlad" --version)" == "dotlad $VERSION" ]]
+EXAMPLE_ROOT="$(cd "$EXTRACTED/dotlad-$VERSION/examples" && pwd)"
+[[ "$(HOME="$EXAMPLE_ROOT/.tmp" "$EXAMPLE_ROOT/mydot" --version)" == "My Dotfiles $VERSION" ]]
+mkdir -p "$EXAMPLE_ROOT/.tmp/output/copy-file"
+printf 'local example value\n' >"$EXAMPLE_ROOT/.tmp/output/copy-file/example.conf"
+HOME="$EXAMPLE_ROOT/.tmp" "$EXAMPLE_ROOT/mydot" \
+    --config-only --yes copy-file >/dev/null
+cmp "$EXAMPLE_ROOT/tools/copy-file/files/example.conf" \
+    "$EXAMPLE_ROOT/.tmp/output/copy-file/example.conf"
+EXAMPLE_BACKUP="$(find "$EXAMPLE_ROOT/.tmp/backups" -type f | head -1)"
+grep -qFx 'local example value' "$EXAMPLE_BACKUP"
 rm -f "$BREW_CWD/Brewfile"
 (cd "$BREW_CWD" && HOME="$HOME_DIR" "$SB/archive-prefix/bin/dotlad" \
     --config="$PROJECT" brewfile >/dev/null)

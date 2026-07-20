@@ -66,15 +66,18 @@ independent of terminal state.
 ## Manifest model and trust boundary
 
 `manifest_load` parses every `tool.conf` through a field allowlist and a
-strict assignment reader. Project files are data: they cannot source files,
-run substitutions, or define executable hooks. Parsed values are normalized
-into parallel `T_*` arrays ordered by numeric `ORDER` and then `NAME`.
+strict section-aware assignment reader. Project files are data: they cannot
+source files, run substitutions, or define executable hooks. Tool values are
+normalized into parallel `T_*` arrays ordered by numeric `ORDER` and then
+`NAME`; named config sections occupy contiguous ranges in parallel `C_*`
+arrays.
 
-A tool may declare packages, config, or both. No `SOURCE`/`DEST` pair means
-package-only. Otherwise, the manifest normalizes an omitted `RESOLVER` to the
-built-in `copy` resolver, or to `symlink` when the CLI exports that invocation
-default. Explicit manifest values always win, and the worker inherits the
-resolved default through the `DOTLAD_` environment contract.
+A tool may declare packages, multiple `[config.<name>]` sections, or both. No
+config section means package-only. Every section owns a `SOURCE`/`DEST` pair
+and normalizes an omitted `RESOLVER` independently to `copy`, or to `symlink`
+when the CLI exports that invocation default. Explicit section values always
+win, and the worker inherits the resolved default through the `DOTLAD_`
+environment contract.
 
 `RESOLVER` is the deliberate extension boundary. A resolver is trusted runtime
 code under `lib/resolvers/`, not code loaded from the project. Every resolver

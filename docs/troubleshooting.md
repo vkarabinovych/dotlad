@@ -115,19 +115,23 @@ that the destination is exclusively owned and mirrored exactly.
 
 ## Destination validation fails
 
-`DEST` must expand to a strict descendant of the active `$HOME`. Dotlad rejects
-`$HOME` itself, `..`, duplicate separators, overlapping tool destinations,
-and any existing parent symlink.
+`DEST` must resolve to a strict descendant of the active `$HOME`. Relative
+destinations start at the Dotlad project root. Dotlad rejects `$HOME` itself,
+`..`, duplicate separators, overlapping tool destinations, and any existing
+parent symlink.
 
 Prefer a direct path such as:
 
 ```bash
+[config.main]
+SOURCE="files/config.toml"
 DEST="$HOME/.config/example/config.toml"
 ```
 
-Do not assign both a directory and a file inside it to different tools. If a
-parent below `$HOME` is a symlink, choose the real in-home destination or manage
-that path outside Dotlad.
+Do not assign both a directory and a file inside it to different config
+sections, whether they belong to the same or different tools. If a parent
+below `$HOME` is a symlink, choose the real in-home destination or manage that
+path outside Dotlad.
 
 ## Directory deployment would remove files
 

@@ -7,6 +7,7 @@ cd "$ROOT"
 
 SOURCES=(
     dotlad install.sh bin/dotlad
+    examples/mydot
     .github/assets/demo/setup.sh
     scripts/*.sh
     lib/*.sh lib/resolvers/*.sh lib/tui/*.sh

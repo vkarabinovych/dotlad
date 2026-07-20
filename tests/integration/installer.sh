@@ -107,9 +107,10 @@ DESC="File deployment fixture"
 ICON="a"
 ORDER="10"
 BREW="filecopy"
+REQUIRES="reqtool"
+[config.main]
 SOURCE="files/config.toml"
 DEST="$H/.config/filecopy/config.toml"
-REQUIRES="reqtool"
 EOF
 
 cat >"$FAKE/tools/package/tool.conf" <<'EOF'
@@ -127,6 +128,7 @@ DESC="JSON resolver fixture"
 ICON="c"
 ORDER="30"
 CHECK="jsonmerge"
+[config.main]
 SOURCE="files/settings.json"
 DEST="$H/.config/jsonmerge/settings.json"
 RESOLVER="json"
@@ -139,6 +141,7 @@ DESC="TOML resolver fixture"
 ICON="x"
 ORDER="40"
 CHECK="tomlmerge"
+[config.main]
 SOURCE="files/config.toml"
 DEST="$H/.config/tomlmerge/config.toml"
 RESOLVER="toml"
@@ -153,6 +156,7 @@ ORDER="50"
 BREW="vendor/tap/desktop fixture-font"
 CASK="1"
 CHECK="$FAKE_APPLICATIONS/Desktop.app"
+[config.main]
 SOURCE="files/config"
 DEST="$H/.config/desktop/config"
 EOF
@@ -165,6 +169,7 @@ DESC="Git config resolver fixture"
 ICON="i"
 ORDER="60"
 CHECK="git"
+[config.main]
 SOURCE="files/.gitconfig"
 DEST="$H/.gitconfig"
 RESOLVER="gitconfig"
@@ -179,6 +184,7 @@ ICON="n"
 ORDER="70"
 BREW="directory syntax-parser"
 CHECK="directory"
+[config.main]
 SOURCE="files"
 DEST="$H/.config/directory"
 EOF
@@ -191,6 +197,7 @@ ICON="z"
 ORDER="80"
 CHECK="multipkg"
 BREW="multipkg alpha beta gamma delta vendor/tap/epsilon zeta eta"
+[config.main]
 SOURCE="files/config"
 DEST="$H/.config/multipkg/config"
 EOF

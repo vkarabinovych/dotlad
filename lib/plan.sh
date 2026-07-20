@@ -12,12 +12,13 @@ json_string() {
 }
 
 plan_tool() { # <idx> — populate PLAN_* globals without changing state
-    local i="$1" counts=""
+    local i="$1" j start count state changes
     PLAN_PACKAGES="none"
-    PLAN_CONFIG="none"
-    PLAN_DEST=""
-    PLAN_CHANGES=""
-    PLAN_RESOLVER=""
+    PLAN_CONFIG_NAMES=()
+    PLAN_CONFIG_STATES=()
+    PLAN_CONFIG_DESTS=()
+    PLAN_CONFIG_CHANGES=()
+    PLAN_CONFIG_RESOLVERS=()
     PLAN_MISSING=""
     PLAN_BLOCKERS=""
     preflight_inspect "$i" || true
@@ -28,29 +29,33 @@ plan_tool() { # <idx> — populate PLAN_* globals without changing state
     elif ! mode_packages_enabled && tool_has_packages "$i"; then
         PLAN_PACKAGES="skipped"
     fi
-    if mode_config_enabled && tool_has_config "$i"; then
-        tool_paths "$i"
-        PLAN_DEST="$TP_DEST"
-        PLAN_RESOLVER="${T_RESOLVER[$i]}"
-        if [[ ! -e "$TP_DEST" && ! -L "$TP_DEST" ]]; then
-            PLAN_CONFIG="create"
-        elif tool_uptodate "$i"; then
-            PLAN_CONFIG="ready"
+    start="${T_CONFIG_START[$i]}"
+    count="${T_CONFIG_COUNT[$i]}"
+    for ((j = start; j < start + count; j++)); do
+        changes=""
+        config_paths "$j"
+        if ! mode_config_enabled; then
+            state="skipped"
+        elif [[ ! -e "$TP_DEST" && ! -L "$TP_DEST" ]]; then
+            state="create"
+        elif resolver_equal "${C_RESOLVER[$j]}" "$TP_SRC" "$TP_DEST"; then
+            state="ready"
         else
-            PLAN_CONFIG="update"
+            state="update"
         fi
-        if [[ "$PLAN_CONFIG" == "create" || "$PLAN_CONFIG" == "update" ]]; then
-            counts="$(resolver_changes "${T_RESOLVER[$i]}" "$TP_SRC" "$TP_DEST")"
-            PLAN_CHANGES="$counts"
+        if [[ "$state" == "create" || "$state" == "update" ]]; then
+            changes="$(resolver_changes "${C_RESOLVER[$j]}" "$TP_SRC" "$TP_DEST")"
         fi
-    elif ! mode_config_enabled && tool_has_config "$i"; then
-        PLAN_CONFIG="skipped"
-        PLAN_DEST="${T_DEST[$i]}"
-    fi
+        PLAN_CONFIG_NAMES+=("${C_NAME[$j]}")
+        PLAN_CONFIG_STATES+=("$state")
+        PLAN_CONFIG_DESTS+=("$TP_DEST")
+        PLAN_CONFIG_CHANGES+=("$changes")
+        PLAN_CONFIG_RESOLVERS+=("${C_RESOLVER[$j]}")
+    done
 }
 
 plan_tool_json() { # <idx> <leading-comma 0|1>
-    local i="$1" comma="$2" req blocker first=1 old_ifs
+    local i="$1" comma="$2" req blocker first=1 old_ifs j
     plan_tool "$i"
     [[ "$comma" == 1 ]] && printf ','
     printf '\n    {"name":'
@@ -61,14 +66,22 @@ plan_tool_json() { # <idx> <leading-comma 0|1>
     json_string "${T_BREW[$i]}"
     printf ',"install_url":'
     json_string "${T_INSTALL_URL[$i]}"
-    printf ',"config":'
-    json_string "$PLAN_CONFIG"
-    printf ',"resolver":'
-    json_string "$PLAN_RESOLVER"
-    printf ',"destination":'
-    json_string "$PLAN_DEST"
-    printf ',"changes":'
-    json_string "$PLAN_CHANGES"
+    printf ',"configs":['
+    for ((j = 0; j < ${#PLAN_CONFIG_NAMES[@]}; j++)); do
+        [[ "$j" == 0 ]] || printf ','
+        printf '{"name":'
+        json_string "${PLAN_CONFIG_NAMES[$j]}"
+        printf ',"state":'
+        json_string "${PLAN_CONFIG_STATES[$j]}"
+        printf ',"resolver":'
+        json_string "${PLAN_CONFIG_RESOLVERS[$j]}"
+        printf ',"destination":'
+        json_string "${PLAN_CONFIG_DESTS[$j]}"
+        printf ',"changes":'
+        json_string "${PLAN_CONFIG_CHANGES[$j]}"
+        printf '}'
+    done
+    printf ']'
     printf ',"missing_requirements":['
     for req in $PLAN_MISSING; do
         [[ "$first" == 1 ]] && first=0 || printf ','
@@ -88,7 +101,7 @@ plan_tool_json() { # <idx> <leading-comma 0|1>
 }
 
 plan_selected() { # <tool names...>
-    local name i first=1
+    local name i first=1 j
     UTD_CACHE=()
     if [[ "${DOTLAD_PLAN_JSON:-}" == 1 ]]; then
         printf '{"mode":'
@@ -114,12 +127,16 @@ plan_selected() { # <tool names...>
             ready) printf '  packages: already installed\n' ;;
             skipped) printf '  packages: skipped by mode\n' ;;
         esac
-        case "$PLAN_CONFIG" in
-            create | update) printf '  config:   %s → %s%s\n' "$PLAN_CONFIG" \
-                "$(pretty_path "$PLAN_DEST")" "${PLAN_CHANGES:+ · $PLAN_CHANGES}" ;;
-            ready) printf '  config:   already up to date → %s\n' "$(pretty_path "$PLAN_DEST")" ;;
-            skipped) printf '  config:   skipped by mode\n' ;;
-        esac
+        for ((j = 0; j < ${#PLAN_CONFIG_NAMES[@]}; j++)); do
+            case "${PLAN_CONFIG_STATES[$j]}" in
+                create | update) printf '  config.%-12s %s → %s%s\n' "${PLAN_CONFIG_NAMES[$j]}" \
+                    "${PLAN_CONFIG_STATES[$j]}" "$(pretty_path "${PLAN_CONFIG_DESTS[$j]}")" \
+                    "${PLAN_CONFIG_CHANGES[$j]:+ · ${PLAN_CONFIG_CHANGES[$j]}}" ;;
+                ready) printf '  config.%-12s already up to date → %s\n' "${PLAN_CONFIG_NAMES[$j]}" \
+                    "$(pretty_path "${PLAN_CONFIG_DESTS[$j]}")" ;;
+                skipped) printf '  config.%-12s skipped by mode\n' "${PLAN_CONFIG_NAMES[$j]}" ;;
+            esac
+        done
         [[ -z "$PLAN_MISSING" ]] || printf '  requires: missing %s\n' "$PLAN_MISSING"
         if [[ -n "$PLAN_BLOCKERS" ]]; then
             printf '  blockers: %s\n' "${PLAN_BLOCKERS//|/, }"

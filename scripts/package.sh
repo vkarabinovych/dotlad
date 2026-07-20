@@ -31,7 +31,7 @@ cp "$ROOT/VERSION" "$ROOT/LICENSE" "$ROOT/README.md" \
 cp "$ROOT/bin/dotlad" "$bundle/bin/"
 cp "$ROOT/scripts/"*.sh "$bundle/scripts/"
 cp "$ROOT/.github/assets/demo/cli.gif" "$bundle/.github/assets/demo/"
-cp -R "$ROOT/lib" "$ROOT/docs" "$ROOT/tests" "$bundle/"
+cp -R "$ROOT/lib" "$ROOT/docs" "$ROOT/examples" "$ROOT/tests" "$bundle/"
 tar -C "$stage" -czf "$OUT_DIR/$ARCHIVE" "dotlad-$VERSION"
 
 if command -v sha256sum >/dev/null 2>&1; then
