@@ -1,7 +1,7 @@
 # lib/runtime.sh — canonical runtime load order for CLI and test probes.
 
-# shellcheck source=lib/ui.sh
-. "$DOTLAD_RUNTIME_ROOT/lib/ui.sh"
+# shellcheck source=lib/console.sh
+. "$DOTLAD_RUNTIME_ROOT/lib/console.sh"
 # shellcheck source=lib/resolvers.sh
 . "$DOTLAD_RUNTIME_ROOT/lib/resolvers.sh"
 # shellcheck source=lib/manifest.sh

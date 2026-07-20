@@ -20,13 +20,22 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Install shfmt
+        run: |
+          curl -fsSLo "$RUNNER_TEMP/shfmt" \
+            https://github.com/mvdan/sh/releases/download/v3.13.1/shfmt_v3.13.1_linux_amd64
+          echo "fb096c5d1ac6beabbdbaa2874d025badb03ee07929f0c9ff67563ce8c75398b1  $RUNNER_TEMP/shfmt" \
+            | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/shfmt"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
       - name: Source checks
         run: /bin/bash scripts/check.sh
 
-      - name: Markdown checks
+      - name: Documentation and formatting checks
         run: |
           npx --yes markdownlint-cli2@0.23.1 "**/*.md"
-          npx --yes prettier@3.6.2 --check "**/*.md"
+          npx --yes prettier@3.6.2 --check "**/*.{md,yaml,yml}" ".github/**/*.{yaml,yml}"
 
       - name: Package release asset
         run: |

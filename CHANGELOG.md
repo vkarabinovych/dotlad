@@ -4,6 +4,21 @@ All notable user-facing changes are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- Remote installer manifests may declare `INSTALL_SHA256`; Dotlad verifies the
+  downloaded script before executing it.
+
+### Changed
+
+- Shared CLI output now lives in `console.sh`, while TUI input, cached screen
+  state, and rendering live under `lib/tui/`; worker lifecycle stays with the
+  runner instead of the main event-loop implementation.
+- Embedded wrappers use `DOTLAD_COMMAND_NAME` for shell invocations and
+  `DOTLAD_DISPLAY_NAME` for help headings, version output, the TUI header, and
+  generated-file attribution.
+- Shell sources now share a checked `shfmt` profile through `.editorconfig`.
+
 ## [0.6.0] - 2026-07-20
 
 ### Changed

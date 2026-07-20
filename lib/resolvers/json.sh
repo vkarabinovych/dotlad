@@ -15,13 +15,13 @@ JSON_MERGE_FILTER='
 
 resolver_json_requires() { printf 'jq\n'; }
 
-resolver_json_render() {  # <repo> <live>
+resolver_json_render() { # <repo> <live>
     local base='{}'
     [[ -s "$2" && ! -L "$2" ]] && base="$(cat "$2")"
     jq -s "$JSON_MERGE_FILTER" <(printf '%s' "$base") "$1"
 }
 
-resolver_json_equal() {  # <repo> <live>
+resolver_json_equal() { # <repo> <live>
     [[ -f "$2" && ! -L "$2" ]] && command -v jq >/dev/null 2>&1 || return 1
     local merged
     merged="$(resolver_json_render "$1" "$2" 2>/dev/null)" || return 1

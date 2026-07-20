@@ -6,7 +6,7 @@ and include regression coverage for behavior changes.
 ## Development setup
 
 Dotlad targets the stock macOS Bash 3.2. Maintainer checks additionally require
-ShellCheck, jq, yq, and Git.
+ShellCheck, shfmt, jq, yq, and Git.
 
 ```bash
 git clone https://github.com/vkarabinovych/dotlad.git
@@ -29,7 +29,8 @@ and package prefix. Tests must not read or modify live user configuration.
 
 Use four-space indentation and quote expansions unless splitting is
 intentional. Public environment variables use the `DOTLAD_` prefix. Resolver
-names are lowercase and hyphenated.
+names are lowercase and hyphenated. Run `shfmt -w .` from the repository root
+after editing shell sources; its project options live in `.editorconfig`.
 
 ## Pull requests
 

@@ -16,6 +16,7 @@ DOTLAD_BIN="$DOTLAD_RUNTIME_ROOT/dotlad"
 DOTLAD_PROJECT_ROOT="${DOTLAD_PROJECT_ROOT:-$PWD}"
 DOTLAD_BACKUP_ROOT="${DOTLAD_BACKUP_ROOT:-$HOME/.dotlad_backup}"
 DOTLAD_COMMAND_NAME="${DOTLAD_COMMAND_NAME:-$(basename "$0")}"
+DOTLAD_DISPLAY_NAME="${DOTLAD_DISPLAY_NAME:-$DOTLAD_COMMAND_NAME}"
 DOTLAD_VERSION="$(cat "$DOTLAD_RUNTIME_ROOT/VERSION" 2>/dev/null || printf 'development')"
 DOTLAD_BREWFILE_OUT="${DOTLAD_BREWFILE_OUT:-}"
 # Bash 3.2 with nounset cannot expand an empty array. Keep a removable sentinel
@@ -23,57 +24,105 @@ DOTLAD_BREWFILE_OUT="${DOTLAD_BREWFILE_OUT:-}"
 BOOTSTRAP_ARGS=("")
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        -C|--config)
-            [[ $# -gt 1 ]] || { printf 'dotlad: %s needs a path\n' "$1" >&2; exit 1; }
-            DOTLAD_PROJECT_ROOT="$2"; shift 2
+        -C | --config)
+            [[ $# -gt 1 ]] ||
+                {
+                    printf '%s: %s needs a path\n' "$DOTLAD_COMMAND_NAME" "$1" >&2
+                    exit 1
+                }
+            DOTLAD_PROJECT_ROOT="$2"
+            shift 2
             ;;
-        --config=*) DOTLAD_PROJECT_ROOT="${1#*=}"; shift ;;
+        --config=*)
+            DOTLAD_PROJECT_ROOT="${1#*=}"
+            shift
+            ;;
         --backup-root)
-            [[ $# -gt 1 ]] || { printf 'dotlad: --backup-root needs a path\n' >&2; exit 1; }
-            DOTLAD_BACKUP_ROOT="$2"; shift 2
+            [[ $# -gt 1 ]] ||
+                {
+                    printf '%s: --backup-root needs a path\n' "$DOTLAD_COMMAND_NAME" >&2
+                    exit 1
+                }
+            DOTLAD_BACKUP_ROOT="$2"
+            shift 2
             ;;
-        --backup-root=*) DOTLAD_BACKUP_ROOT="${1#*=}"; shift ;;
+        --backup-root=*)
+            DOTLAD_BACKUP_ROOT="${1#*=}"
+            shift
+            ;;
         --output)
-            [[ $# -gt 1 ]] || { printf 'dotlad: --output needs a path\n' >&2; exit 1; }
-            DOTLAD_BREWFILE_OUT="$2"; shift 2
+            [[ $# -gt 1 ]] ||
+                {
+                    printf '%s: --output needs a path\n' "$DOTLAD_COMMAND_NAME" >&2
+                    exit 1
+                }
+            DOTLAD_BREWFILE_OUT="$2"
+            shift 2
             ;;
-        --output=*) DOTLAD_BREWFILE_OUT="${1#*=}"; shift ;;
-        *) BOOTSTRAP_ARGS+=("$1"); shift ;;
+        --output=*)
+            DOTLAD_BREWFILE_OUT="${1#*=}"
+            shift
+            ;;
+        *)
+            BOOTSTRAP_ARGS+=("$1")
+            shift
+            ;;
     esac
 done
-[[ -d "$DOTLAD_PROJECT_ROOT" ]] \
-    || { printf 'dotlad: project root does not exist: %s\n' "$DOTLAD_PROJECT_ROOT" >&2; exit 1; }
+[[ -d "$DOTLAD_PROJECT_ROOT" ]] ||
+    {
+        printf '%s: project root does not exist: %s\n' \
+            "$DOTLAD_COMMAND_NAME" "$DOTLAD_PROJECT_ROOT" >&2
+        exit 1
+    }
 ROOT="$(cd "$DOTLAD_PROJECT_ROOT" && pwd)"
 export DOTLAD_RUNTIME_ROOT DOTLAD_PROJECT_ROOT="$ROOT" DOTLAD_BACKUP_ROOT DOTLAD_BIN
-export DOTLAD_COMMAND_NAME DOTLAD_VERSION DOTLAD_BREWFILE_OUT
+export DOTLAD_COMMAND_NAME DOTLAD_DISPLAY_NAME DOTLAD_VERSION DOTLAD_BREWFILE_OUT
 set -- "${BOOTSTRAP_ARGS[@]}"
 shift
 
 # shellcheck source=lib/runtime.sh
 . "$DOTLAD_RUNTIME_ROOT/lib/runtime.sh"
 
+print_help_row() { # <label-width> <label> <description>
+    local width="$1" label="$2" padding
+    padding=$((width - ${#label}))
+    [[ "$padding" -lt 0 ]] && padding=0
+    printf '  %s%*s  %s\n' "$label" "$padding" "" "$3"
+}
+
 usage() {
+    local command_width=$((${#DOTLAD_COMMAND_NAME} + 19))
+    printf "%s — install a project's packages and configs onto your system.\n\n" \
+        "$DOTLAD_DISPLAY_NAME"
+
+    printf 'Usage:\n'
+    print_help_row "$command_width" "$DOTLAD_COMMAND_NAME" \
+        "Pick tools interactively (plain state without a TTY)"
+    print_help_row "$command_width" "$DOTLAD_COMMAND_NAME <tool>…" \
+        "Preview and apply named tools"
+    print_help_row "$command_width" "$DOTLAD_COMMAND_NAME profile NAME" \
+        "Apply a named profile and its inherited tools"
+    print_help_row "$command_width" "$DOTLAD_COMMAND_NAME all" \
+        "Apply every tool relevant to the active mode"
+    print_help_row "$command_width" "$DOTLAD_COMMAND_NAME brewfile" \
+        "Generate a Homebrew Bundle file from the project"
+    print_help_row "$command_width" "$DOTLAD_COMMAND_NAME plan [TARGET]" \
+        "Show a read-only plan (all, profile NAME, or tool names)"
+    print_help_row "$command_width" "$DOTLAD_COMMAND_NAME backups" "List restore points"
+    print_help_row "$command_width" "$DOTLAD_COMMAND_NAME restore NAME" "Restore a restore point"
+    print_help_row "$command_width" "$DOTLAD_COMMAND_NAME backup delete NAME" "Delete a restore point"
+    print_help_row "$command_width" "$DOTLAD_COMMAND_NAME version" \
+        "Print the installed $DOTLAD_DISPLAY_NAME version"
+    print_help_row "$command_width" "$DOTLAD_COMMAND_NAME help" "This help"
+
+    printf "\nThe list shows each tool's state:\n"
+    print_help_row 18 "✓ up to date" "the config matches the repo, or the package is installed"
+    print_help_row 18 "↑ update available" "the config differs — updating would change it"
+    print_help_row 18 "+ not set up" "no config deployed yet"
+    print_help_row 18 "+ not installed" "one or more declared packages are missing"
+
     cat <<EOF
-dotlad — install a project's packages and configs onto your system.
-
-Usage:
-  $DOTLAD_COMMAND_NAME              Pick tools interactively (plain state without a TTY)
-  $DOTLAD_COMMAND_NAME <tool>…      Preview and apply named tools
-  $DOTLAD_COMMAND_NAME profile NAME Apply a named profile and its inherited tools
-  $DOTLAD_COMMAND_NAME all          Apply every tool relevant to the active mode
-  $DOTLAD_COMMAND_NAME brewfile     Generate a Homebrew Bundle file from the project
-  $DOTLAD_COMMAND_NAME plan [TARGET] Show a read-only plan (all, profile NAME, or tool names)
-  $DOTLAD_COMMAND_NAME backups      List restore points
-  $DOTLAD_COMMAND_NAME restore NAME Restore a restore point
-  $DOTLAD_COMMAND_NAME backup delete NAME Delete a restore point
-  $DOTLAD_COMMAND_NAME version      Print the installed Dotlad version
-  $DOTLAD_COMMAND_NAME help         This help
-
-The list shows each tool's state:
-  ✓ up to date      the config matches the repo, or the package is installed
-  ↑ update available the config differs — updating would change it
-  + not set up       no config deployed yet
-  + not installed    one or more declared packages are missing
 
 Move with ↑/↓, pick with space and run with enter (a = all, d = diff,
 m = mode, q = quit). Replaced files are backed up to $(pretty_path "$DOTLAD_BACKUP_ROOT") and
@@ -82,89 +131,151 @@ machine-local JSON, TOML, and Git values or deploy a repository symlink.
 Letter shortcuts use the same physical keys on Ukrainian keyboard layouts.
 
 JSON, TOML, and Git config merging requires jq, yq, and git respectively.
+HTTPS installers require curl; checksum-pinned installers also require shasum.
 
-Modes:    --packages-only installs packages without deploying config
-          --config-only deploys config without installing packages
-          --symlink uses symlink as the default config resolver
-          default installs packages and deploys config
-
-Options:  --plain              disable color and the interactive screen
-          --yes                accept mutation confirmation prompts
-          --dry-run            plan the requested action without changing state
-          --json               emit JSON with plan or --dry-run
-          --symlink            default to symlink instead of copy deployment
-          -C, --config PATH     manifest project (defaults to current directory)
-          --backup-root PATH    backup location (defaults to ~/.dotlad_backup)
-          --output PATH         brewfile path (defaults to ./Brewfile)
-          --version             print the installed Dotlad version
-
---plain changes presentation only; use plan or --dry-run to guarantee no changes.
+Modes:
 EOF
+    print_help_row 15 "--packages-only" "installs packages without deploying config"
+    print_help_row 15 "--config-only" "deploys config without installing packages"
+    print_help_row 15 "--symlink" "uses symlink as the default config resolver"
+    print_help_row 15 "default" "installs packages and deploys config"
+
+    printf '\nOptions:\n'
+    print_help_row 18 "--plain" "disable color and the interactive screen"
+    print_help_row 18 "--yes" "accept mutation confirmation prompts"
+    print_help_row 18 "--dry-run" "plan the requested action without changing state"
+    print_help_row 18 "--json" "emit JSON with plan or --dry-run"
+    print_help_row 18 "--symlink" "default to symlink instead of copy deployment"
+    print_help_row 18 "-C, --config PATH" "manifest project (defaults to current directory)"
+    print_help_row 18 "--backup-root PATH" "backup location (defaults to ~/.dotlad_backup)"
+    print_help_row 18 "--output PATH" "brewfile path (defaults to ./Brewfile)"
+    print_help_row 18 "-h, -H, --help" "print this help"
+    print_help_row 18 "-v, -V, --version" "print the installed version"
+
+    printf '\n--plain changes presentation only; use plan or --dry-run to guarantee no changes.\n'
 }
 
 main() {
-    local cmd="" a i p j
+    local cmd="" arg tool_index name position
     local pos=() plan_pos=() names=()
-    for a in "$@"; do
-        case "$a" in
-            --plain)   DOTLAD_PLAIN=1 ;;
-            --yes)     DOTLAD_YES=1 ;;
+    for arg in "$@"; do
+        case "$arg" in
+            --plain) DOTLAD_PLAIN=1 ;;
+            --yes) DOTLAD_YES=1 ;;
             --dry-run) DOTLAD_DRY_RUN=1 ;;
-            --json)    DOTLAD_PLAN_JSON=1 ;;
-            --symlink) DOTLAD_DEFAULT_RESOLVER=symlink; export DOTLAD_DEFAULT_RESOLVER ;;
+            --json) DOTLAD_PLAN_JSON=1 ;;
+            --symlink)
+                DOTLAD_DEFAULT_RESOLVER=symlink
+                export DOTLAD_DEFAULT_RESOLVER
+                ;;
             --packages-only) mode_set packages ;;
-            --config-only)   mode_set config ;;
-            -h|--help) cmd="help" ;;
-            -V|--version) cmd="version" ;;
-            -*)        err "unknown option: $a"; exit 1 ;;
-            *)         pos+=("$a") ;;
+            --config-only) mode_set config ;;
+            -h | -H | --help) cmd="help" ;;
+            -v | -V | --version) cmd="version" ;;
+            -*)
+                err "unknown option: $arg"
+                exit 1
+                ;;
+            *) pos+=("$arg") ;;
         esac
     done
-    mode_set "$DOTLAD_MODE" || { err "unknown mode: $DOTLAD_MODE"; exit 1; }
-    [[ "$cmd" == "version" ]] && { printf 'dotlad %s\n' "$DOTLAD_VERSION"; exit 0; }
+    mode_set "$DOTLAD_MODE" || {
+        err "unknown mode: $DOTLAD_MODE"
+        exit 1
+    }
+    if [[ "$cmd" == "version" ]]; then
+        [[ ${#pos[@]} -eq 0 ]] || {
+            err "usage: $DOTLAD_COMMAND_NAME version"
+            exit 1
+        }
+        printf '%s %s\n' "$DOTLAD_DISPLAY_NAME" "$DOTLAD_VERSION"
+        exit 0
+    fi
     case "${pos[0]:-}" in
         help)
-            [[ ${#pos[@]} -eq 1 ]] || { err "usage: $DOTLAD_COMMAND_NAME help"; exit 1; }
-            usage; exit 0
+            [[ ${#pos[@]} -eq 1 ]] || {
+                err "usage: $DOTLAD_COMMAND_NAME help"
+                exit 1
+            }
+            usage
+            exit 0
             ;;
         version)
-            [[ ${#pos[@]} -eq 1 ]] || { err "usage: $DOTLAD_COMMAND_NAME version"; exit 1; }
-            printf 'dotlad %s\n' "$DOTLAD_VERSION"; exit 0
+            [[ ${#pos[@]} -eq 1 ]] || {
+                err "usage: $DOTLAD_COMMAND_NAME version"
+                exit 1
+            }
+            printf '%s %s\n' "$DOTLAD_DISPLAY_NAME" "$DOTLAD_VERSION"
+            exit 0
             ;;
     esac
-    ui_init_colors
-    [[ "$cmd" == "help" ]] && { usage; exit 0; }
-    if [[ "${pos[0]:-}" == "brewfile" ]]; then
-        [[ ${#pos[@]} -eq 1 ]] \
-            || { err "usage: $DOTLAD_COMMAND_NAME brewfile [--output PATH]"; exit 1; }
-        cmd_brewfile; exit 0
+    console_init_colors
+    if [[ "$cmd" == "help" ]]; then
+        [[ ${#pos[@]} -eq 0 ]] || {
+            err "usage: $DOTLAD_COMMAND_NAME help"
+            exit 1
+        }
+        usage
+        exit 0
     fi
-    [[ -z "$DOTLAD_BREWFILE_OUT" ]] \
-        || { err "--output is only valid with the brewfile command"; exit 1; }
-    [[ -z "${DOTLAD_PLAN_JSON:-}" || -n "${DOTLAD_DRY_RUN:-}" || "${pos[0]:-}" == "plan" ]] \
-        || { err "--json is only valid with plan or --dry-run"; exit 1; }
+    if [[ "${pos[0]:-}" == "brewfile" ]]; then
+        [[ ${#pos[@]} -eq 1 ]] ||
+            {
+                err "usage: $DOTLAD_COMMAND_NAME brewfile [--output PATH]"
+                exit 1
+            }
+        cmd_brewfile
+        exit 0
+    fi
+    [[ -z "$DOTLAD_BREWFILE_OUT" ]] ||
+        {
+            err "--output is only valid with the brewfile command"
+            exit 1
+        }
+    [[ -z "${DOTLAD_PLAN_JSON:-}" || -n "${DOTLAD_DRY_RUN:-}" || "${pos[0]:-}" == "plan" ]] ||
+        {
+            err "--json is only valid with plan or --dry-run"
+            exit 1
+        }
 
     if [[ -z "${DOTLAD_DRY_RUN:-}" && "${pos[0]:-}" == "backups" ]]; then
-        [[ ${#pos[@]} -eq 1 ]] || { err "usage: $DOTLAD_COMMAND_NAME backups"; exit 1; }
-        cmd_backups; exit 0
+        [[ ${#pos[@]} -eq 1 ]] || {
+            err "usage: $DOTLAD_COMMAND_NAME backups"
+            exit 1
+        }
+        cmd_backups
+        exit 0
     fi
     if [[ -z "${DOTLAD_DRY_RUN:-}" && "${pos[0]:-}" == "restore" ]]; then
-        [[ ${#pos[@]} -eq 2 ]] || { err "usage: $DOTLAD_COMMAND_NAME restore NAME"; exit 1; }
-        cmd_restore_cli "${pos[1]}"; exit $?
+        [[ ${#pos[@]} -eq 2 ]] || {
+            err "usage: $DOTLAD_COMMAND_NAME restore NAME"
+            exit 1
+        }
+        cmd_restore_cli "${pos[1]}"
+        exit $?
     fi
     if [[ -z "${DOTLAD_DRY_RUN:-}" && "${pos[0]:-}" == "backup" ]]; then
-        [[ ${#pos[@]} -eq 3 && "${pos[1]}" == "delete" ]] \
-            || { err "usage: $DOTLAD_COMMAND_NAME backup delete NAME"; exit 1; }
-        cmd_backup_delete_cli "${pos[2]}"; exit $?
+        [[ ${#pos[@]} -eq 3 && "${pos[1]}" == "delete" ]] ||
+            {
+                err "usage: $DOTLAD_COMMAND_NAME backup delete NAME"
+                exit 1
+            }
+        cmd_backup_delete_cli "${pos[2]}"
+        exit $?
     fi
 
     manifest_load
 
     if [[ "${pos[0]:-}" == "plan" ]]; then
-        if [[ ${#pos[@]} -eq 1 ]]; then cmd_plan; exit $?
+        if [[ ${#pos[@]} -eq 1 ]]; then
+            cmd_plan
+            exit $?
         else
-            for (( j = 1; j < ${#pos[@]}; j++ )); do plan_pos+=("${pos[$j]}"); done
-            cmd_plan "${plan_pos[@]}"; exit $?
+            for ((position = 1; position < ${#pos[@]}; position++)); do
+                plan_pos+=("${pos[$position]}")
+            done
+            cmd_plan "${plan_pos[@]}"
+            exit $?
         fi
     fi
     if [[ -n "${DOTLAD_DRY_RUN:-}" ]]; then
@@ -173,28 +284,49 @@ main() {
     fi
 
     # No positional → the interactive picker.
-    if [[ ${#pos[@]} -eq 0 ]]; then cmd_pick; exit $?; fi
+    if [[ ${#pos[@]} -eq 0 ]]; then
+        cmd_pick
+        exit $?
+    fi
 
     case "${pos[0]}" in
-        all)   cmd_all; exit $? ;;
+        all)
+            cmd_all
+            exit $?
+            ;;
         profile)
-            [[ ${#pos[@]} -eq 2 ]] || { err "usage: $DOTLAD_COMMAND_NAME profile NAME"; exit 1; }
-            cmd_profile "${pos[1]}"; exit $?
+            [[ ${#pos[@]} -eq 2 ]] || {
+                err "usage: $DOTLAD_COMMAND_NAME profile NAME"
+                exit 1
+            }
+            cmd_profile "${pos[1]}"
+            exit $?
             ;;
         # hidden helper: the background install/update worker the TUI spawns.
-        _worker) worker; exit 0 ;;
+        _worker)
+            worker
+            exit 0
+            ;;
     esac
 
-    selection_explicit "${pos[@]}" \
-        || { hint "run $DOTLAD_COMMAND_NAME to see the list"; exit 1; }
+    selection_explicit "${pos[@]}" ||
+        {
+            hint "run $DOTLAD_COMMAND_NAME to see the list"
+            exit 1
+        }
     names=("${SELECTED_NAMES[@]}")
     title "$(selection_action "${names[@]}") ${names[*]}"
-    for p in "${names[@]}"; do
-        i="$(tool_find "$p")"; printf '\n%s— %s —%s\n' "$C_BOLD" "$p" "$C_RESET"; tool_diff "$i"
+    for name in "${names[@]}"; do
+        tool_index="$(tool_find "$name")"
+        printf '\n%s— %s —%s\n' "$C_BOLD" "$name" "$C_RESET"
+        tool_diff "$tool_index"
     done
     echo ""
-    confirm "$(selection_prompt "${#names[@]} tool(s)" "${names[@]}")" \
-        || { hint "cancelled"; exit 0; }
+    confirm "$(selection_prompt "${#names[@]} tool(s)" "${names[@]}")" ||
+        {
+            hint "cancelled"
+            exit 0
+        }
     selection_has_packages "${names[@]}" && ensure_brew
     run_selected "${names[@]}"
 }

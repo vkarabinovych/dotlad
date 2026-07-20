@@ -39,7 +39,8 @@ Runtime dependencies are scoped to each tool and its resolver:
 
 - Homebrew installs declared `BREW` packages and missing resolver or
   manifest-defined requirements.
-- `curl` is required when an HTTPS installer must run.
+- `curl` is required when an HTTPS installer must run; checksum-pinned
+  installers also require `shasum`.
 - `jq`, `yq`, or `git` is required only by the corresponding merge resolver.
 
 Built-in resolvers declare their own commands. Use `REQUIRES` only for
@@ -166,6 +167,8 @@ Expose a project-local wrapper:
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export DOTLAD_COMMAND_NAME="my-dotfiles"
+export DOTLAD_DISPLAY_NAME="My Dotfiles"
 exec "$ROOT/vendor/dotlad/dotlad" "$@" \
     -C "$ROOT" --backup-root "$HOME/.my-dotfiles-backup"
 ```

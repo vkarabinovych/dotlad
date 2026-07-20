@@ -19,6 +19,28 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install shfmt
+        run: |
+          case "$(uname -m)" in
+            arm64)
+              asset="shfmt_v3.13.1_darwin_arm64"
+              digest="9680526be4a66ea1ffe988ed08af58e1400fe1e4f4aef5bd88b20bb9b3da33f8"
+              ;;
+            x86_64)
+              asset="shfmt_v3.13.1_darwin_amd64"
+              digest="6feedafc72915794163114f512348e2437d080d0047ef8b8fa2ec63b575f12af"
+              ;;
+            *)
+              echo "unsupported runner architecture: $(uname -m)" >&2
+              exit 1
+              ;;
+          esac
+          curl -fsSLo "$RUNNER_TEMP/shfmt" \
+            "https://github.com/mvdan/sh/releases/download/v3.13.1/$asset"
+          echo "$digest  $RUNNER_TEMP/shfmt" | shasum -a 256 -c -
+          chmod +x "$RUNNER_TEMP/shfmt"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
       - name: Runtime dependencies
         run: brew install shellcheck jq yq
 

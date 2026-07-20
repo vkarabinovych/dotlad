@@ -6,10 +6,16 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TAG="${1:-}"
 CHANGELOG="${2:-$ROOT/CHANGELOG.md}"
 
-[[ "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$ ]] \
-    || { printf 'Usage: %s vVERSION [CHANGELOG]\n' "$0" >&2; exit 1; }
-[[ -r "$CHANGELOG" ]] \
-    || { printf 'Changelog not found: %s\n' "$CHANGELOG" >&2; exit 1; }
+[[ "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$ ]] ||
+    {
+        printf 'Usage: %s vVERSION [CHANGELOG]\n' "$0" >&2
+        exit 1
+    }
+[[ -r "$CHANGELOG" ]] ||
+    {
+        printf 'Changelog not found: %s\n' "$CHANGELOG" >&2
+        exit 1
+    }
 
 VERSION="${TAG#v}"
 awk -v heading="## [$VERSION]" '

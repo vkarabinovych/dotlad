@@ -13,7 +13,7 @@ VERSION="$(cat "$ROOT/VERSION")"
 
 # Release notes come from exactly one versioned changelog section.
 NOTES_CHANGELOG="$SB/release-notes.md"
-cat > "$NOTES_CHANGELOG" <<'EOF'
+cat >"$NOTES_CHANGELOG" <<'EOF'
 ## [Unreleased]
 
 - Later work.
@@ -40,8 +40,8 @@ if "$ROOT/scripts/release-notes.sh" v9.9.9 "$NOTES_CHANGELOG" >/dev/null 2>&1; t
 fi
 
 mkdir -p "$HOME_DIR" "$BREW_CWD" "$PROJECT/tools/demo/files" "$PROJECT/profiles"
-printf 'installed = true\n' > "$PROJECT/tools/demo/files/config.toml"
-cat > "$PROJECT/tools/demo/tool.conf" <<'EOF'
+printf 'installed = true\n' >"$PROJECT/tools/demo/files/config.toml"
+cat >"$PROJECT/tools/demo/tool.conf" <<'EOF'
 NAME="demo"
 DESC="Standalone install fixture"
 ICON="•"
@@ -62,6 +62,10 @@ DOTLAD_INSTALL_TEST_FAIL_AFTER_RUNTIME=1 "$ROOT/install.sh" \
 "$ROOT/install.sh" --prefix "$PREFIX" >/dev/null
 [[ -x "$PREFIX/bin/dotlad" ]]
 [[ -f "$PREFIX/libexec/dotlad/lib/runtime.sh" ]]
+[[ -f "$PREFIX/libexec/dotlad/lib/console.sh" ]]
+[[ -f "$PREFIX/libexec/dotlad/lib/tui/input.sh" ]]
+[[ -f "$PREFIX/libexec/dotlad/lib/tui/model.sh" ]]
+[[ -f "$PREFIX/libexec/dotlad/lib/tui/screen.sh" ]]
 [[ ! -e "$PREFIX/libexec/dotlad/lib/dotlad" ]]
 [[ "$(cd "$SB" && "$PREFIX/bin/dotlad" --version)" == "dotlad $VERSION" ]]
 [[ "$(cd "$SB" && "$PREFIX/bin/dotlad" help | head -1)" == "dotlad — install a project's packages and configs onto your system." ]]
@@ -82,7 +86,7 @@ grep -Fx 'brew "demo"' "$BREW_CWD/Brewfile" >/dev/null
 [[ ! -e "$PROJECT/Brewfile" ]]
 
 # Reinstallation upgrades the managed runtime without replacing unrelated bins.
-printf 'old runtime survives rollback\n' > "$PREFIX/libexec/dotlad/rollback-sentinel"
+printf 'old runtime survives rollback\n' >"$PREFIX/libexec/dotlad/rollback-sentinel"
 rollback_rc=0
 DOTLAD_INSTALL_TEST_FAIL_AFTER_RUNTIME=1 "$ROOT/install.sh" --prefix "$PREFIX" \
     >/dev/null 2>&1 || rollback_rc=$?
@@ -91,7 +95,7 @@ grep -Fx 'old runtime survives rollback' "$PREFIX/libexec/dotlad/rollback-sentin
 [[ "$("$PREFIX/bin/dotlad" --version)" == "dotlad $VERSION" ]]
 rm -f "$PREFIX/libexec/dotlad/rollback-sentinel"
 "$ROOT/install.sh" --prefix "$PREFIX" >/dev/null
-printf '#!/bin/sh\n' > "$PREFIX/bin/foreign"
+printf '#!/bin/sh\n' >"$PREFIX/bin/foreign"
 "$ROOT/install.sh" --prefix "$PREFIX" --uninstall >/dev/null
 [[ ! -e "$PREFIX/bin/dotlad" ]]
 [[ ! -e "$PREFIX/libexec/dotlad" ]]
@@ -100,7 +104,7 @@ printf '#!/bin/sh\n' > "$PREFIX/bin/foreign"
 # Existing unrelated paths are never adopted or removed.
 FOREIGN_PREFIX="$SB/foreign-prefix"
 mkdir -p "$FOREIGN_PREFIX/libexec/dotlad" "$FOREIGN_PREFIX/bin"
-printf 'keep\n' > "$FOREIGN_PREFIX/libexec/dotlad/sentinel"
+printf 'keep\n' >"$FOREIGN_PREFIX/libexec/dotlad/sentinel"
 if "$ROOT/install.sh" --prefix "$FOREIGN_PREFIX" >/dev/null 2>&1; then
     printf 'installer replaced an unmanaged runtime\n' >&2
     exit 1
@@ -112,7 +116,7 @@ MIXED_PREFIX="$SB/mixed-prefix"
 "$ROOT/install.sh" --prefix "$MIXED_PREFIX" >/dev/null
 rm -rf "$MIXED_PREFIX/libexec/dotlad"
 mkdir -p "$MIXED_PREFIX/libexec/dotlad"
-printf 'keep\n' > "$MIXED_PREFIX/libexec/dotlad/sentinel"
+printf 'keep\n' >"$MIXED_PREFIX/libexec/dotlad/sentinel"
 if "$ROOT/install.sh" --prefix "$MIXED_PREFIX" --uninstall >/dev/null 2>&1; then
     printf 'uninstall removed a mixed managed/unmanaged installation\n' >&2
     exit 1
@@ -129,10 +133,15 @@ mkdir -p "$EXTRACTED"
 (cd "$DIST" && shasum -a 256 -c "dotlad-$VERSION.sha256") >/dev/null
 tar -C "$EXTRACTED" -xzf "$ARCHIVE"
 [[ -f "$EXTRACTED/dotlad-$VERSION/.github/assets/demo/cli.gif" ]]
+[[ -f "$EXTRACTED/dotlad-$VERSION/.editorconfig" ]]
 [[ -f "$EXTRACTED/dotlad-$VERSION/CHANGELOG.md" ]]
 [[ -f "$EXTRACTED/dotlad-$VERSION/CONTRIBUTING.md" ]]
 [[ -f "$EXTRACTED/dotlad-$VERSION/SECURITY.md" ]]
 [[ -f "$EXTRACTED/dotlad-$VERSION/lib/runtime.sh" ]]
+[[ -f "$EXTRACTED/dotlad-$VERSION/lib/console.sh" ]]
+[[ -f "$EXTRACTED/dotlad-$VERSION/lib/tui/input.sh" ]]
+[[ -f "$EXTRACTED/dotlad-$VERSION/lib/tui/model.sh" ]]
+[[ -f "$EXTRACTED/dotlad-$VERSION/lib/tui/screen.sh" ]]
 [[ ! -e "$EXTRACTED/dotlad-$VERSION/lib/dotlad" ]]
 [[ -f "$EXTRACTED/dotlad-$VERSION/scripts/check.sh" ]]
 [[ -f "$EXTRACTED/dotlad-$VERSION/tests/run.sh" ]]

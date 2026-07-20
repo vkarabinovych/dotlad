@@ -1,29 +1,47 @@
 # shellcheck disable=SC2034  # colour vars are consumed by the sibling libs
-# lib/ui.sh — colours, prompts, and diffs. Small on purpose.
+# lib/console.sh — colours, prompts, and diffs. Small on purpose.
 
-ui_init_colors() {
-    if [[ -z "${DOTLAD_PLAIN:-}" ]] \
-       && { [[ -n "${DOTLAD_FORCE_COLOR:-}" ]] || [[ -t 1 && -z "${NO_COLOR:-}" ]]; }; then
-        C_RESET=$'\e[0m'; C_BOLD=$'\e[1m'; C_ITALIC=$'\e[3m'; C_DIM=$'\e[2m'
-        C_RED=$'\e[31m'; C_GREEN=$'\e[32m'; C_YELLOW=$'\e[33m'
-        C_MAGENTA=$'\e[35m'; C_CYAN=$'\e[36m'
+console_init_colors() {
+    if [[ -z "${DOTLAD_PLAIN:-}" ]] &&
+        { [[ -n "${DOTLAD_FORCE_COLOR:-}" ]] || [[ -t 1 && -z "${NO_COLOR:-}" ]]; }; then
+        C_RESET=$'\e[0m'
+        C_BOLD=$'\e[1m'
+        C_ITALIC=$'\e[3m'
+        C_DIM=$'\e[2m'
+        C_RED=$'\e[31m'
+        C_GREEN=$'\e[32m'
+        C_YELLOW=$'\e[33m'
+        C_MAGENTA=$'\e[35m'
+        C_CYAN=$'\e[36m'
         C_SKY_BLUE=$'\e[38;2;112;174;255m' # #70aeff
         C_HL=$'\e[48;2;68;71;90m'          # Dracula "current line" — the TUI cursor bar
         C_KEY_HL=$'\e[48;2;98;114;164m'    # muted accent for demo key highlighting
     else
-        C_RESET=''; C_BOLD=''; C_ITALIC=''; C_DIM=''
-        C_RED=''; C_GREEN=''; C_YELLOW=''; C_MAGENTA=''; C_CYAN=''; C_SKY_BLUE=''
-        C_HL=''; C_KEY_HL=''
+        C_RESET=''
+        C_BOLD=''
+        C_ITALIC=''
+        C_DIM=''
+        C_RED=''
+        C_GREEN=''
+        C_YELLOW=''
+        C_MAGENTA=''
+        C_CYAN=''
+        C_SKY_BLUE=''
+        C_HL=''
+        C_KEY_HL=''
     fi
 }
-ui_init_colors
+console_init_colors
 
-ok()    { printf '%s✓%s %s\n' "$C_GREEN" "$C_RESET" "$1"; }
-warn()  { printf '%s!%s %s\n' "$C_YELLOW" "$C_RESET" "$1"; }
-err()   { printf '%s✗%s %s\n' "$C_RED" "$C_RESET" "$1"; }
-hint()  { printf '%s%s%s\n' "$C_DIM" "$1" "$C_RESET"; }
+ok() { printf '%s✓%s %s\n' "$C_GREEN" "$C_RESET" "$1"; }
+warn() { printf '%s!%s %s\n' "$C_YELLOW" "$C_RESET" "$1"; }
+err() { printf '%s✗%s %s\n' "$C_RED" "$C_RESET" "$1"; }
+hint() { printf '%s%s%s\n' "$C_DIM" "$1" "$C_RESET"; }
 title() { printf '\n%s%s%s\n' "$C_BOLD" "$1" "$C_RESET"; }
-fatal() { err "$1"; exit 1; }
+fatal() {
+    err "$1"
+    exit 1
+}
 
 file_noun() {
     if [[ "$1" == "1" ]]; then printf 'file'; else printf 'files'; fi
@@ -36,7 +54,7 @@ directory_noun() {
 pretty_path() {
     case "$1" in
         "$HOME"/*) printf '~%s' "${1#"$HOME"}" ;;
-        *)         printf '%s' "$1" ;;
+        *) printf '%s' "$1" ;;
     esac
 }
 
@@ -62,7 +80,7 @@ confirm() {
     local a
     printf '%s%s%s [y/N] ' "$C_YELLOW" "$1" "$C_RESET"
     IFS= read -r a || a=""
-    case "$a" in y|Y|н|Н) return 0 ;; *) return 1 ;; esac
+    case "$a" in y | Y | н | Н) return 0 ;; *) return 1 ;; esac
 }
 
 # Show repo → system diff (git diff → delta → diff). Colour forced in previews.

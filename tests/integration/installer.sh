@@ -9,27 +9,60 @@ set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 export DOTLAD_RUNTIME_ROOT="$ROOT"
-CASES=0; FAILS=0
-pass() { CASES=$((CASES + 1)); printf 'ok %d - %s\n' "$CASES" "$1"; }
-fail() { CASES=$((CASES + 1)); FAILS=$((FAILS + 1)); printf 'not ok %d - %s\n' "$CASES" "$1"; }
-check()    { local d="$1"; shift; if "$@" >/dev/null 2>&1; then pass "$d"; else fail "$d"; fi; }
-checknot() { local d="$1"; shift; if "$@" >/dev/null 2>&1; then fail "$d"; else pass "$d"; fi; }
-rc_is()    { local d="$1" want="$2"; shift 2; local r=0; "$@" >/dev/null 2>&1 || r=$?; [[ "$r" == "$want" ]] && pass "$d" || fail "$d (rc=$r want=$want)"; }
-lines_fit() { local width="$1" line stx; stx="$(printf '\002')"; while IFS= read -r line; do line="${line#"$stx"}"; [[ ${#line} -le $width ]] || return 1; done; }
+CASES=0
+FAILS=0
+pass() {
+    CASES=$((CASES + 1))
+    printf 'ok %d - %s\n' "$CASES" "$1"
+}
+fail() {
+    CASES=$((CASES + 1))
+    FAILS=$((FAILS + 1))
+    printf 'not ok %d - %s\n' "$CASES" "$1"
+}
+check() {
+    local d="$1"
+    shift
+    if "$@" >/dev/null 2>&1; then pass "$d"; else fail "$d"; fi
+}
+checknot() {
+    local d="$1"
+    shift
+    if "$@" >/dev/null 2>&1; then fail "$d"; else pass "$d"; fi
+}
+rc_is() {
+    local d="$1" want="$2"
+    shift 2
+    local r=0
+    "$@" >/dev/null 2>&1 || r=$?
+    [[ "$r" == "$want" ]] && pass "$d" || fail "$d (rc=$r want=$want)"
+}
+lines_fit() {
+    local width="$1" line stx
+    stx="$(printf '\002')"
+    while IFS= read -r line; do
+        line="${line#"$stx"}"
+        [[ ${#line} -le $width ]] || return 1
+    done
+}
 
 for required in jq yq git; do
-    command -v "$required" >/dev/null 2>&1 \
-        || { echo "SKIP: $required required"; exit 0; }
+    command -v "$required" >/dev/null 2>&1 ||
+        {
+            echo "SKIP: $required required"
+            exit 0
+        }
 done
 
 SB="$(mktemp -d "${TMPDIR:-/tmp}/dotlad-test.XXXXXX")"
-FAKE="$SB/repo"; H="$SB/home"
+FAKE="$SB/repo"
+H="$SB/home"
 trap 'rm -rf "$SB"' EXIT
 mkdir -p "$FAKE/tools" "$FAKE/profiles" "$H" "$SB/bin"
 # brew simulator: `install` creates both the opt link and a bin stub for each
 # formula, so "installed" flips deterministically regardless of what the host
 # happens to have on PATH.
-cat > "$SB/bin/brew" <<'EOF'
+cat >"$SB/bin/brew" <<'EOF'
 #!/bin/sh
 if [ "$1" = install ]; then
   shift
@@ -54,9 +87,11 @@ fi
 exit 0
 EOF
 chmod +x "$SB/bin/brew"
-export BREW_PREFIX="$SB/brewprefix"; mkdir -p "$SB/brewprefix/bin"
+export BREW_PREFIX="$SB/brewprefix"
+mkdir -p "$SB/brewprefix/bin"
 export BREW_FAIL_FILE="$SB/brew-fail"
-export BREW_LOG="$SB/brew.log"; : > "$BREW_LOG"
+export BREW_LOG="$SB/brew.log"
+: >"$BREW_LOG"
 export FAKE_APPLICATIONS="$H/Applications"
 ln -sf "$SB/bin/brew" "$SB/brewprefix/bin/brew"
 
@@ -65,8 +100,8 @@ mkdir -p "$FAKE/tools/filecopy/files" "$FAKE/tools/package" \
     "$FAKE/tools/desktop/files" "$FAKE/tools/git/files" \
     "$FAKE/tools/directory/files/lua" "$FAKE/tools/multipkg/files"
 
-printf 'repo = 1\n' > "$FAKE/tools/filecopy/files/config.toml"
-cat > "$FAKE/tools/filecopy/tool.conf" <<EOF
+printf 'repo = 1\n' >"$FAKE/tools/filecopy/files/config.toml"
+cat >"$FAKE/tools/filecopy/tool.conf" <<EOF
 NAME="filecopy"
 DESC="File deployment fixture"
 ICON="a"
@@ -77,7 +112,7 @@ DEST="$H/.config/filecopy/config.toml"
 REQUIRES="reqtool"
 EOF
 
-cat > "$FAKE/tools/package/tool.conf" <<'EOF'
+cat >"$FAKE/tools/package/tool.conf" <<'EOF'
 NAME="package"
 DESC="Package-only fixture"
 ICON="b"
@@ -85,8 +120,8 @@ ORDER="20"
 BREW="package"
 EOF
 
-printf '{"model": "opus"}\n' > "$FAKE/tools/jsonmerge/files/settings.json"
-cat > "$FAKE/tools/jsonmerge/tool.conf" <<EOF
+printf '{"model": "opus"}\n' >"$FAKE/tools/jsonmerge/files/settings.json"
+cat >"$FAKE/tools/jsonmerge/tool.conf" <<EOF
 NAME="jsonmerge"
 DESC="JSON resolver fixture"
 ICON="c"
@@ -97,8 +132,8 @@ DEST="$H/.config/jsonmerge/settings.json"
 RESOLVER="json"
 EOF
 
-printf 'model = "repo"\n' > "$FAKE/tools/tomlmerge/files/config.toml"
-cat > "$FAKE/tools/tomlmerge/tool.conf" <<EOF
+printf 'model = "repo"\n' >"$FAKE/tools/tomlmerge/files/config.toml"
+cat >"$FAKE/tools/tomlmerge/tool.conf" <<EOF
 NAME="tomlmerge"
 DESC="TOML resolver fixture"
 ICON="x"
@@ -109,8 +144,8 @@ DEST="$H/.config/tomlmerge/config.toml"
 RESOLVER="toml"
 EOF
 
-printf 'font-family = fixture\n' > "$FAKE/tools/desktop/files/config"
-cat > "$FAKE/tools/desktop/tool.conf" <<EOF
+printf 'font-family = fixture\n' >"$FAKE/tools/desktop/files/config"
+cat >"$FAKE/tools/desktop/tool.conf" <<EOF
 NAME="desktop"
 DESC="Cask fixture"
 ICON="g"
@@ -123,8 +158,8 @@ DEST="$H/.config/desktop/config"
 EOF
 
 printf '[user]\n\tname = Repo\n[core]\n\tpager = repo-pager\n[color]\n\tui = auto\n' \
-    > "$FAKE/tools/git/files/.gitconfig"
-cat > "$FAKE/tools/git/tool.conf" <<EOF
+    >"$FAKE/tools/git/files/.gitconfig"
+cat >"$FAKE/tools/git/tool.conf" <<EOF
 NAME="git"
 DESC="Git config resolver fixture"
 ICON="i"
@@ -135,9 +170,9 @@ DEST="$H/.gitconfig"
 RESOLVER="gitconfig"
 EOF
 
-printf -- '-- init\n' > "$FAKE/tools/directory/files/init.lua"
-printf -- '-- mod\n' > "$FAKE/tools/directory/files/lua/mod.lua"
-cat > "$FAKE/tools/directory/tool.conf" <<EOF
+printf -- '-- init\n' >"$FAKE/tools/directory/files/init.lua"
+printf -- '-- mod\n' >"$FAKE/tools/directory/files/lua/mod.lua"
+cat >"$FAKE/tools/directory/tool.conf" <<EOF
 NAME="directory"
 DESC="Directory mirror fixture"
 ICON="n"
@@ -148,8 +183,8 @@ SOURCE="files"
 DEST="$H/.config/directory"
 EOF
 
-printf '# fixture\n' > "$FAKE/tools/multipkg/files/config"
-cat > "$FAKE/tools/multipkg/tool.conf" <<EOF
+printf '# fixture\n' >"$FAKE/tools/multipkg/files/config"
+cat >"$FAKE/tools/multipkg/tool.conf" <<EOF
 NAME="multipkg"
 DESC="Multi-package fixture"
 ICON="z"
@@ -160,15 +195,15 @@ SOURCE="files/config"
 DEST="$H/.config/multipkg/config"
 EOF
 
-cat > "$FAKE/profiles/base.conf" <<'EOF'
+cat >"$FAKE/profiles/base.conf" <<'EOF'
 extends=""
 tools="filecopy package jsonmerge tomlmerge desktop git directory multipkg"
 EOF
-cat > "$FAKE/profiles/developer.conf" <<'EOF'
+cat >"$FAKE/profiles/developer.conf" <<'EOF'
 extends="base"
 tools=""
 EOF
-cat > "$FAKE/profiles/complete.conf" <<'EOF'
+cat >"$FAKE/profiles/complete.conf" <<'EOF'
 extends="developer"
 tools=""
 EOF
@@ -185,7 +220,7 @@ state_json() { # print ST_CFG/ST_INSTALLED for a tool via a tiny sourced probe
 
 restore() {
     (cd "$FAKE" && HOME="$H" ROOT="$FAKE" DOTLAD_PLAIN=1 /bin/bash -c '
-        . "$DOTLAD_RUNTIME_ROOT/lib/ui.sh"
+        . "$DOTLAD_RUNTIME_ROOT/lib/console.sh"
         . "$DOTLAD_RUNTIME_ROOT/lib/manifest.sh"
         . "$DOTLAD_RUNTIME_ROOT/lib/backup.sh"
         BACKUP_ROOT="$HOME/.dotlad_backup"; BACKUP_DIR=""; N_BACKED=0

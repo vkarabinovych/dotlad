@@ -47,20 +47,21 @@ DEST="$HOME/.config/example/config.toml"
 RESOLVER="toml"
 ```
 
-| Field         | Required    | Meaning                                                                  |
-| ------------- | ----------- | ------------------------------------------------------------------------ |
-| `NAME`        | yes         | Lowercase hyphenated identifier; must match the tool directory           |
-| `DESC`        | yes         | Concise user-facing description shown in the picker                      |
-| `ICON`        | yes         | Short glyph shown in the picker                                          |
-| `ORDER`       | no          | Numeric manifest and batch order; defaults to `500`                      |
-| `BREW`        | no          | Space-separated Homebrew formula or cask names                           |
-| `CASK`        | no          | `1` when every `BREW` item is a cask; defaults to `0`                    |
-| `CHECK`       | no          | Command or absolute path used to verify installation; defaults to `NAME` |
-| `SOURCE`      | with config | File or directory path relative to the tool directory                    |
-| `DEST`        | with config | Destination strictly below `$HOME`                                       |
-| `RESOLVER`    | no          | Built-in deployment resolver; defaults to `copy`                         |
-| `REQUIRES`    | no          | Additional commands needed before config deployment                      |
-| `INSTALL_URL` | no          | Whitespace-free HTTPS script installer used instead of `BREW`            |
+| Field            | Required    | Meaning                                                                  |
+| ---------------- | ----------- | ------------------------------------------------------------------------ |
+| `NAME`           | yes         | Lowercase hyphenated identifier; must match the tool directory           |
+| `DESC`           | yes         | Concise user-facing description shown in the picker                      |
+| `ICON`           | yes         | Short glyph shown in the picker                                          |
+| `ORDER`          | no          | Numeric manifest and batch order; defaults to `500`                      |
+| `BREW`           | no          | Space-separated Homebrew formula or cask names                           |
+| `CASK`           | no          | `1` when every `BREW` item is a cask; defaults to `0`                    |
+| `CHECK`          | no          | Command or absolute path used to verify installation; defaults to `NAME` |
+| `SOURCE`         | with config | File or directory path relative to the tool directory                    |
+| `DEST`           | with config | Destination strictly below `$HOME`                                       |
+| `RESOLVER`       | no          | Built-in deployment resolver; defaults to `copy`                         |
+| `REQUIRES`       | no          | Additional commands needed before config deployment                      |
+| `INSTALL_URL`    | no          | Whitespace-free HTTPS script installer used instead of `BREW`            |
+| `INSTALL_SHA256` | no          | Optional 64-character SHA-256 digest for the downloaded installer        |
 
 `BREW` and `INSTALL_URL` are mutually exclusive. A tool must declare at least
 one package installer or a `SOURCE`/`DEST` pair. Package tokens may use fully
@@ -114,13 +115,16 @@ Use `INSTALL_URL` only when Homebrew is not an appropriate source:
 ```bash
 CHECK="example"
 INSTALL_URL="https://example.com/install.sh"
+INSTALL_SHA256="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 SOURCE="files/config.toml"
 DEST="$HOME/.config/example/config.toml"
 ```
 
-Dotlad displays the equivalent `curl -fsSL URL | sh` operation and asks for
-confirmation unless `--yes` is active. The URL must use HTTPS. Review and pin
-remote installers according to the consumer project's trust policy.
+Dotlad downloads the script to a temporary file and asks for confirmation
+unless `--yes` is active. When `INSTALL_SHA256` is present, the script runs
+only after `shasum` verifies its contents. The URL must use HTTPS and the
+digest must contain exactly 64 hexadecimal characters. Pin a digest whenever
+the publisher provides an immutable installer artifact.
 
 ## Config deployment
 

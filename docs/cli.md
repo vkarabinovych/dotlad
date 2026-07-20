@@ -32,22 +32,25 @@ use the selected project and backup location consistently.
 | `dotlad version`              | Print the installed version                              |
 | `dotlad help`                 | Print built-in help                                      |
 
-`--help` and `--version` are equivalent to the corresponding commands.
+`-h`/`-H`/`--help` and `-v`/`-V`/`--version` are equivalent to the
+corresponding commands.
 
 ## Options
 
-| Option                | Scope                   | Behavior                                           |
-| --------------------- | ----------------------- | -------------------------------------------------- |
-| `-C`, `--config PATH` | all project commands    | Use `PATH` as the project root instead of `$PWD`   |
-| `--backup-root PATH`  | config and backup tasks | Use `PATH` instead of `~/.dotlad_backup`           |
-| `--plain`             | display                 | Disable color and the interactive screen           |
-| `--yes`               | mutating commands       | Accept confirmation prompts                        |
-| `--packages-only`     | tool/profile/all/plan   | Include package actions and omit config actions    |
-| `--config-only`       | tool/profile/all/plan   | Include config actions and omit package actions    |
-| `--symlink`           | tool/profile/all/plan   | Default tools without `RESOLVER` to `symlink`      |
-| `--dry-run`           | tool/profile/all        | Convert the requested action into a read-only plan |
-| `--json`              | `plan` or `--dry-run`   | Emit the plan as JSON                              |
-| `--output PATH`       | `brewfile` only         | Write somewhere other than `./Brewfile`            |
+| Option                  | Scope                   | Behavior                                           |
+| ----------------------- | ----------------------- | -------------------------------------------------- |
+| `-C`, `--config PATH`   | all project commands    | Use `PATH` as the project root instead of `$PWD`   |
+| `--backup-root PATH`    | config and backup tasks | Use `PATH` instead of `~/.dotlad_backup`           |
+| `--plain`               | display                 | Disable color and the interactive screen           |
+| `--yes`                 | mutating commands       | Accept confirmation prompts                        |
+| `--packages-only`       | tool/profile/all/plan   | Include package actions and omit config actions    |
+| `--config-only`         | tool/profile/all/plan   | Include config actions and omit package actions    |
+| `--symlink`             | tool/profile/all/plan   | Default tools without `RESOLVER` to `symlink`      |
+| `--dry-run`             | tool/profile/all        | Convert the requested action into a read-only plan |
+| `--json`                | `plan` or `--dry-run`   | Emit the plan as JSON                              |
+| `--output PATH`         | `brewfile` only         | Write somewhere other than `./Brewfile`            |
+| `-h`, `-H`, `--help`    | global                  | Print built-in help                                |
+| `-v`, `-V`, `--version` | global                  | Print the installed version                        |
 
 The two operation-mode flags are mutually exclusive in effect: if both are
 present, the last one wins. Prefer passing only one so automation is obvious.
@@ -136,8 +139,9 @@ partially applying.
 In full mode, Dotlad can install missing resolver-owned and manifest
 `REQUIRES` entries through Homebrew before processing config. Config-only mode
 never installs them and instead reports them as blockers. An `INSTALL_URL` tool
-displays its exact `curl -fsSL URL | sh` action and asks for confirmation unless
-`--yes` is active.
+downloads its script to a temporary file and asks for confirmation unless
+`--yes` is active. When the manifest declares `INSTALL_SHA256`, the downloaded
+file must match that digest before it can execute.
 
 ## Operation modes
 
@@ -216,9 +220,16 @@ The live apply log shrinks to its content and grows up to one third of the
 available terminal height. Focusing it with `Tab` raises that limit to two
 thirds. At least four rows remain visible for the tool tree.
 
-Set `DOTLAD_NAME` to replace `dotlad` in the interactive header when embedding
-the runtime under a project-specific command name. It changes presentation
-only.
+When embedding the runtime, set `DOTLAD_COMMAND_NAME` to the wrapper's shell
+command. Usage, errors, and command hints use that value. Set
+`DOTLAD_DISPLAY_NAME` for the human-readable brand used by help headings,
+version output, the interactive title, and generated-file attribution. It
+defaults to `DOTLAD_COMMAND_NAME`.
+
+```bash
+export DOTLAD_COMMAND_NAME="my-dotfiles"
+export DOTLAD_DISPLAY_NAME="My Dotfiles"
+```
 
 ## Generate a Brewfile
 

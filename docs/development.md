@@ -3,8 +3,9 @@
 ## Requirements
 
 Dotlad targets macOS Bash 3.2. Maintainer validation additionally uses
-ShellCheck, jq, yq, Git, and standard archive/checksum tools. Run compatibility
-tests with `/bin/bash`; a newer interactive Bash can hide 3.2 regressions.
+ShellCheck, shfmt, jq, yq, Git, and standard archive/checksum tools. Run
+compatibility tests with `/bin/bash`; a newer interactive Bash can hide 3.2
+regressions.
 
 ## Standard validation
 
@@ -14,17 +15,20 @@ Run the source checks and isolated integration suite from the repository root:
 /bin/bash scripts/check.sh
 /bin/bash tests/run.sh
 npx --yes markdownlint-cli2@0.23.1 "**/*.md"
-npx --yes prettier@3.6.2 --check "**/*.md"
+npx --yes prettier@3.6.2 --check "**/*.{md,yaml,yml}" ".github/**/*.{yaml,yml}"
 ```
 
 `scripts/check.sh` runs Bash syntax checks across every shell source,
-ShellCheck with the Bash dialect, and `git diff --check`. Pass
-`--syntax-only` when ShellCheck is unavailable and only parser compatibility is
-being investigated.
+ShellCheck with the Bash dialect, shfmt verification, and `git diff --check`.
+Pass `--syntax-only` when lint and formatting tools are unavailable and only
+parser compatibility is being investigated. Run `shfmt -w .` to format all
+shell sources using the repository's `.editorconfig` profile. CI and release
+validation pin `shfmt` 3.13.1 for reproducible output.
 
-Markdown uses the repository's `.markdownlint-cli2.yaml` profile and Prettier
-defaults. Run Prettier with `--write` instead of `--check` to normalize tables
-after editing documentation.
+Markdown uses the repository's `.markdownlint-cli2.yaml` profile. Markdown and
+YAML use Prettier, while `.editorconfig` supplies the common whitespace rules
+and editor indentation defaults. Run Prettier with `--write` instead of
+`--check` to normalize supported files after editing.
 
 `tests/run.sh` creates its own project root, HOME, application directory, and
 package prefix. `tests/integration/installer.sh` owns the shared fixture and
@@ -40,6 +44,7 @@ this keeps production and test load order aligned.
 | Change                            | Primary location               |
 | --------------------------------- | ------------------------------ |
 | CLI parsing or dispatch           | `bin/dotlad`                   |
+| Shared console output and prompts | `lib/console.sh`               |
 | Command behavior and selections   | `lib/commands.sh`              |
 | Manifest or profile contracts     | `lib/manifest.sh`              |
 | Package/requirement installation  | `lib/packages.sh`              |
@@ -48,7 +53,8 @@ this keeps production and test load order aligned.
 | Human or JSON plans               | `lib/plan.sh`                  |
 | Plain/picker presentation model   | `lib/pick.sh`                  |
 | Foreground and queued execution   | `lib/runner.sh`                |
-| Terminal interaction              | `lib/tui.sh`                   |
+| TUI actions and event loop        | `lib/tui.sh`                   |
+| TUI input, model, and screen      | `lib/tui/*.sh`                 |
 | Deployment and semantic resolving | `lib/resolvers/<name>.sh`      |
 | Integration regression coverage   | `tests/integration/cases/*.sh` |
 

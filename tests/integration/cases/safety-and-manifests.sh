@@ -1,11 +1,12 @@
 # shellcheck shell=bash
 # shellcheck disable=SC2015,SC2154  # sourced integration cases share the orchestrator fixture
 # --- safety: degenerate dir DEST rejected -----------------------------------
-mkdir -p "$FAKE/tools/evil/files"; printf 'x\n' > "$FAKE/tools/evil/files/f"
-printf 'keep\n' > "$H/precious.txt"
+mkdir -p "$FAKE/tools/evil/files"
+printf 'x\n' >"$FAKE/tools/evil/files/f"
+printf 'keep\n' >"$H/precious.txt"
 # shellcheck disable=SC2016
 for d in '$HOME/.' '$HOME//' '$HOME/x/..' '$HOME'; do
-    cat > "$FAKE/tools/evil/tool.conf" <<EOF
+    cat >"$FAKE/tools/evil/tool.conf" <<EOF
 NAME="evil"
 DESC="Safety fixture"
 ICON="!"
@@ -21,8 +22,8 @@ check "\$HOME contents intact after evil manifest" test -f "$H/precious.txt"
 # Source type is inferred from the filesystem; a directory is mirrored without
 # any manifest type field.
 mkdir -p "$FAKE/tools/evil/files"
-printf 'x\n' > "$FAKE/tools/evil/files/config"
-cat > "$FAKE/tools/evil/tool.conf" <<EOF
+printf 'x\n' >"$FAKE/tools/evil/files/config"
+cat >"$FAKE/tools/evil/tool.conf" <<EOF
 NAME="evil"
 DESC="Inferred directory fixture"
 ICON="!"
@@ -36,7 +37,7 @@ check "directory SOURCE is inferred and mirrored" cmp -s \
 rm -rf "$H/.config/evil"
 
 # Resolvers declare which source types they support.
-cat > "$FAKE/tools/evil/tool.conf" <<EOF
+cat >"$FAKE/tools/evil/tool.conf" <<EOF
 NAME="evil"
 DESC="Unknown resolver fixture"
 ICON="!"
@@ -46,7 +47,7 @@ DEST="$H/.config/evil/config"
 RESOLVER="missing-resolver"
 EOF
 rc_is "unknown resolver is rejected" 1 df evil
-cat > "$FAKE/tools/evil/tool.conf" <<EOF
+cat >"$FAKE/tools/evil/tool.conf" <<EOF
 NAME="evil"
 DESC="Directory resolver fixture"
 ICON="!"
@@ -56,7 +57,7 @@ DEST="$H/.config/evil"
 RESOLVER="json"
 EOF
 rc_is "resolver rejects a directory SOURCE" 1 df evil
-cat > "$FAKE/tools/evil/tool.conf" <<EOF
+cat >"$FAKE/tools/evil/tool.conf" <<EOF
 NAME="evil"
 DESC="Valid companion fixture"
 ICON="!"
@@ -68,8 +69,8 @@ EOF
 # A resolver that cannot render blocks the entire foreground batch before an
 # earlier valid tool can mutate its destination.
 mkdir -p "$FAKE/tools/invalid-resolver/files"
-printf '{invalid json\n' > "$FAKE/tools/invalid-resolver/files/config.json"
-cat > "$FAKE/tools/invalid-resolver/tool.conf" <<EOF
+printf '{invalid json\n' >"$FAKE/tools/invalid-resolver/files/config.json"
+cat >"$FAKE/tools/invalid-resolver/tool.conf" <<EOF
 NAME="invalid-resolver"
 DESC="Resolver preflight fixture"
 ICON="!"
@@ -79,19 +80,19 @@ DEST="$H/.config/invalid-resolver/config.json"
 RESOLVER="json"
 EOF
 mkdir -p "$H/.config/multipkg"
-printf 'preflight-keep\n' > "$H/.config/multipkg/config"
+printf 'preflight-keep\n' >"$H/.config/multipkg/config"
 invalid_plan="$(df --config-only --json plan invalid-resolver)"
 printf '%s' "$invalid_plan" | jq -e \
-    ".tools[0].blockers | index(\"cannot resolve config with 'json'\")" >/dev/null \
-    && pass "plan reports a resolver blocker" \
-    || fail "plan missed a resolver blocker (got '$invalid_plan')"
+    ".tools[0].blockers | index(\"cannot resolve config with 'json'\")" >/dev/null &&
+    pass "plan reports a resolver blocker" ||
+    fail "plan missed a resolver blocker (got '$invalid_plan')"
 rc_is "resolver failure blocks the full foreground batch" 1 \
     df --config-only multipkg invalid-resolver
 check "resolver preflight prevents earlier config mutation" \
     grep -qxF preflight-keep "$H/.config/multipkg/config"
 rm -rf "$FAKE/tools/invalid-resolver"
 
-cat > "$FAKE/tools/evil/tool.conf" <<EOF
+cat >"$FAKE/tools/evil/tool.conf" <<EOF
 NAME="evil"
 DESC="Incomplete config fixture"
 ICON="!"
@@ -103,9 +104,9 @@ rm -rf "$FAKE/tools/evil"
 
 # A file deployment never copies into an existing directory by accident.
 mkdir -p "$FAKE/tools/evil/files" "$H/.config/existing-dir"
-printf 'x\n' > "$FAKE/tools/evil/files/config"
-printf 'keep\n' > "$H/.config/existing-dir/keep"
-cat > "$FAKE/tools/evil/tool.conf" <<EOF
+printf 'x\n' >"$FAKE/tools/evil/files/config"
+printf 'keep\n' >"$H/.config/existing-dir/keep"
+cat >"$FAKE/tools/evil/tool.conf" <<EOF
 NAME="evil"
 DESC="Destination type fixture"
 ICON="!"
@@ -116,7 +117,7 @@ EOF
 rc_is "file deployment rejects a directory destination" 1 df evil
 check "directory destination remains intact" test -f "$H/.config/existing-dir/keep"
 mkfifo "$H/.config/unsupported-link-destination"
-cat > "$FAKE/tools/evil/tool.conf" <<EOF
+cat >"$FAKE/tools/evil/tool.conf" <<EOF
 NAME="evil"
 DESC="Symlink destination safety fixture"
 ICON="!"
@@ -133,9 +134,9 @@ rm -rf "$FAKE/tools/evil"
 # Tools may not own the same destination or nest under another tool.
 for tool in overlap-a overlap-b; do
     mkdir -p "$FAKE/tools/$tool/files"
-    printf 'x\n' > "$FAKE/tools/$tool/files/config"
+    printf 'x\n' >"$FAKE/tools/$tool/files/config"
 done
-cat > "$FAKE/tools/overlap-a/tool.conf" <<EOF
+cat >"$FAKE/tools/overlap-a/tool.conf" <<EOF
 NAME="overlap-a"
 DESC="Overlap fixture A"
 ICON="!"
@@ -143,7 +144,7 @@ ORDER="997"
 SOURCE="files/config"
 DEST="$H/.config/shared"
 EOF
-cat > "$FAKE/tools/overlap-b/tool.conf" <<EOF
+cat >"$FAKE/tools/overlap-b/tool.conf" <<EOF
 NAME="overlap-b"
 DESC="Overlap fixture B"
 ICON="!"
@@ -157,8 +158,8 @@ rm -rf "$FAKE/tools/overlap-a" "$FAKE/tools/overlap-b"
 # Existing parent symlinks must not redirect a deployment outside HOME.
 mkdir -p "$SB/outside" "$FAKE/tools/evil/files"
 ln -s "$SB/outside" "$H/.unsafe"
-printf 'escape\n' > "$FAKE/tools/evil/files/config"
-cat > "$FAKE/tools/evil/tool.conf" <<EOF
+printf 'escape\n' >"$FAKE/tools/evil/files/config"
+cat >"$FAKE/tools/evil/tool.conf" <<EOF
 NAME="evil"
 DESC="Safety fixture"
 ICON="!"
@@ -172,9 +173,9 @@ rm -rf "$FAKE/tools/evil"
 
 # SOURCE may not escape its tool through an intermediate symlink.
 mkdir -p "$FAKE/tools/evil" "$SB/source-outside"
-printf 'outside\n' > "$SB/source-outside/config"
+printf 'outside\n' >"$SB/source-outside/config"
 ln -s "$SB/source-outside" "$FAKE/tools/evil/files"
-cat > "$FAKE/tools/evil/tool.conf" <<EOF
+cat >"$FAKE/tools/evil/tool.conf" <<EOF
 NAME="evil"
 DESC="Source symlink fixture"
 ICON="!"
@@ -189,7 +190,7 @@ rm -rf "$FAKE/tools/evil"
 # Manifests and profiles must be real project files, not links to external
 # data that happen to parse as valid declarations.
 mkdir -p "$SB/external-tool"
-cat > "$SB/external-tool/tool.conf" <<'EOF'
+cat >"$SB/external-tool/tool.conf" <<'EOF'
 NAME="linked-tool"
 DESC="External tool fixture"
 ICON="!"
@@ -199,7 +200,7 @@ ln -s "$SB/external-tool" "$FAKE/tools/linked-tool"
 rc_is "symlinked tool directory is rejected" 1 df all
 rm -f "$FAKE/tools/linked-tool"
 mkdir -p "$FAKE/tools/linked-manifest"
-cat > "$SB/external-manifest.conf" <<'EOF'
+cat >"$SB/external-manifest.conf" <<'EOF'
 NAME="linked-manifest"
 DESC="External manifest fixture"
 ICON="!"
@@ -208,14 +209,14 @@ EOF
 ln -s "$SB/external-manifest.conf" "$FAKE/tools/linked-manifest/tool.conf"
 rc_is "symlinked tool manifest is rejected" 1 df all
 rm -rf "$FAKE/tools/linked-manifest"
-printf 'extends=""\ntools="multipkg"\n' > "$SB/external-profile.conf"
+printf 'extends=""\ntools="multipkg"\n' >"$SB/external-profile.conf"
 ln -s "$SB/external-profile.conf" "$FAKE/profiles/linked-profile.conf"
 rc_is "symlinked profile is rejected" 1 df profile linked-profile
 rm -f "$FAKE/profiles/linked-profile.conf"
 
 # Required presentation metadata fails fast instead of producing broken rows.
 mkdir -p "$FAKE/tools/evil"
-cat > "$FAKE/tools/evil/tool.conf" <<'EOF'
+cat >"$FAKE/tools/evil/tool.conf" <<'EOF'
 NAME="evil"
 DESC="Missing icon fixture"
 ORDER="999"
@@ -225,7 +226,7 @@ rm -rf "$FAKE/tools/evil"
 
 # Every accepted tool must own an installation or config action.
 mkdir -p "$FAKE/tools/empty-tool"
-cat > "$FAKE/tools/empty-tool/tool.conf" <<'EOF'
+cat >"$FAKE/tools/empty-tool/tool.conf" <<'EOF'
 NAME="empty-tool"
 DESC="No-op fixture"
 ICON="!"
@@ -237,8 +238,8 @@ rm -rf "$FAKE/tools/empty-tool"
 # tool.conf is parsed as data: unknown/duplicate fields and shell
 # substitutions are rejected without executing project code.
 mkdir -p "$FAKE/tools/strict-manifest/files"
-printf 'strict\n' > "$FAKE/tools/strict-manifest/files/config"
-cat > "$FAKE/tools/strict-manifest/tool.conf" <<EOF
+printf 'strict\n' >"$FAKE/tools/strict-manifest/files/config"
+cat >"$FAKE/tools/strict-manifest/tool.conf" <<EOF
 NAME="strict-manifest"
 DESC="Strict manifest fixture"
 ICON="!"
@@ -247,7 +248,7 @@ DEST="\$HOME/.config/strict-manifest"
 UNKNOWN="nope"
 EOF
 rc_is "strict manifest rejects unknown fields" 1 df all
-cat > "$FAKE/tools/strict-manifest/tool.conf" <<EOF
+cat >"$FAKE/tools/strict-manifest/tool.conf" <<EOF
 NAME="strict-manifest"
 NAME="strict-manifest"
 DESC="Strict manifest fixture"
@@ -256,7 +257,7 @@ SOURCE="files/config"
 DEST="\$HOME/.config/strict-manifest"
 EOF
 rc_is "strict manifest rejects duplicate fields" 1 df all
-cat > "$FAKE/tools/strict-manifest/tool.conf" <<EOF
+cat >"$FAKE/tools/strict-manifest/tool.conf" <<EOF
 NAME="strict-manifest"
 DESC="broken"quote"
 ICON="!"
@@ -265,7 +266,7 @@ DEST="\$HOME/.config/strict-manifest"
 EOF
 rc_is "strict manifest rejects unescaped inner quotes" 1 df all
 marker="$SB/manifest-executed"
-cat > "$FAKE/tools/strict-manifest/tool.conf" <<EOF
+cat >"$FAKE/tools/strict-manifest/tool.conf" <<EOF
 NAME="strict-manifest"
 DESC="\$(touch $marker)"
 ICON="!"
@@ -274,7 +275,7 @@ DEST="\$HOME/.config/strict-manifest"
 EOF
 rc_is "strict manifest rejects command substitution" 1 df all
 checknot "strict manifest executes no project code" test -e "$marker"
-cat > "$FAKE/tools/strict-manifest/tool.conf" <<'EOF'
+cat >"$FAKE/tools/strict-manifest/tool.conf" <<'EOF'
 NAME="strict-manifest"
 DESC="Strict manifest fixture"
 ICON="!"
@@ -285,29 +286,85 @@ df --config-only strict-manifest >/dev/null 2>&1
 check "strict manifest expands HOME without eval" grep -qxF strict "$H/.config/strict-manifest"
 rm -rf "$FAKE/tools/strict-manifest"
 
+# Remote installers may pin their downloaded script. A mismatch must prevent
+# execution, and malformed checksum declarations fail during manifest loading.
+mkdir -p "$FAKE/tools/remote-installer"
+remote_payload="$SB/remote-installer.sh"
+remote_marker="$H/.local/bin/remote-installer"
+remote_tmp="$SB/remote-installer-tmp"
+mkdir -p "$remote_tmp"
+# shellcheck disable=SC2016  # variables belong to the generated installer
+printf '#!/bin/sh\nmkdir -p "$(dirname "$REMOTE_INSTALLER_MARKER")"\nprintf "installed\\n" > "$REMOTE_INSTALLER_MARKER"\n' \
+    >"$remote_payload"
+cat >"$SB/bin/curl" <<'EOF'
+#!/bin/sh
+cat "$REMOTE_INSTALLER_SOURCE"
+EOF
+chmod +x "$SB/bin/curl"
+export REMOTE_INSTALLER_SOURCE="$remote_payload" REMOTE_INSTALLER_MARKER="$remote_marker"
+remote_sha256="$(shasum -a 256 "$remote_payload")"
+remote_sha256="${remote_sha256%% *}"
+cat >"$FAKE/tools/remote-installer/tool.conf" <<EOF
+NAME="remote-installer"
+DESC="Pinned remote installer fixture"
+ICON="!"
+ORDER="999"
+CHECK="$remote_marker"
+INSTALL_URL="https://example.invalid/install.sh"
+INSTALL_SHA256="$remote_sha256"
+EOF
+TMPDIR="$remote_tmp" df remote-installer >/dev/null 2>&1
+check "matching remote installer checksum permits execution" test -f "$remote_marker"
+checknot "successful remote installer leaves no temporary script" \
+    test -n "$(find "$remote_tmp" -type f -print -quit)"
+rm -f "$remote_marker"
+sed 's/INSTALL_SHA256="[^"]*"/INSTALL_SHA256="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"/' \
+    "$FAKE/tools/remote-installer/tool.conf" >"$SB/remote-mismatch.conf"
+cp "$SB/remote-mismatch.conf" "$FAKE/tools/remote-installer/tool.conf"
+TMPDIR="$remote_tmp" rc_is "remote installer checksum mismatch exits non-zero" 1 df remote-installer
+checknot "checksum mismatch prevents remote installer execution" test -e "$remote_marker"
+checknot "rejected remote installer leaves no temporary script" \
+    test -n "$(find "$remote_tmp" -type f -print -quit)"
+sed 's/INSTALL_SHA256="[^"]*"/INSTALL_SHA256="not-a-digest"/' \
+    "$FAKE/tools/remote-installer/tool.conf" >"$SB/remote-invalid.conf"
+cp "$SB/remote-invalid.conf" "$FAKE/tools/remote-installer/tool.conf"
+rc_is "manifest rejects malformed installer checksum" 1 df all
+cat >"$FAKE/tools/remote-installer/tool.conf" <<'EOF'
+NAME="remote-installer"
+DESC="Checksum without URL fixture"
+ICON="!"
+BREW="remote-installer"
+INSTALL_SHA256="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+EOF
+rc_is "manifest rejects installer checksum without URL" 1 df all
+rm -rf "$FAKE/tools/remote-installer"
+rm -f "$SB/bin/curl"
+unset REMOTE_INSTALLER_SOURCE REMOTE_INSTALLER_MARKER
+
 # A runtime install failure must reach automation as a non-zero command status.
 mkdir -p "$FAKE/tools/broken"
-cat > "$FAKE/tools/broken/tool.conf" <<'EOF'
+cat >"$FAKE/tools/broken/tool.conf" <<'EOF'
 NAME="broken"
 DESC="Failure propagation fixture"
 ICON="!"
 ORDER="999"
 BREW="broken"
 EOF
-printf 'broken\n' > "$BREW_FAIL_FILE"
+printf 'broken\n' >"$BREW_FAIL_FILE"
 rc_is "foreground install failure exits non-zero" 1 df broken
-cat > "$FAKE/profiles/broken.conf" <<'EOF'
+cat >"$FAKE/profiles/broken.conf" <<'EOF'
 extends=""
 tools="broken"
 EOF
 rc_is "profile propagates a tool failure" 1 df profile broken
 rc_is "all propagates a tool failure" 1 df all
-rm -f "$BREW_FAIL_FILE" "$FAKE/profiles/broken.conf"; rm -rf "$FAKE/tools/broken"
+rm -f "$BREW_FAIL_FILE" "$FAKE/profiles/broken.conf"
+rm -rf "$FAKE/tools/broken"
 
 # Package-manager success is not enough when CHECK still says the tool is
 # absent; automation must receive a failure instead of a false installed state.
 mkdir -p "$FAKE/tools/unverified"
-cat > "$FAKE/tools/unverified/tool.conf" <<'EOF'
+cat >"$FAKE/tools/unverified/tool.conf" <<'EOF'
 NAME="unverified"
 DESC="Post-install verification fixture"
 ICON="!"
@@ -320,32 +377,32 @@ rm -rf "$FAKE/tools/unverified" "$BREW_PREFIX/opt/unverified" "$BREW_PREFIX/bin/
 
 # Re-loading in the same process replaces, rather than duplicates, the model.
 reload_counts="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" DOTLAD_PLAIN=1 /bin/bash -c '
-    . "$DOTLAD_RUNTIME_ROOT/lib/ui.sh"
+    . "$DOTLAD_RUNTIME_ROOT/lib/console.sh"
     . "$DOTLAD_RUNTIME_ROOT/lib/resolvers.sh"
     . "$DOTLAD_RUNTIME_ROOT/lib/manifest.sh"
     manifest_load; first="$T_COUNT"; manifest_load
     printf "%s %s" "$first" "$T_COUNT"')"
 tool_count="$(find "$FAKE/tools" -mindepth 2 -maxdepth 2 -name tool.conf | wc -l | tr -d ' ')"
-[[ "$reload_counts" == "$tool_count $tool_count" ]] \
-    && pass "manifest reload is idempotent" || fail "manifest reload duplicated entries: $reload_counts"
+[[ "$reload_counts" == "$tool_count $tool_count" ]] &&
+    pass "manifest reload is idempotent" || fail "manifest reload duplicated entries: $reload_counts"
 
 # Profiles resolve inheritance without duplicates and only contain tools.
 profile_out="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" /bin/bash -c '
-    . "$DOTLAD_RUNTIME_ROOT/lib/ui.sh"
+    . "$DOTLAD_RUNTIME_ROOT/lib/console.sh"
     . "$DOTLAD_RUNTIME_ROOT/lib/resolvers.sh"
     . "$DOTLAD_RUNTIME_ROOT/lib/manifest.sh"; manifest_load; profile_tools complete')"
-[[ "$(printf '%s\n' "$profile_out" | sort -u | wc -l | tr -d ' ')" == "$tool_count" ]] \
-    && pass "complete profile resolves every tool once" \
-    || fail "complete profile resolution"
+[[ "$(printf '%s\n' "$profile_out" | sort -u | wc -l | tr -d ' ')" == "$tool_count" ]] &&
+    pass "complete profile resolves every tool once" ||
+    fail "complete profile resolution"
 profile_marker="$SB/profile-executed"
-cat > "$FAKE/profiles/strict-profile.conf" <<EOF
+cat >"$FAKE/profiles/strict-profile.conf" <<EOF
 extends=""
 tools="\$(touch $profile_marker)"
 EOF
 rc_is "strict profile rejects command substitution" 1 df profile strict-profile
 checknot "strict profile executes no project code" test -e "$profile_marker"
 rm -f "$FAKE/profiles/strict-profile.conf"
-printf 'extends="cycle-b"\ntools=""\n' > "$FAKE/profiles/cycle-a.conf"
-printf 'extends="cycle-a"\ntools=""\n' > "$FAKE/profiles/cycle-b.conf"
+printf 'extends="cycle-b"\ntools=""\n' >"$FAKE/profiles/cycle-a.conf"
+printf 'extends="cycle-a"\ntools=""\n' >"$FAKE/profiles/cycle-b.conf"
 rc_is "profile inheritance cycle is rejected" 1 df profile cycle-a
 rm -f "$FAKE/profiles/cycle-a.conf" "$FAKE/profiles/cycle-b.conf"

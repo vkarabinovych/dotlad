@@ -39,13 +39,14 @@ documentation, maintainer scripts, and isolated tests.
 probes. It sources libraries in dependency order:
 
 ```text
-ui → resolvers → manifest → brewfile → packages → backup → engine
+console → resolvers → manifest → brewfile → packages → backup → engine
    → plan → picker model → runner → commands → TUI
 ```
 
 | Component      | Responsibility                                                    |
 | -------------- | ----------------------------------------------------------------- |
 | `bin/dotlad`   | Bootstrap, global option extraction, argument parsing, dispatch   |
+| `console.sh`   | Shared colors, messages, prompts, paths, and diff output          |
 | `manifest.sh`  | Strict manifest/profile parsing, normalization, safety validation |
 | `resolvers.sh` | Load and dispatch trusted runtime resolver implementations        |
 | `packages.sh`  | Package, remote-installer, and requirement installation           |
@@ -53,9 +54,10 @@ ui → resolvers → manifest → brewfile → packages → backup → engine
 | `engine.sh`    | State inspection, preflight, config transactions, synchronization |
 | `plan.sh`      | Human and JSON projections of canonical preflight state           |
 | `pick.sh`      | Presentation model shared by plain output and the TUI             |
-| `runner.sh`    | Foreground batches and the serialized TUI queue                   |
+| `runner.sh`    | Foreground batches, serialized queue, and worker lifecycle        |
 | `commands.sh`  | Command implementations and tool selection                        |
-| `tui.sh`       | Terminal input, rendering, focus, details, and live output        |
+| `tui.sh`       | Interactive actions, details, cleanup, and the main event loop    |
+| `tui/*.sh`     | Keyboard input, cached screen model, layout, and full rendering   |
 
 `commands.sh` and the TUI depend on lower layers; lower layers do not call into
 presentation code. This keeps read-only probes and non-interactive commands
@@ -159,6 +161,12 @@ the runtime root, project root, mode, and backup root exported explicitly.
 
 Marker, result, stage, and log files under `DOTLAD_RUNDIR` drive live updates.
 They are session-temporary coordination state, not project data.
+
+The TUI coordinator sources three focused companions under `lib/tui/`:
+`input.sh` owns key reading and keyboard-layout normalization, `model.sh` owns
+cached rows, selection, cursor, and viewport mutations, and `screen.sh` owns
+terminal screen lifecycle, layout, and full rendering. Worker marker inspection
+and process-tree termination remain in `runner.sh` with the queue and worker.
 
 ## Test boundary
 

@@ -3,7 +3,7 @@
 
 resolver_toml_requires() { printf 'yq\n'; }
 
-resolver_toml_render() {  # <repo> <live>
+resolver_toml_render() { # <repo> <live>
     if [[ -f "$2" && ! -L "$2" ]]; then
         yq eval-all 'select(fileIndex==0) * select(fileIndex==1)' "$2" "$1" -o=toml
     else
@@ -12,14 +12,14 @@ resolver_toml_render() {  # <repo> <live>
     fi
 }
 
-resolver_toml_equal() {  # <repo> <live>
+resolver_toml_equal() { # <repo> <live>
     [[ -f "$2" && ! -L "$2" ]] || return 1
     cmp -s "$1" "$2" && return 0
     command -v yq >/dev/null 2>&1 || return 1
     local merged temp actual expected
     merged="$(resolver_toml_render "$1" "$2" 2>/dev/null)" || return 1
     temp="$(mktemp)" || return 1
-    printf '%s\n' "$merged" > "$temp"
+    printf '%s\n' "$merged" >"$temp"
     actual="$(yq -p=toml -o=json -I=0 . "$2" 2>/dev/null)"
     expected="$(yq -p=toml -o=json -I=0 . "$temp" 2>/dev/null)"
     rm -f "$temp"

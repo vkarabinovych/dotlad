@@ -10,30 +10,36 @@ SPIN=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
 # Used by both package lists and config source → destination rows. Continuations
 # use a shallow indent so paths and long formula names fit on narrow screens;
 # a single unbroken token is split only when it is wider than a whole row.
-wrapped_activity() {  # <color> <glyph> <verb> <space-separated-payload>
+wrapped_activity() { # <color> <glyph> <verb> <space-separated-payload>
     local color="$1" glyph="$2" verb="$3" payload="$4"
     local width="${ACTIVITY_WIDTH:-76}" prefix first_cap cont_cap first=1 line="" word cap part
     [[ "$width" -lt 16 ]] && width=16
     prefix=$((1 + 1 + ${#verb} + 2))
-    first_cap=$((width - prefix)); [[ "$first_cap" -lt 4 ]] && first_cap=4
-    cont_cap=$((width - 2)); [[ "$cont_cap" -lt 8 ]] && cont_cap=8
+    first_cap=$((width - prefix))
+    [[ "$first_cap" -lt 4 ]] && first_cap=4
+    cont_cap=$((width - 2))
+    [[ "$cont_cap" -lt 8 ]] && cont_cap=8
 
     for word in $payload; do
-        cap=$first_cap; [[ "$first" == 0 ]] && cap=$cont_cap
-        if [[ -n "$line" && $(( ${#line} + 1 + ${#word} )) -gt $cap ]]; then
+        cap=$first_cap
+        [[ "$first" == 0 ]] && cap=$cont_cap
+        if [[ -n "$line" && $((${#line} + 1 + ${#word})) -gt $cap ]]; then
             if [[ "$first" == 1 ]]; then
                 printf '%s%s%s %s%s%s  %s\n' "$color" "$glyph" "$C_RESET" "$C_DIM" "$verb" "$C_RESET" "$line"
                 first=0
             else
                 printf '\002  %s\n' "$line"
             fi
-            line=""; cap=$cont_cap
+            line=""
+            cap=$cont_cap
         fi
         while [[ ${#word} -gt $cap ]]; do
-            part="${word:0:$cap}"; word="${word:$cap}"
+            part="${word:0:$cap}"
+            word="${word:$cap}"
             if [[ "$first" == 1 ]]; then
                 printf '%s%s%s %s%s%s  %s\n' "$color" "$glyph" "$C_RESET" "$C_DIM" "$verb" "$C_RESET" "$part"
-                first=0; cap=$cont_cap
+                first=0
+                cap=$cont_cap
             else
                 printf '\002  %s\n' "$part"
             fi
@@ -61,8 +67,13 @@ tree_activity_lines() {
             if [[ "$current_last" == 1 ]]; then con=' '; else con='│'; fi
         else
             logical_i=$((logical_i + 1))
-            if [[ "$logical_i" -eq "$logical" ]]; then con='└'; current_last=1
-            else con='├'; current_last=0; fi
+            if [[ "$logical_i" -eq "$logical" ]]; then
+                con='└'
+                current_last=1
+            else
+                con='├'
+                current_last=0
+            fi
         fi
         printf '  %s%s%s %s\n' "$C_DIM" "$con" "$C_RESET" "$line"
     done
@@ -78,13 +89,30 @@ tree_activity_lines() {
 compute_row() {
     local i="$1"
     local frame="${2:-}" run="${DOTLAD_RUNDIR:-}" nm="${T_NAME[$i]}"
-    RS_WANT=0; RS_NOTE=""; RS_NOTECOLOR="$C_DIM"
+    RS_WANT=0
+    RS_NOTE=""
+    RS_NOTECOLOR="$C_DIM"
     if [[ -n "$run" && -f "$run/${nm}.failed" ]]; then
-        RS_GLYPH='✗'; RS_COLOR="$C_RED"; RS_LABEL='failed'; RS_NOTE='enter to retry'; RS_WEIGHT=-3; RS_WANT=1
+        RS_GLYPH='✗'
+        RS_COLOR="$C_RED"
+        RS_LABEL='failed'
+        RS_NOTE='enter to retry'
+        RS_WEIGHT=-3
+        RS_WANT=1
     elif [[ -n "$run" && -f "$run/${nm}.running" ]]; then
-        RS_GLYPH="$frame"; RS_COLOR="$C_CYAN"; RS_LABEL='working…'; RS_NOTE=''; RS_WEIGHT=-2; RS_WANT=1
+        RS_GLYPH="$frame"
+        RS_COLOR="$C_CYAN"
+        RS_LABEL='working…'
+        RS_NOTE=''
+        RS_WEIGHT=-2
+        RS_WANT=1
     elif [[ -n "$run" ]] && queue_has_tool "$run" "$nm"; then
-        RS_GLYPH='…'; RS_COLOR="$C_CYAN"; RS_LABEL='queued'; RS_NOTE=''; RS_WEIGHT=-1; RS_WANT=1
+        RS_GLYPH='…'
+        RS_COLOR="$C_CYAN"
+        RS_LABEL='queued'
+        RS_NOTE=''
+        RS_WEIGHT=-1
+        RS_WANT=1
     else
         tool_state "$i"
         local has_installer=0
@@ -93,40 +121,108 @@ compute_row() {
         # missing runtime takes priority over config state because the tool is
         # not usable yet; config readiness remains visible as the note.
         if [[ "$DOTLAD_MODE" == "packages" ]]; then
-            if [[ "$ST_INSTALLED" == 1 ]]; then RS_GLYPH='✓'; RS_COLOR="$C_GREEN"; RS_LABEL='installed'; RS_WEIGHT=5
-            else RS_GLYPH='+'; RS_COLOR="$C_MAGENTA"; RS_LABEL='not installed'; RS_WEIGHT=2; fi
+            if [[ "$ST_INSTALLED" == 1 ]]; then
+                RS_GLYPH='✓'
+                RS_COLOR="$C_GREEN"
+                RS_LABEL='installed'
+                RS_WEIGHT=5
+            else
+                RS_GLYPH='+'
+                RS_COLOR="$C_MAGENTA"
+                RS_LABEL='not installed'
+                RS_WEIGHT=2
+            fi
         elif [[ "$DOTLAD_MODE" == "config" ]]; then
             case "$ST_CFG" in
-                update) RS_GLYPH='↑'; RS_COLOR="$C_YELLOW";  RS_LABEL='update available'; RS_WEIGHT=0 ;;
-                new)    RS_GLYPH='+'; RS_COLOR="$C_MAGENTA"; RS_LABEL='not set up';       RS_WEIGHT=1 ;;
-                ready)  RS_GLYPH='✓'; RS_COLOR="$C_GREEN";   RS_LABEL='up to date';       RS_WEIGHT=5 ;;
+                update)
+                    RS_GLYPH='↑'
+                    RS_COLOR="$C_YELLOW"
+                    RS_LABEL='update available'
+                    RS_WEIGHT=0
+                    ;;
+                new)
+                    RS_GLYPH='+'
+                    RS_COLOR="$C_MAGENTA"
+                    RS_LABEL='not set up'
+                    RS_WEIGHT=1
+                    ;;
+                ready)
+                    RS_GLYPH='✓'
+                    RS_COLOR="$C_GREEN"
+                    RS_LABEL='up to date'
+                    RS_WEIGHT=5
+                    ;;
             esac
         elif ! tool_has_config "$i"; then
-            if [[ "$ST_INSTALLED" == 1 ]]; then RS_GLYPH='✓'; RS_COLOR="$C_GREEN"; RS_LABEL='installed'; RS_WEIGHT=5
-            else RS_GLYPH='+'; RS_COLOR="$C_MAGENTA"; RS_LABEL='not installed'; RS_WEIGHT=2; fi
+            if [[ "$ST_INSTALLED" == 1 ]]; then
+                RS_GLYPH='✓'
+                RS_COLOR="$C_GREEN"
+                RS_LABEL='installed'
+                RS_WEIGHT=5
+            else
+                RS_GLYPH='+'
+                RS_COLOR="$C_MAGENTA"
+                RS_LABEL='not installed'
+                RS_WEIGHT=2
+            fi
         elif [[ "$ST_INSTALLED" == "0" ]]; then
             if [[ "$has_installer" == 1 ]]; then
-                RS_GLYPH='+'; RS_COLOR="$C_MAGENTA"; RS_LABEL='not installed'
+                RS_GLYPH='+'
+                RS_COLOR="$C_MAGENTA"
+                RS_LABEL='not installed'
             else
-                RS_GLYPH='!'; RS_COLOR="$C_YELLOW"; RS_LABEL='tool not found'
+                RS_GLYPH='!'
+                RS_COLOR="$C_YELLOW"
+                RS_LABEL='tool not found'
             fi
             case "$ST_CFG" in
-                update) RS_NOTE='config update available'; RS_NOTECOLOR="$C_YELLOW";  RS_WEIGHT=0 ;;
-                new)    RS_NOTE='config not set up';       RS_NOTECOLOR="$C_MAGENTA"; RS_WEIGHT=1 ;;
-                ready)  RS_NOTE='config up to date';       RS_NOTECOLOR="$C_GREEN";   RS_WEIGHT=2 ;;
+                update)
+                    RS_NOTE='config update available'
+                    RS_NOTECOLOR="$C_YELLOW"
+                    RS_WEIGHT=0
+                    ;;
+                new)
+                    RS_NOTE='config not set up'
+                    RS_NOTECOLOR="$C_MAGENTA"
+                    RS_WEIGHT=1
+                    ;;
+                ready)
+                    RS_NOTE='config up to date'
+                    RS_NOTECOLOR="$C_GREEN"
+                    RS_WEIGHT=2
+                    ;;
             esac
         else
             case "$ST_CFG" in
-                update) RS_GLYPH='↑'; RS_COLOR="$C_YELLOW";  RS_LABEL='update available'; RS_WEIGHT=0 ;;
-                new)    RS_GLYPH='+'; RS_COLOR="$C_MAGENTA"; RS_LABEL='not set up';       RS_WEIGHT=1 ;;
-                ready)  RS_GLYPH='✓'; RS_COLOR="$C_GREEN";   RS_LABEL='up to date';       RS_WEIGHT=5 ;;
+                update)
+                    RS_GLYPH='↑'
+                    RS_COLOR="$C_YELLOW"
+                    RS_LABEL='update available'
+                    RS_WEIGHT=0
+                    ;;
+                new)
+                    RS_GLYPH='+'
+                    RS_COLOR="$C_MAGENTA"
+                    RS_LABEL='not set up'
+                    RS_WEIGHT=1
+                    ;;
+                ready)
+                    RS_GLYPH='✓'
+                    RS_COLOR="$C_GREEN"
+                    RS_LABEL='up to date'
+                    RS_WEIGHT=5
+                    ;;
             esac
         fi
-        [[ -n "$run" && -f "$run/${nm}.done" ]] && { RS_NOTE='just updated'; RS_NOTECOLOR="$C_GREEN"; }
+        [[ -n "$run" && -f "$run/${nm}.done" ]] && {
+            RS_NOTE='just updated'
+            RS_NOTECOLOR="$C_GREEN"
+        }
         # Show the activity subtree for multi-package tools, an installable tool
         # that's missing, a pending config change, or a recorded run result.
         local kids npk
-        read -ra kids <<< "${T_BREW[$i]}"; npk=${#kids[@]}
+        read -ra kids <<<"${T_BREW[$i]}"
+        npk=${#kids[@]}
         if mode_packages_enabled; then
             [[ "$npk" -gt 1 ]] && RS_WANT=1
             [[ "$ST_INSTALLED" == "0" && "$has_installer" == 1 ]] && RS_WANT=1
@@ -136,7 +232,7 @@ compute_row() {
             [[ -n "$run" && -f "$run/${nm}.result" ]] && RS_WANT=1
         fi
     fi
-    return 0   # the trailing `[[ … ]] &&` above must not become our exit status
+    return 0 # the trailing `[[ … ]] &&` above must not become our exit status
 }
 
 # The subtree body for a tool: one activity line per action, shaped as
@@ -151,7 +247,7 @@ compute_row() {
 #   ✓ copy|link <src> → <dest> · N entries synced  (completed result, green)
 #   ✓ <dest> up to date
 # Callers add the ├/└ connector and indent.
-tool_activity() {  # <idx> <spinner-frame>
+tool_activity() { # <idx> <spinner-frame>
     local i="$1"
     local frame="$2" run="${DOTLAD_RUNDIR:-}" nm="${T_NAME[$i]}"
     local stage='' running=0 prefix pkgs pk pkbase inst='' pend='' hurl=''
@@ -159,7 +255,7 @@ tool_activity() {  # <idx> <spinner-frame>
         [[ -f "$run/${nm}.stage" ]] && stage="$(cat "$run/${nm}.stage" 2>/dev/null)"
         [[ -f "$run/${nm}.running" ]] && running=1
     fi
-    read -ra pkgs <<< "${T_BREW[$i]}"
+    read -ra pkgs <<<"${T_BREW[$i]}"
     if mode_packages_enabled && [[ ${#pkgs[@]} -gt 0 && "${T_CASK[$i]}" == "1" ]]; then
         # Casks have no opt links to stat per-package — judge the whole set by
         # the tool's own CHECK.
@@ -176,7 +272,8 @@ tool_activity() {  # <idx> <spinner-frame>
             pkbase="${pk##*/}"
             if [[ -n "$prefix" && -e "$prefix/opt/$pkbase" ]]; then inst="${inst} $pkbase"; else pend="${pend} $pkbase"; fi
         done
-        inst="${inst# }"; pend="${pend# }"
+        inst="${inst# }"
+        pend="${pend# }"
         [[ -n "$inst" ]] && wrapped_activity "$C_GREEN" '✓' installed "$inst"
         if [[ -n "$pend" ]]; then
             if [[ "$running" == 1 && "$stage" == "install" ]]; then
@@ -190,7 +287,9 @@ tool_activity() {  # <idx> <spinner-frame>
     elif mode_packages_enabled && [[ -n "${T_INSTALL_URL[$i]}" ]]; then
         # No brew package — this tool installs via a remote script. Show the
         # installer host so it's clear what running it would fetch.
-        hurl="${T_INSTALL_URL[$i]}"; hurl="${hurl#https://}"; hurl="${hurl#http://}"
+        hurl="${T_INSTALL_URL[$i]}"
+        hurl="${hurl#https://}"
+        hurl="${hurl#http://}"
         if tool_installed "$i"; then
             wrapped_activity "$C_GREEN" '✓' installed "$nm"
         elif [[ "$running" == 1 && "$stage" == "install" ]]; then
@@ -206,14 +305,21 @@ tool_activity() {  # <idx> <spinner-frame>
         # A pending change either creates a config that isn't there yet
         # (+ create, magenta — like the "not set up" headline) or updates an
         # existing one (↑ update, yellow — like "update available").
-        if [[ -e "${T_DEST[$i]}" || -L "${T_DEST[$i]}" ]]; then cg='↑'; cc="$C_YELLOW"; verb='update'
-        else cg='+'; cc="$C_MAGENTA"; verb='create'; fi
-        if [[ "$running" == 1 && ( "$stage" == "copy" || "$stage" == "link" ) ]]; then
+        if [[ -e "${T_DEST[$i]}" || -L "${T_DEST[$i]}" ]]; then
+            cg='↑'
+            cc="$C_YELLOW"
+            verb='update'
+        else
+            cg='+'
+            cc="$C_MAGENTA"
+            verb='create'
+        fi
+        if [[ "$running" == 1 && ("$stage" == "copy" || "$stage" == "link") ]]; then
             wrapped_activity "$C_CYAN" "$frame" "$verb" "$src → $dest"
         elif [[ -n "$run" && -f "$run/${nm}.result" ]]; then
             # `|| true`: read returns non-zero on a newline-less file, which
             # under set -e would abort before the result line is printed.
-            read -r c m b dc dm < "$run/${nm}.result" || true
+            read -r c m b dc dm <"$run/${nm}.result" || true
             counts=''
             if [[ "${c:-0}" -gt 0 && "$action" == link ]]; then
                 counts="${c} link synced"
@@ -221,10 +327,10 @@ tool_activity() {  # <idx> <spinner-frame>
                 counts="${c} $(file_noun "$c") synced"
             fi
             [[ "${m:-0}" -gt 0 ]] && counts="${counts:+${counts} · }${m} $(file_noun "$m") removed"
-            [[ "${dc:-0}" -gt 0 ]] \
-                && counts="${counts:+${counts} · }${dc} $(directory_noun "$dc") created"
-            [[ "${dm:-0}" -gt 0 ]] \
-                && counts="${counts:+${counts} · }${dm} $(directory_noun "$dm") removed"
+            [[ "${dc:-0}" -gt 0 ]] &&
+                counts="${counts:+${counts} · }${dc} $(directory_noun "$dc") created"
+            [[ "${dm:-0}" -gt 0 ]] &&
+                counts="${counts:+${counts} · }${dm} $(directory_noun "$dm") removed"
             [[ "${b:-0}" -gt 0 ]] && counts="${counts:+${counts} · }${b} $(file_noun "$b") backed up"
             wrapped_activity "$C_GREEN" '✓' "$action" "$src → $dest${counts:+ · $counts}"
         elif tool_uptodate "$i"; then
@@ -250,8 +356,9 @@ headline_line() {
     local nm="${T_NAME[$i]}" icon="${T_ICON[$i]}"
     compute_row "$i" "${2:-}"
     if [[ -z "${NAME_W:-}" ]]; then
-        local _k; NAME_W=8
-        for (( _k = 0; _k < T_COUNT; _k++ )); do [[ ${#T_NAME[$_k]} -gt $NAME_W ]] && NAME_W=${#T_NAME[$_k]}; done
+        local _k
+        NAME_W=8
+        for ((_k = 0; _k < T_COUNT; _k++)); do [[ ${#T_NAME[$_k]} -gt $NAME_W ]] && NAME_W=${#T_NAME[$_k]}; done
     fi
     printf '  %s%s%s %s%s%s %-*s %s%-17s%s %s%s%s\n' \
         "$RS_COLOR" "$RS_GLYPH" "$C_RESET" "$C_CYAN" "$icon" "$C_RESET" "$NAME_W" "$nm" \
@@ -292,34 +399,40 @@ backup_file_line() {
     esac
 }
 
-backup_more_line() {  # <remaining-count>
+backup_more_line() { # <remaining-count>
     printf '%s… %s more %s · d details%s' \
         "$C_DIM" "$1" "$(file_noun "$1")" "$C_RESET"
 }
 
-backup_activity() {  # <dirname> — all restore-point child lines
+backup_activity() { # <dirname> — all restore-point child lines
     local dir="$1" mark rel tab
     tab="$(printf '\t')"
     while IFS="$tab" read -r mark rel; do
-        [[ -n "$rel" ]] && { backup_file_line "$mark" "$rel"; printf '\n'; }
+        [[ -n "$rel" ]] && {
+            backup_file_line "$mark" "$rel"
+            printf '\n'
+        }
     done < <(backup_entries "$dir")
 }
 
 # Fit cached backup activity into a row budget. When clipping is required, the
 # final row reports the hidden entries and points to the complete paged diff.
-backup_activity_window() {  # <multiline-activity> <row-budget> <total>
+backup_activity_window() { # <multiline-activity> <row-budget> <total>
     local activity="$1" budget="$2" total="$3" line shown=0 limit remaining
     [[ "$budget" -gt 0 ]] || return 0
-    if [[ "$total" -le "$budget" ]]; then limit="$total"
+    if [[ "$total" -le "$budget" ]]; then
+        limit="$total"
     else limit=$((budget - 1)); fi
     while IFS= read -r line; do
         [[ -n "$line" ]] || continue
         [[ "$shown" -lt "$limit" ]] || break
-        printf '%s\n' "$line"; shown=$((shown + 1))
-    done <<< "$activity"
+        printf '%s\n' "$line"
+        shown=$((shown + 1))
+    done <<<"$activity"
     remaining=$((total - shown))
     if [[ "$remaining" -gt 0 ]]; then
-        backup_more_line "$remaining"; printf '\n'
+        backup_more_line "$remaining"
+        printf '\n'
     fi
 }
 
@@ -328,7 +441,7 @@ backup_activity_window() {  # <multiline-activity> <row-budget> <total>
 tool_order() {
     local i tab
     tab="$(printf '\t')"
-    for (( i = 0; i < T_COUNT; i++ )); do
+    for ((i = 0; i < T_COUNT; i++)); do
         tool_relevant "$i" || continue
         compute_row "$i"
         printf '%s\t%s\t%s\n' "$RS_WEIGHT" "${T_NAME[$i]}" "$i"
@@ -338,8 +451,10 @@ tool_order() {
 # Plain, non-interactive view (no TTY): the same tree, printed once.
 print_list() {
     local i tab bdir bcount
-    tab="$(printf '\t')"; UTD_CACHE=()
-    ACTIVITY_WIDTH=$(( ${COLUMNS:-80} - 4 )); [[ "$ACTIVITY_WIDTH" -lt 16 ]] && ACTIVITY_WIDTH=16
+    tab="$(printf '\t')"
+    UTD_CACHE=()
+    ACTIVITY_WIDTH=$((${COLUMNS:-80} - 4))
+    [[ "$ACTIVITY_WIDTH" -lt 16 ]] && ACTIVITY_WIDTH=16
     hint "mode: $(mode_label)"
     while read -r i; do
         [[ -n "$i" ]] || continue
