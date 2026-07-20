@@ -2,13 +2,30 @@
 # lib/plan.sh — read-only execution plans for humans and automation.
 
 json_string() {
-    local value="$1"
-    value="${value//\\/\\\\}"
-    value="${value//\"/\\\"}"
-    value="${value//$'\n'/\\n}"
-    value="${value//$'\r'/\\r}"
-    value="${value//$'\t'/\\t}"
-    printf '"%s"' "$value"
+    local value="$1" out="" ch escaped code i backslash=$'\\'
+    local LC_ALL=C
+    for ((i = 0; i < ${#value}; i++)); do
+        ch="${value:$i:1}"
+        case "$ch" in
+            '"') escaped="${backslash}\"" ;;
+            "$backslash") escaped="${backslash}${backslash}" ;;
+            $'\b') escaped="${backslash}b" ;;
+            $'\f') escaped="${backslash}f" ;;
+            $'\n') escaped="${backslash}n" ;;
+            $'\r') escaped="${backslash}r" ;;
+            $'\t') escaped="${backslash}t" ;;
+            *)
+                printf -v code '%d' "'$ch"
+                if [[ "$code" -lt 32 ]]; then
+                    printf -v escaped '\\u%04x' "$code"
+                else
+                    escaped="$ch"
+                fi
+                ;;
+        esac
+        out="$out$escaped"
+    done
+    printf '"%s"' "$out"
 }
 
 plan_tool() { # <idx> — populate PLAN_* globals without changing state

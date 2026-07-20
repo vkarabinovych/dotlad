@@ -231,6 +231,8 @@ tui_render() {
         tui_keybar '↑↓' scroll 'g/G' top/bottom tab tree q quit
     elif [[ "${I_TYPE[$CURSOR]:-}" == backup ]]; then
         tui_keybar '↑↓' move '⏎' restore d diff x delete q quit
+    elif [[ "${I_TYPE[$CURSOR]:-}" == empty || "${I_TYPE[$CURSOR]:-}" == sep ]]; then
+        tui_keybar m mode q quit
     else
         tui_keybar '↑↓' move 'g/G' jump space pick '⏎' run d diff a all m mode q quit
     fi

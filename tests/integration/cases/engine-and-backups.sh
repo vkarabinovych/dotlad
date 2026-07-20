@@ -154,6 +154,22 @@ check "inject replaces managed content" grep -qxF 'export EDITOR=nvim' "$H/.zshr
 checknot "inject removes the previous managed content" grep -qxF 'export EDITOR=vim' "$H/.zshrc"
 [[ "$(grep -c 'dotlad:begin tool=inject-block source=shell-init.sh' "$H/.zshrc")" == 1 ]] &&
     pass "inject update keeps one managed block" || fail "inject duplicated its managed block"
+cp "$H/.zshrc" "$SB/inject-valid-zshrc"
+printf '%s\n' \
+    '# local before' \
+    '# dotlad:begin tool=inject-block source=shell-init.sh' \
+    'export EDITOR=vim' \
+    '# dotlad:begin tool=inject-block source=shell-extra.sh' \
+    'export PAGER=more' \
+    '# dotlad:end tool=inject-block source=shell-init.sh' \
+    '# dotlad:end tool=inject-block source=shell-extra.sh' >"$H/.zshrc"
+inject_nested_before="$(shasum -a 256 "$H/.zshrc")"
+rc_is "inject rejects cross-identity nested managed blocks" 1 df --config-only inject-block
+inject_nested_after="$(shasum -a 256 "$H/.zshrc")"
+[[ "$inject_nested_before" == "$inject_nested_after" ]] &&
+    pass "inject leaves cross-identity nesting untouched" ||
+    fail "inject rewrote a cross-identity nested destination"
+cp "$SB/inject-valid-zshrc" "$H/.zshrc"
 printf '# dotlad:begin tool=inject-block source=shell-init.sh\n' >>"$H/.zshrc"
 inject_broken_before="$(shasum -a 256 "$H/.zshrc")"
 rc_is "inject rejects malformed or duplicate managed blocks" 1 df --config-only inject-block
@@ -318,13 +334,13 @@ if [[ "$activity_lines" == 4 &&
     "$backup_activity_probe" == *'.activity/file-3'* &&
     "$backup_activity_probe" == *'.activity/file-4'* &&
     "$backup_activity_probe" != *'.activity/file-5'* &&
-    "$backup_activity_probe" == *'… 2 more files · d details'* ]]; then
+    "$backup_activity_probe" == *'… 2 more changes · d details'* ]]; then
     pass "focused backup activity fits its available row budget"
 else
     fail "focused backup activity ignores its row budget: $backup_activity_probe"
 fi
 activity_restore_out="$(df --backup-root "$activity_root" --yes restore "$activity_name")"
-[[ "$activity_restore_out" == *'restored 5 file(s)'* ]] &&
+[[ "$activity_restore_out" == *'restored 5 files'* ]] &&
     pass "restore skips entries that already match the backup" ||
     fail "restore counts identical entries: $activity_restore_out"
 activity_list_after="$(df --backup-root "$activity_root" backups)"
@@ -446,8 +462,44 @@ check "copy resolver materializes the directory contents" \
     grep -qxF 'managed tree' "$H/.config/symlink-directory/nested/config"
 check "replaced directory symlink is backed up" sh -c \
     "find '$H/.dotlad_backup' -path '*/.config/symlink-directory' -type l | grep -q ."
+
+empty_directory_backup_root="$H/empty-directory-backups"
+mkdir -p "$FAKE/tools/symlink-empty-directory/files" \
+    "$H/.config/symlink-empty-directory/kept-empty"
+printf 'managed\n' >"$FAKE/tools/symlink-empty-directory/files/config"
+cat >"$FAKE/tools/symlink-empty-directory/tool.conf" <<EOF
+NAME="symlink-empty-directory"
+DESC="Directory-only backup fixture"
+ICON="!"
+ORDER="998"
+[config.main]
+SOURCE="files"
+DEST="$H/.config/symlink-empty-directory"
+RESOLVER="symlink"
+EOF
+df --backup-root "$empty_directory_backup_root" --config-only \
+    symlink-empty-directory >/dev/null 2>&1
+empty_directory_backup_name="$(find "$empty_directory_backup_root" -mindepth 1 \
+    -maxdepth 1 -type d -exec basename {} \; | head -1)"
+empty_directory_list="$(df --backup-root "$empty_directory_backup_root" backups)"
+[[ "$empty_directory_list" == *$'\t2 directories'* ]] &&
+    pass "directory-only backup reports directory changes" ||
+    fail "directory-only backup is reported as unchanged: $empty_directory_list"
+empty_directory_restore="$(df --backup-root "$empty_directory_backup_root" --yes \
+    restore "$empty_directory_backup_name")"
+checknot "directory-only restore removes its managed symlink" \
+    test -L "$H/.config/symlink-empty-directory"
+check "directory-only restore rebuilds the root directory" \
+    test -d "$H/.config/symlink-empty-directory"
+check "directory-only restore rebuilds nested empty directories" \
+    test -d "$H/.config/symlink-empty-directory/kept-empty"
+[[ "$empty_directory_restore" == *'restored 2 directories'* ]] &&
+    pass "directory-only restore reports restored directories" ||
+    fail "directory-only restore summary is incomplete: $empty_directory_restore"
 rm -rf "$FAKE/tools/symlink-file" "$FAKE/tools/symlink-directory" \
-    "$H/.config/symlink-file" "$H/.config/symlink-directory"
+    "$FAKE/tools/symlink-empty-directory" "$H/.config/symlink-file" \
+    "$H/.config/symlink-directory" "$H/.config/symlink-empty-directory" \
+    "$empty_directory_backup_root"
 
 # A backup path below HOME may not traverse a symlinked parent.
 mkdir -p "$SB/outside-backups"
@@ -498,7 +550,7 @@ restore_toast="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" DOTLAD_PLAIN=1 /bin/bash -
     tui_confirm() { return 0; }
     tui_restore "'$partial_backup'"
     printf "%s" "$TOAST"')"
-[[ "$restore_toast" == "✗ restored 0 · 1 failed" ]] &&
+[[ "$restore_toast" == "✗ restored 0 files · 1 failed" ]] &&
     pass "TUI partial restore counts only differing entries" ||
     fail "TUI partial restore toast (got '$restore_toast')"
 rm -f "$H/.restore-unsafe"

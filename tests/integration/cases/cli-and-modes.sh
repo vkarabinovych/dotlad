@@ -35,6 +35,14 @@ printf '%s' "$plan_json" | jq -e \
     >/dev/null && pass "plan emits machine-readable JSON" || fail "plan JSON contract"
 dry_json="$(df --dry-run --json filecopy)"
 [[ "$dry_json" == "$plan_json" ]] && pass "--dry-run matches plan" || fail "dry-run alias"
+json_control_expected="$(printf 'back\bform\funit\001end')"
+json_control_encoded="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" /bin/bash -c '
+    . "$DOTLAD_RUNTIME_ROOT/lib/runtime.sh"
+    json_string "$1"' _ "$json_control_expected")"
+json_control_actual="$(printf '%s' "$json_control_encoded" | jq -r . 2>/dev/null)"
+[[ "$json_control_actual" == "$json_control_expected" ]] &&
+    pass "plan JSON escapes every control character" ||
+    fail "plan JSON emitted an invalid control string"
 
 # Built-in resolvers own their command requirements. Manifest REQUIRES adds
 # tool-specific commands, and duplicate names are installed only once.
@@ -195,6 +203,21 @@ if [[ "$empty_picker_rc" == 1 && "$empty_picker_out" == *'no tools for packages 
     pass "picker reports an empty operation mode"
 else
     fail "empty-mode picker has no explicit state (rc=$empty_picker_rc: $empty_picker_out)"
+fi
+empty_tui_probe="$(cd "$EMPTY_MODE_ROOT" && HOME="$H" ROOT="$EMPTY_MODE_ROOT" \
+    DOTLAD_PLAIN=1 /bin/bash -c '
+    . "$DOTLAD_RUNTIME_ROOT/lib/runtime.sh"
+    manifest_load; DOTLAD_RUNDIR=""; mode_set packages
+    CURSOR=0; CUR_NAME=""; SEL=" "; COLS=80; ACTIVITY_WIDTH=76
+    TUI_BACKUP_CHILD_ROWS=0; TOAST=""
+    tui_scan; tui_build; tui_fix_cursor
+    tui_move 1 || exit 1
+    tui_enter || exit 1
+    printf "%s|%s|%s" "$N_ITEMS" "${I_TYPE[$CURSOR]}" "$TOAST"')"
+if [[ "$empty_tui_probe" == '1|empty|no tools for packages only mode' ]]; then
+    pass "TUI keeps an actionable empty-mode state"
+else
+    fail "TUI empty mode crashes or exposes an invalid item: $empty_tui_probe"
 fi
 rm -rf "$EMPTY_MODE_ROOT"
 

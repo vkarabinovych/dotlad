@@ -69,38 +69,57 @@ resolver_inject_marker() { # <begin|end> <tool-name> <source-name>
     fi
 }
 
-# Report missing, valid, or invalid for this source's managed block. Marker
-# recognition is independent of comment style so changing delimiters updates
-# an existing block instead of appending a second one.
+# Report missing, valid, or invalid for this source's managed block. The scan
+# validates the complete destination, not only the requested identity: replacing
+# one block must never consume a nested block owned by another config. Marker
+# recognition is independent of comment style so changing delimiters updates an
+# existing block instead of appending a second one.
 resolver_inject_block_state() { # <source> <destination>
-    local source_name metadata begin_key end_key stats begins ends bad
+    local source_name metadata stats begins ends bad
     [[ -f "$2" && ! -L "$2" ]] || {
         printf 'missing'
         return 0
     }
     source_name="$(resolver_inject_source_name "$1")"
     metadata="tool=$RESOLVER_TOOL_NAME source=$source_name"
-    begin_key="dotlad:begin $metadata"
-    end_key="dotlad:end $metadata"
-    stats="$(awk -v begin_key="$begin_key" -v end_key="$end_key" '
-        function marker(line, key, next_char, position) {
-            position = index(line, key)
-            if (!position) return 0
-            next_char = substr(line, position + length(key), 1)
-            return next_char == "" || next_char == " "
+    stats="$(awk -v target="$metadata" '
+        function inspect(line,    begin_at, end_at, at, tail, fields, count,
+                         kind, key) {
+            begin_at = index(line, "dotlad:begin")
+            end_at = index(line, "dotlad:end")
+            if (!begin_at && !end_at) return
+            if (begin_at && end_at) {
+                bad = 1
+                return
+            }
+            if (begin_at) {
+                at = begin_at
+                kind = "begin"
+            } else {
+                at = end_at
+                kind = "end"
+            }
+            tail = substr(line, at)
+            count = split(tail, fields, /[[:space:]]+/)
+            if (count < 3 || fields[1] != "dotlad:" kind ||
+                fields[2] !~ /^tool=[a-z0-9][a-z0-9-]*$/ ||
+                fields[3] !~ /^source=[A-Za-z0-9._-]+$/) {
+                bad = 1
+                return
+            }
+            key = fields[2] " " fields[3]
+            if (kind == "begin") {
+                begins[key]++
+                if (begins[key] > 1 || open != "") bad = 1
+                open = key
+            } else {
+                ends[key]++
+                if (ends[key] > 1 || open != key) bad = 1
+                open = ""
+            }
         }
-        marker($0, begin_key) {
-            begins++
-            if (open) bad = 1
-            open = 1
-            next
-        }
-        marker($0, end_key) {
-            ends++
-            if (!open) bad = 1
-            open = 0
-        }
-        END { print begins + 0, ends + 0, (bad || open) + 0 }
+        { inspect($0) }
+        END { print begins[target] + 0, ends[target] + 0, (bad || open != "") + 0 }
     ' "$2")" || {
         printf 'invalid'
         return 0

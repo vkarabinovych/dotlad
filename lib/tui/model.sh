@@ -10,8 +10,10 @@ SCAN_ACT=()
 SCAN_ACTIVE=()
 SCAN_N=0
 SCAN_BDIR=()
-SCAN_BCOUNT=()
-SCAN_BFILES=()
+SCAN_BCHANGE_COUNT=()
+SCAN_BFILE_COUNT=()
+SCAN_BDIR_COUNT=()
+SCAN_BACTIVITY=()
 SCAN_NB=0
 
 # Cheap per-frame item and rendered-line model.
@@ -38,7 +40,7 @@ tui_selection_count() {
 }
 
 tui_scan() {
-    local frame="${1:-}" i k=0 nm run="${DOTLAD_RUNDIR:-}" tab bdir bcount
+    local frame="${1:-}" i k=0 nm run="${DOTLAD_RUNDIR:-}" tab bdir files directories
     tab="$(printf '\t')"
     UTD_CACHE=()
     SCAN_NAME=()
@@ -65,15 +67,19 @@ tui_scan() {
     done < <(tool_order)
     SCAN_N=$k
     SCAN_BDIR=()
-    SCAN_BCOUNT=()
-    SCAN_BFILES=()
+    SCAN_BCHANGE_COUNT=()
+    SCAN_BFILE_COUNT=()
+    SCAN_BDIR_COUNT=()
+    SCAN_BACTIVITY=()
     SCAN_NB=0
     if mode_config_enabled; then
-        while IFS="$tab" read -r bdir bcount; do
+        while IFS="$tab" read -r bdir files directories; do
             [[ -n "$bdir" ]] || continue
             SCAN_BDIR[SCAN_NB]="$bdir"
-            SCAN_BCOUNT[SCAN_NB]="$bcount"
-            SCAN_BFILES[SCAN_NB]="$(backup_activity "$bdir")"
+            SCAN_BFILE_COUNT[SCAN_NB]="$files"
+            SCAN_BDIR_COUNT[SCAN_NB]="$directories"
+            SCAN_BCHANGE_COUNT[SCAN_NB]=$((files + directories))
+            SCAN_BACTIVITY[SCAN_NB]="$(backup_activity "$bdir")"
             SCAN_NB=$((SCAN_NB + 1))
         done < <(list_backups)
     fi
@@ -154,16 +160,27 @@ tui_build() {
         I_TYPE[N_ITEMS]='backup'
         I_NAME[N_ITEMS]="@${SCAN_BDIR[b]}"
         I_FIRSTLINE[N_ITEMS]=$L_N
-        L_TEXT[L_N]="$(backup_line "${SCAN_BDIR[b]}" "${SCAN_BCOUNT[b]}")"
+        L_TEXT[L_N]="$(backup_line "${SCAN_BDIR[b]}" "${SCAN_BFILE_COUNT[b]}" \
+            "${SCAN_BDIR_COUNT[b]}")"
         L_ITEM[L_N]=$N_ITEMS
         L_FIRST[L_N]=1
         L_N=$((L_N + 1))
         if [[ "@${SCAN_BDIR[b]}" == "$CUR_NAME" ]]; then
-            tui_append_children "$(backup_activity_window "${SCAN_BFILES[b]}" \
-                "$TUI_BACKUP_CHILD_ROWS" "${SCAN_BCOUNT[b]}")"
+            tui_append_children "$(backup_activity_window "${SCAN_BACTIVITY[b]}" \
+                "$TUI_BACKUP_CHILD_ROWS" "${SCAN_BCHANGE_COUNT[b]}")"
         fi
         N_ITEMS=$((N_ITEMS + 1))
     done
+    if [[ "$N_ITEMS" -eq 0 ]]; then
+        I_TYPE[0]='empty'
+        I_NAME[0]='@@empty'
+        I_FIRSTLINE[0]=0
+        L_TEXT[0]="  ${C_DIM}no tools for $(mode_label) mode${C_RESET}"
+        L_ITEM[0]=0
+        L_FIRST[0]=1
+        L_N=1
+        N_ITEMS=1
+    fi
     return 0
 }
 
@@ -173,13 +190,19 @@ tui_fix_cursor() {
         for ((k = 0; k < N_ITEMS; k++)); do
             [[ "${I_NAME[$k]}" == "$CUR_NAME" ]] && {
                 CURSOR=$k
-                return
+                break
             }
         done
     fi
     [[ $CURSOR -ge $N_ITEMS ]] && CURSOR=$((N_ITEMS - 1))
     [[ $CURSOR -lt 0 ]] && CURSOR=0
-    [[ "${I_TYPE[$CURSOR]:-}" == sep ]] && CURSOR=$((CURSOR - 1))
+    if [[ "${I_TYPE[$CURSOR]:-}" == sep ]]; then
+        if [[ $((CURSOR + 1)) -lt $N_ITEMS ]]; then
+            CURSOR=$((CURSOR + 1))
+        else
+            CURSOR=$((CURSOR - 1))
+        fi
+    fi
     [[ $CURSOR -lt 0 ]] && CURSOR=0
     [[ $N_ITEMS -gt 0 ]] && CUR_NAME="${I_NAME[$CURSOR]}"
     return 0
@@ -191,7 +214,13 @@ tui_move() {
     [[ $CURSOR -lt 0 ]] && CURSOR=0
     [[ $CURSOR -ge $N_ITEMS ]] && CURSOR=$((N_ITEMS - 1))
     if [[ "${I_TYPE[$CURSOR]:-}" == sep ]]; then
-        [[ $delta -lt 0 ]] && CURSOR=$((CURSOR - 1)) || CURSOR=$((CURSOR + 1))
+        if [[ $delta -lt 0 && $CURSOR -gt 0 ]]; then
+            CURSOR=$((CURSOR - 1))
+        elif [[ $((CURSOR + 1)) -lt $N_ITEMS ]]; then
+            CURSOR=$((CURSOR + 1))
+        else
+            CURSOR=$((CURSOR - 1))
+        fi
         [[ $CURSOR -lt 0 ]] && CURSOR=0
         [[ $CURSOR -ge $N_ITEMS ]] && CURSOR=$((N_ITEMS - 1))
     fi

@@ -48,19 +48,19 @@ selection_explicit() { # <tool names...>
 }
 
 cmd_backups() {
-    local tab name count found=0
+    local tab name files directories found=0
     tab="$(printf '\t')"
     title "Restore points"
-    while IFS="$tab" read -r name count; do
+    while IFS="$tab" read -r name files directories; do
         [[ -n "$name" ]] || continue
-        printf '%s\t%s %s\n' "$name" "$count" "$(file_noun "$count")"
+        printf '%s\t%s\n' "$name" "$(backup_change_summary "$files" "$directories")"
         found=1
     done < <(list_backups)
     [[ "$found" == 1 ]] || hint "no restore points"
 }
 
 cmd_restore_cli() {
-    local name="$1" count
+    local name="$1" files directories
     backup_name_valid "$name" || {
         err "bad backup name: $name"
         return 1
@@ -69,13 +69,14 @@ cmd_restore_cli() {
         err "no such backup: $name"
         return 1
     }
-    count="$(backup_count "$name")"
-    [[ "$count" -gt 0 ]] ||
+    files="$(backup_count "$name")"
+    directories="$(backup_directory_count "$name")"
+    [[ "$files" -gt 0 || "$directories" -gt 0 ]] ||
         {
             hint "everything already matches this backup"
             return 0
         }
-    confirm "Restore ${count} file(s) from $(fmt_backup_ts "$name")? (current versions backed up)" ||
+    confirm "Restore $(backup_change_summary "$files" "$directories") from $(fmt_backup_ts "$name")? (current versions backed up)" ||
         {
             hint "cancelled"
             return 0

@@ -3,6 +3,7 @@
 # Names may carry a numeric suffix when two runs start within the same second.
 
 RESTORE_N_RESTORED=0
+RESTORE_N_DIRECTORIES=0
 RESTORE_N_FAILED=0
 BACKUP_META_NAME=".dotlad-meta"
 BACKUP_DIRECTORY_NODES_NAME="directory-nodes"
@@ -95,7 +96,8 @@ list_backups() {
         [[ -n "$d" ]] || continue
         name="${d##*/}"
         backup_name_valid "$name" || continue
-        printf '%s\t%s\n' "$name" "$(backup_count "$name")"
+        printf '%s\t%s\t%s\n' "$name" "$(backup_count "$name")" \
+            "$(backup_directory_count "$name")"
     done < <(find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort -r)
 }
 
@@ -124,6 +126,43 @@ backup_count() {
     printf '%s' "$n"
 }
 
+# Directory nodes are metadata rather than file entries. They still represent
+# restore work when the current path is missing, is a symlink, or traverses a
+# symlinked parent. Keep their count separate so file-only backup views remain
+# accurate while directory-only snapshots are no longer mistaken for no-ops.
+backup_directory_entries() { # <snapshot-name>
+    local dir="$BACKUP_ROOT/$1" marker rel cur
+    backup_exists "$1" || return 0
+    marker="$dir/$BACKUP_META_NAME/$BACKUP_DIRECTORY_NODES_NAME"
+    [[ -f "$marker" ]] || return 0
+    while IFS= read -r rel; do
+        [[ -n "$rel" ]] || continue
+        cur="$HOME/$rel"
+        if dest_safe "$cur" && [[ -d "$cur" && ! -L "$cur" ]]; then
+            continue
+        fi
+        printf '%s\n' "$rel"
+    done <"$marker"
+}
+
+backup_directory_count() {
+    local n=0 rel
+    while IFS= read -r rel; do [[ -n "$rel" ]] && n=$((n + 1)); done \
+        < <(backup_directory_entries "$1")
+    printf '%s' "$n"
+}
+
+backup_change_summary() { # <file-count> <directory-count>
+    local files="$1" directories="$2" summary=""
+    if [[ "$files" -gt 0 || "$directories" -eq 0 ]]; then
+        summary="$files $(file_noun "$files")"
+    fi
+    if [[ "$directories" -gt 0 ]]; then
+        summary="${summary:+${summary} · }$directories $(directory_noun "$directories")"
+    fi
+    printf '%s' "$summary"
+}
+
 # Directory nodes replaced by a symlink are recorded as metadata. Prepare them
 # before restoring leaves so the managed parent link is never traversed and
 # empty directories are reconstructed too.
@@ -149,6 +188,8 @@ restore_directory_nodes() { # <snapshot-dir>
         if ! mkdir -p "$cur"; then
             err "cannot restore directory: $rel"
             RESTORE_N_FAILED=$((RESTORE_N_FAILED + 1))
+        else
+            RESTORE_N_DIRECTORIES=$((RESTORE_N_DIRECTORIES + 1))
         fi
     done <"$marker"
 }
@@ -156,6 +197,7 @@ restore_directory_nodes() { # <snapshot-dir>
 restore_backup() {
     local dir="$BACKUP_ROOT/$1" f rel cur mark tab
     RESTORE_N_RESTORED=0
+    RESTORE_N_DIRECTORIES=0
     RESTORE_N_FAILED=0
     backup_root_safe || {
         err "unsafe backup root: $BACKUP_ROOT"
@@ -204,10 +246,10 @@ restore_backup() {
         fi
     done < <(backup_entries "$1")
     if [[ "$RESTORE_N_FAILED" -gt 0 ]]; then
-        err "restored ${RESTORE_N_RESTORED} file(s), ${RESTORE_N_FAILED} failed from ${1}"
+        err "restored $(backup_change_summary "$RESTORE_N_RESTORED" "$RESTORE_N_DIRECTORIES"), ${RESTORE_N_FAILED} failed from ${1}"
         return 1
     fi
-    ok "restored ${RESTORE_N_RESTORED} file(s) from ${1}"
+    ok "restored $(backup_change_summary "$RESTORE_N_RESTORED" "$RESTORE_N_DIRECTORIES") from ${1}"
 }
 
 delete_backup() {

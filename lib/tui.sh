@@ -68,10 +68,17 @@ tui_cycle_mode() {
 }
 
 tui_enter() {
-    if [[ "${I_TYPE[$CURSOR]}" == backup ]]; then
-        tui_restore "${I_NAME[$CURSOR]#@}"
-        return 0
-    fi
+    case "${I_TYPE[$CURSOR]:-}" in
+        backup)
+            tui_restore "${I_NAME[$CURSOR]#@}"
+            return 0
+            ;;
+        tool) ;;
+        *)
+            TOAST="no tools for $(mode_label) mode"
+            return 0
+            ;;
+    esac
     local names=() x target
     for x in $SEL; do names+=("$x"); done
     [[ ${#names[@]} -eq 0 ]] && names=("${I_NAME[$CURSOR]}")
@@ -104,17 +111,18 @@ tui_confirm() { # <msg> → 0/1 (drawn on the footer row)
 }
 
 tui_restore() { # <dirname>
-    local dir="$1" n
-    n="$(backup_count "$dir")"
-    if [[ "$n" -eq 0 ]]; then
+    local dir="$1" files directories
+    files="$(backup_count "$dir")"
+    directories="$(backup_directory_count "$dir")"
+    if [[ "$files" -eq 0 && "$directories" -eq 0 ]]; then
         TOAST="everything already matches this backup"
         return 0
     fi
-    if tui_confirm "Restore ${n} file(s) from $(fmt_backup_ts "$dir")? (current versions backed up)"; then
+    if tui_confirm "Restore $(backup_change_summary "$files" "$directories") from $(fmt_backup_ts "$dir")? (current versions backed up)"; then
         if restore_backup "$dir" >/dev/null 2>&1; then
-            TOAST="✓ restored ${RESTORE_N_RESTORED} file(s)"
+            TOAST="✓ restored $(backup_change_summary "$RESTORE_N_RESTORED" "$RESTORE_N_DIRECTORIES")"
         else
-            TOAST="✗ restored ${RESTORE_N_RESTORED} · ${RESTORE_N_FAILED} failed"
+            TOAST="✗ restored $(backup_change_summary "$RESTORE_N_RESTORED" "$RESTORE_N_DIRECTORIES") · ${RESTORE_N_FAILED} failed"
         fi
     else
         TOAST="restore cancelled"
@@ -145,6 +153,10 @@ tui_pager() {
 
 tui_details() { # focused tool's diff, or a running/failed tool's log, or a backup's contents
     local it="${I_TYPE[$CURSOR]}" nm="${I_NAME[$CURSOR]}" i run="${DOTLAD_RUNDIR:-}"
+    if [[ "$it" != tool && "$it" != backup ]]; then
+        TOAST="nothing to show for $(mode_label) mode"
+        return 0
+    fi
     # An up-to-date / installed tool with no live log has nothing to page — say
     # so on the footer instead of dropping into an empty pager.
     if [[ "$it" == tool ]] &&
@@ -212,10 +224,16 @@ tui_backup_preview() { # <dirname>
                 ;;
         esac
     done < <(backup_entries "$dir")
+    while IFS= read -r rel; do
+        [[ -n "$rel" ]] || continue
+        printf '\n%s— %s/ %s(directory restored)%s —\n' \
+            "$C_BOLD" "$rel" "$C_DIM" "$C_RESET"
+        changed=$((changed + 1))
+    done < <(backup_directory_entries "$dir")
     if [[ "$changed" == 0 ]]; then
         printf '\n%severything already matches this backup — nothing to restore%s\n' "$C_DIM" "$C_RESET"
     else
-        printf '\n%s%s file(s) would change%s\n' "$C_DIM" "$changed" "$C_RESET"
+        printf '\n%s%s change(s) would be restored%s\n' "$C_DIM" "$changed" "$C_RESET"
     fi
 }
 

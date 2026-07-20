@@ -27,7 +27,7 @@ use the selected project and backup location consistently.
 | `dotlad plan [target]`        | Produce a read-only plan; the default target is `all`    |
 | `dotlad brewfile`             | Generate a Homebrew Bundle file                          |
 | `dotlad backups`              | List restore points                                      |
-| `dotlad restore <name>`       | Restore all files in a restore point                     |
+| `dotlad restore <name>`       | Restore every differing entry in a restore point         |
 | `dotlad backup delete <name>` | Permanently delete a restore point                       |
 | `dotlad version`              | Print the installed version                              |
 | `dotlad help`                 | Print built-in help                                      |
@@ -96,18 +96,25 @@ that will be synchronized.
 JSON output contains the active `mode` and a `tools` array. Each tool
 reports:
 
-| Field                  | Meaning                                           |
-| ---------------------- | ------------------------------------------------- |
-| `name`                 | Manifest name                                     |
-| `packages`             | `none`, `ready`, `install`, or `skipped`          |
-| `package_names`        | Space-separated Homebrew entries, when declared   |
-| `install_url`          | HTTPS installer URL, when declared                |
-| `config`               | `none`, `ready`, `create`, `update`, or `skipped` |
-| `resolver`             | Effective resolver after applying CLI defaults    |
-| `destination`          | Expanded destination path                         |
-| `changes`              | Human-readable file-change count                  |
-| `missing_requirements` | Commands required by config processing            |
-| `blockers`             | Conditions that would prevent execution           |
+| Field                  | Meaning                                         |
+| ---------------------- | ----------------------------------------------- |
+| `name`                 | Manifest name                                   |
+| `packages`             | `none`, `ready`, `install`, or `skipped`        |
+| `package_names`        | Space-separated Homebrew entries, when declared |
+| `install_url`          | HTTPS installer URL, when declared              |
+| `configs`              | One object for every named config section       |
+| `missing_requirements` | Commands required by config processing          |
+| `blockers`             | Conditions that would prevent execution         |
+
+Every `configs` entry reports:
+
+| Field         | Meaning                                                       |
+| ------------- | ------------------------------------------------------------- |
+| `name`        | Config section name                                           |
+| `state`       | `ready`, `create`, `update`, or `skipped`                     |
+| `resolver`    | Effective resolver after applying CLI defaults                |
+| `destination` | Expanded destination path                                     |
+| `changes`     | Human-readable change summary; empty when no action is needed |
 
 For example, reject a reviewed automation step when any tool is blocked:
 
@@ -172,7 +179,9 @@ Restore and delete require confirmation unless `--yes` is active. Restore
 first backs up the current versions, which makes the operation reversible. A
 partial restore exits non-zero and reports restored and failed entry counts.
 Restore-point counts and file lists include only entries that differ from the
-current filesystem. Identical files and symlinks are skipped during restore.
+current filesystem. Directory-layout changes are counted separately so a
+snapshot containing only empty directories remains restorable. Identical
+files, symlinks, and physical directory nodes are skipped during restore.
 
 ## Picker states
 
@@ -212,9 +221,9 @@ directions. The picker normalizes the full Ukrainian layout by physical key,
 so shortcuts work without switching layouts; confirmation accepts `y`/`Y` and
 `н`/`Н`.
 
-A focused restore point fits its changed-file list to the available tree height
-and reports how many entries remain. Press `d` to inspect the complete paged
-restore diff.
+A focused restore point fits its changed-entry list to the available tree
+height and reports how many entries remain. Press `d` to inspect the complete
+paged restore diff.
 
 The live apply log shrinks to its content and grows up to one third of the
 available terminal height. Focusing it with `Tab` raises that limit to two

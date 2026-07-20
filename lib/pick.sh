@@ -403,12 +403,12 @@ sep_line() {
     printf '  %s── %s ──────────────────────%s\n' "$C_DIM" "$1" "$C_RESET"
 }
 
-# backup_line <dirname> <file-count> — one row for a restore point.
+# backup_line <dirname> <file-count> <directory-count> — one restore point.
 backup_line() {
-    local dir="$1" count="$2"
-    printf '  %s⏮%s %s%s%s %s(%s %s)%s\n' \
+    local dir="$1" files="$2" directories="$3"
+    printf '  %s⏮%s %s%s%s %s(%s)%s\n' \
         "$C_MAGENTA" "$C_RESET" "$C_BOLD" "$(fmt_backup_ts "$dir")" "$C_RESET" \
-        "$C_ITALIC$C_DIM" "$count" "$(file_noun "$count")" "$C_RESET"
+        "$C_ITALIC$C_DIM" "$(backup_change_summary "$files" "$directories")" "$C_RESET"
 }
 
 # backup_file_line <mark> <rel> — one changed file inside a restore point,
@@ -421,8 +421,7 @@ backup_file_line() {
 }
 
 backup_more_line() { # <remaining-count>
-    printf '%s… %s more %s · d details%s' \
-        "$C_DIM" "$1" "$(file_noun "$1")" "$C_RESET"
+    printf '%s… %s more changes · d details%s' "$C_DIM" "$1" "$C_RESET"
 }
 
 backup_activity() { # <dirname> — all restore-point child lines
@@ -434,6 +433,9 @@ backup_activity() { # <dirname> — all restore-point child lines
             printf '\n'
         }
     done < <(backup_entries "$dir")
+    while IFS= read -r rel; do
+        [[ -n "$rel" ]] && printf '%s+%s %s/\n' "$C_GREEN" "$C_RESET" "$rel"
+    done < <(backup_directory_entries "$dir")
 }
 
 # Fit cached backup activity into a row budget. When clipping is required, the
@@ -471,7 +473,7 @@ tool_order() {
 
 # Plain, non-interactive view (no TTY): the same tree, printed once.
 print_list() {
-    local i tab bdir bcount
+    local i tab bdir files directories
     tab="$(printf '\t')"
     UTD_CACHE=()
     ACTIVITY_WIDTH=$((${COLUMNS:-80} - 4))
@@ -482,9 +484,9 @@ print_list() {
         tool_block "$i"
     done < <(tool_order)
     if mode_config_enabled; then
-        while IFS="$tab" read -r bdir bcount; do
+        while IFS="$tab" read -r bdir files directories; do
             [[ -n "$bdir" ]] || continue
-            backup_line "$bdir" "$bcount"
+            backup_line "$bdir" "$files" "$directories"
         done < <(list_backups)
     fi
     echo ""
