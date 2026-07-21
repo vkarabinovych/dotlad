@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" aria-labelledby="title desc" role="img" viewBox="0 0 1200 520">
+    <title id="title">Dotlad name meaning</title>
+    <desc id="desc">
+        Dotlad combines dotfiles with the Ukrainian word лад, meaning order, harmony, and everything in its place.
+    </desc>
+    <rect width="1198" height="518" x="1" y="1" fill="#0b0d10" stroke="#23272f" stroke-width="2" rx="26"/>
+    <style>
+        .sans{font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,&quot;Segoe UI&quot;,sans-serif}
+    </style>
+    <!--central divider-->
+    <path stroke="#2b3038" stroke-width="2" d="M650 44v432"/>
+    <!--left column-->
+    <!--wordmark-->
+    <text x="330" y="174" class="sans" font-size="132" font-weight="800" letter-spacing="-7" text-anchor="middle">
+        <tspan fill="#f5f7fa">Dot</tspan><tspan fill="#0057B8">lad</tspan>
+    </text>
+    <text x="335" y="242" fill="#9ca3af" font-family="&quot;SFMono-Regular&quot;,Consolas,&quot;Liberation Mono&quot;,monospace" font-size="42" text-anchor="middle">
+        /dɒt læd/
+    </text>
+    <path stroke="#2b3038" stroke-width="2" d="M72 300h518"/>
+    <!--name composition-->
+    <g text-anchor="middle">
+        <text x="210" y="408" class="sans" font-size="54" font-weight="800">
+            <tspan fill="#0057B8">dot</tspan><tspan fill="#9ca3af">files</tspan>
+        </text>
+        <text x="380" y="411" fill="#9ca3af" class="sans" font-size="58" font-weight="400">×</text>
+        <text x="500" y="408" fill="#0057B8" class="sans" font-size="54" font-weight="800">лад</text>
+    </g>
+    <!--right column-->
+    <text x="710" y="114" fill="#0057B8" class="sans" font-size="58" font-weight="800">лад</text>
+    <path stroke="#FFD700" stroke-width="8" d="M710 130h107"/>
+    <text x="710" y="176" fill="#f5f7fa" class="sans" font-size="32">Ukrainian word for</text>
+    <text x="710" y="224" fill="#f5f7fa" class="sans" font-size="34" font-weight="800">order, harmony,</text>
+    <text x="710" y="272" fill="#f5f7fa" class="sans" font-size="32">and everything in its place.</text>
+    <path stroke="#2b3038" stroke-width="2" d="M710 300h422"/>
+    <!--terminal block-->
+    <rect width="104" height="104" x="710" y="346" fill="#111827" stroke="#0057B8" stroke-width="4" rx="16"/>
+    <path fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="7" d="m738 374 24 24-24 24"/>
+    <path stroke="#fff" stroke-linecap="round" stroke-width="7" d="M772 426h24"/>
+    <text x="860" y="369" fill="#f5f7fa" class="sans" font-size="30">One manifest.</text>
+    <text x="860" y="410" fill="#f5f7fa" class="sans" font-size="30">One command.</text>
+    <text x="860" y="451" fill="#f5f7fa" class="sans" font-size="30">
+        Everything in <tspan fill="#0057B8" font-weight="700">лад</tspan>.
+    </text>
+</svg>

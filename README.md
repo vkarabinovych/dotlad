@@ -1,10 +1,18 @@
 # Dotlad
 
-[![CI](https://img.shields.io/github/actions/workflow/status/vkarabinovych/dotlad/ci.yml?branch=main&style=flat-square&logo=githubactions&label=CI)](https://github.com/vkarabinovych/dotlad/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/vkarabinovych/dotlad?style=flat-square&logo=github&label=release)](https://github.com/vkarabinovych/dotlad/releases/latest)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20WSL-000000?style=flat-square)](#requirements)
-[![Bash](https://img.shields.io/badge/bash-3.2%2B-4EAA25?style=flat-square&logo=gnubash&logoColor=white)](#requirements)
-[![License](https://img.shields.io/github/license/vkarabinovych/dotlad?style=flat-square&label=license)](LICENSE)
+[![CI](https://github.com/vkarabinovych/dotlad/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/vkarabinovych/dotlad/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/vkarabinovych/dotlad?style=flat&logo=github&label=release)](https://github.com/vkarabinovych/dotlad/releases/latest)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20WSL-000000?style=flat)](#requirements)
+[![Bash](https://img.shields.io/badge/bash-3.2%2B-4EAA25?style=flat&logo=gnubash&logoColor=white)](#requirements)
+[![License](https://img.shields.io/github/license/vkarabinovych/dotlad?style=flat&label=license)](LICENSE)
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/assets/dotlad-name-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset=".github/assets/dotlad-name-light.svg">
+    <img width="60%" alt="Why Dotlad? Dotlad combines dotfiles with the Ukrainian word лад, meaning order and harmony." src=".github/assets/dotlad-name-light.svg">
+  </picture>
+</p>
 
 Dotlad is a manifest-driven macOS, Linux, and WSL CLI for installing packages
 and deploying dotfiles from a repository. It provides one interface for
