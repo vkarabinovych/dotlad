@@ -8,9 +8,19 @@ permissions:
 
 jobs:
   linux:
-    name: Tests (Ubuntu Bash)
+    name: Tests (${{ matrix.platform }} Bash)
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: Linux
+            wsl_distro: ""
+          - platform: WSL
+            wsl_distro: Ubuntu
+    env:
+      WSL_DISTRO_NAME: ${{ matrix.wsl_distro }}
     steps:
       - uses: actions/checkout@v7
 

@@ -1,8 +1,9 @@
 # CLI reference
 
 Dotlad reads tool manifests from a project and applies their package and
-configuration state to the current user's system. It detects `macos` or
-`linux` from the host and excludes tools whose `PLATFORMS` do not match.
+configuration state to the current user's system. It detects `macos`, `linux`,
+or `wsl` from the host and excludes tools whose `PLATFORMS` do not match.
+Linux-scoped tools also match WSL; WSL-scoped tools do not match native Linux.
 
 ## Invocation
 

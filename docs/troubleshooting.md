@@ -57,7 +57,8 @@ package elsewhere.
 
 Interactive apply commands can offer to install Homebrew. Plans never install
 it. After installation, Dotlad discovers the standard macOS prefixes and
-Linuxbrew under `~/.linuxbrew` or `/home/linuxbrew/.linuxbrew`.
+Linuxbrew under `~/.linuxbrew` or `/home/linuxbrew/.linuxbrew` on Linux and
+WSL.
 
 ## `missing requirement: jq` (or `yq` / `git`)
 
@@ -81,8 +82,9 @@ Operation modes hide tools that have no relevant action:
 - `--config-only` hides package-only tools.
 
 Platform filtering also hides tools whose `PLATFORMS` omit the detected host.
-Omitting `PLATFORMS` enables both `macos` and `linux`; casks and application
-paths should normally declare `PLATFORMS="macos"`.
+Omitting `PLATFORMS` uses `macos linux`, and Linux tools also match WSL. Use
+`PLATFORMS="wsl"` for WSL-only tools; casks and application paths should
+normally declare `PLATFORMS="macos"`.
 
 If a mode leaves no relevant tools, picker and `all` commands exit non-zero
 with an explicit `no tools for … mode` message.
@@ -103,8 +105,8 @@ Typical fixes are:
 - use an absolute application path for a cask without a CLI; or
 - split unrelated packages when one `CHECK` cannot represent the tool.
 
-Linux does not support Homebrew casks. Keep cask tools macOS-only and use a
-formula or remote installer for a Linux-capable counterpart.
+Linux and WSL do not support Homebrew casks. Keep cask tools macOS-only and use
+a formula or remote installer for a Linux-capable counterpart.
 
 Do not weaken the check merely to hide a failed or incomplete installation.
 

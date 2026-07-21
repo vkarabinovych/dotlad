@@ -105,22 +105,32 @@ assignment_field_allowed() { # <tool|config|profile> <key>
 }
 
 platform_detect() {
+    local release
     case "$(uname -s 2>/dev/null)" in
         Darwin) printf 'macos' ;;
-        Linux) printf 'linux' ;;
+        Linux)
+            release="$(uname -r 2>/dev/null || true)"
+            if [[ -n "${WSL_DISTRO_NAME:-}" || -n "${WSL_INTEROP:-}" ||
+                "$release" == *[Mm]icrosoft* ]]; then
+                printf 'wsl'
+            else
+                printf 'linux'
+            fi
+            ;;
         *) return 1 ;;
     esac
 }
 
 platform_list_contains() { # <space-separated-platforms> <platform>
-    [[ " $1 " == *" $2 "* ]]
+    [[ " $1 " == *" $2 "* ]] ||
+        [[ "$2" == wsl && " $1 " == *" linux "* ]]
 }
 
 platform_list_valid() { # <space-separated-platforms>
     local platforms="$1" platform count=0 seen=$'\n'
     [[ -n "$platforms" ]] || return 1
     for platform in $platforms; do
-        case "$platform" in macos | linux) ;; *) return 1 ;; esac
+        case "$platform" in macos | linux | wsl) ;; *) return 1 ;; esac
         [[ "$seen" != *$'\n'"$platform"$'\n'* ]] || return 1
         seen+="$platform"$'\n'
         count=$((count + 1))
@@ -378,12 +388,14 @@ manifest_load() {
         [[ -n "$icon" ]] || fatal "tools/$name: ICON is required"
         [[ "$order" =~ ^[0-9]+$ ]] || fatal "tools/$name: ORDER must be numeric"
         platform_list_valid "$platforms" ||
-            fatal "tools/$name: PLATFORMS must contain unique 'macos' or 'linux' values"
+            fatal "tools/$name: PLATFORMS must contain unique 'macos', 'linux', or 'wsl' values"
         case "$cask" in "" | 0 | 1) ;; *) fatal "tools/$name: CASK must be 0 or 1" ;; esac
         cask="${cask:-0}"
         [[ "$cask" != "1" || -n "$brew" ]] || fatal "tools/$name: CASK requires BREW"
-        [[ "$cask" != "1" ]] || ! platform_list_contains "$platforms" linux ||
-            fatal "tools/$name: CASK is not supported on linux"
+        [[ "$cask" != "1" ]] ||
+            { ! platform_list_contains "$platforms" linux &&
+                ! platform_list_contains "$platforms" wsl; } ||
+            fatal "tools/$name: CASK requires PLATFORMS=\"macos\""
         [[ -z "$brew" || -z "$url" ]] || fatal "tools/$name: choose BREW or INSTALL_URL, not both"
         [[ -z "$url" || "$url" =~ ^https://[^[:space:]]+$ ]] ||
             fatal "tools/$name: INSTALL_URL must be a whitespace-free HTTPS URL"

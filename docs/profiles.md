@@ -73,6 +73,7 @@ A tool that has no action in the active mode is omitted. A profile resolving
 to no applicable tools is rejected instead of silently succeeding.
 Tools whose `PLATFORMS` omit the detected host are filtered the same way, so a
 single profile may safely name both portable and platform-specific tools.
+WSL inherits tools marked `linux` and adds tools marked `wsl`.
 
 ## Add a profile
 

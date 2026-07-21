@@ -70,7 +70,8 @@ strict section-aware assignment reader. Project files are data: they cannot
 source files, run substitutions, or define executable hooks. Tool values are
 normalized into parallel `T_*` arrays ordered by numeric `ORDER` and then
 `NAME`; each tool carries its normalized `PLATFORMS`, and host detection
-selects `macos` or `linux`. Named config sections occupy contiguous ranges in
+selects `macos`, `linux`, or `wsl`. WSL inherits the Linux tool set before
+adding WSL-only tools. Named config sections occupy contiguous ranges in
 parallel `C_*` arrays. Resolver options are carried as opaque key/value records
 and interpreted only by the selected resolver.
 

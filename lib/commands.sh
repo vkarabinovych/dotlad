@@ -176,7 +176,7 @@ ensure_brew() {
     confirm "Homebrew is missing. Install it now?" || return 0
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     platform="${DOTLAD_PLATFORM:-$(platform_detect)}"
-    if [[ "$platform" == linux ]]; then
+    if [[ "$platform" == linux || "$platform" == wsl ]]; then
         candidates=("$HOME/.linuxbrew/bin/brew" /home/linuxbrew/.linuxbrew/bin/brew)
     else
         candidates=(/opt/homebrew/bin/brew /usr/local/bin/brew)

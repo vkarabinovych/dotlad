@@ -11,7 +11,7 @@ check "brewfile records formulae" grep -Fx 'brew "filecopy"' "$BREWFILE"
 if [[ "$TEST_PLATFORM" == macos ]]; then
     check "macOS Brewfile records casks" grep -Fx 'cask "vendor/tap/desktop"' "$BREWFILE"
 else
-    checknot "Linux Brewfile excludes casks" grep -F 'cask ' "$BREWFILE"
+    checknot "$TEST_PLATFORM Brewfile excludes casks" grep -F 'cask ' "$BREWFILE"
 fi
 check "brewfile records third-party taps" grep -Fx 'tap "vendor/tap"' "$BREWFILE"
 check "brewfile identifies the CLI generator" grep -Fx \
@@ -27,11 +27,13 @@ rc_is "brewfile rejects positional arguments" 1 df brewfile extra
 rc_is "output option is brewfile-only" 1 df --output "$SB/nope" all
 
 # Platform filtering is driven by uname. Manifests without PLATFORMS are
-# portable by default; macOS-only casks disappear from Linux views, plans,
-# profiles, and generated Brewfiles.
+# portable by default; macOS-only casks disappear from Linux and WSL views,
+# plans, profiles, and generated Brewfiles. Linux manifests include WSL unless
+# a tool explicitly narrows itself to WSL.
 LINUX_BIN="$SB/linux-bin"
 MACOS_BIN="$SB/macos-bin"
-mkdir -p "$LINUX_BIN" "$MACOS_BIN"
+WSL_BIN="$SB/wsl-bin"
+mkdir -p "$LINUX_BIN" "$MACOS_BIN" "$WSL_BIN"
 cat >"$LINUX_BIN/uname" <<'EOF'
 #!/bin/sh
 printf 'Linux\n'
@@ -42,19 +44,47 @@ cat >"$MACOS_BIN/uname" <<'EOF'
 printf 'Darwin\n'
 EOF
 chmod +x "$MACOS_BIN/uname"
+cat >"$WSL_BIN/uname" <<'EOF'
+#!/bin/sh
+if [ "${1:-}" = -r ]; then
+    printf '5.15.153.1-microsoft-standard-WSL2\n'
+else
+    printf 'Linux\n'
+fi
+EOF
+chmod +x "$WSL_BIN/uname"
 linux_df() {
-    (cd "$FAKE" && PATH="$LINUX_BIN:$SB/brewprefix/bin:$SB/bin:$PATH" HOME="$H" \
-        DOTLAD_YES=1 DOTLAD_PLAIN=1 /bin/bash "$ROOT/dotlad" \
-        -C "$FAKE" --backup-root "$H/.dotlad_backup" "$@")
+    (
+        unset WSL_DISTRO_NAME WSL_INTEROP
+        cd "$FAKE" && PATH="$LINUX_BIN:$SB/brewprefix/bin:$SB/bin:$PATH" HOME="$H" \
+            DOTLAD_YES=1 DOTLAD_PLAIN=1 /bin/bash "$ROOT/dotlad" \
+            -C "$FAKE" --backup-root "$H/.dotlad_backup" "$@"
+    )
+}
+wsl_df() {
+    (
+        unset WSL_DISTRO_NAME WSL_INTEROP
+        cd "$FAKE" && PATH="$WSL_BIN:$SB/brewprefix/bin:$SB/bin:$PATH" HOME="$H" \
+            DOTLAD_YES=1 DOTLAD_PLAIN=1 /bin/bash "$ROOT/dotlad" \
+            -C "$FAKE" --backup-root "$H/.dotlad_backup" "$@"
+    )
 }
 macos_df() {
     (cd "$FAKE" && PATH="$MACOS_BIN:$SB/brewprefix/bin:$SB/bin:$PATH" HOME="$H" \
         DOTLAD_YES=1 DOTLAD_PLAIN=1 /bin/bash "$ROOT/dotlad" \
         -C "$FAKE" --backup-root "$H/.dotlad_backup" "$@")
 }
+mkdir -p "$FAKE/tools/wsl-only"
+cat >"$FAKE/tools/wsl-only/tool.conf" <<'EOF'
+NAME="wsl-only"
+DESC="WSL-only package fixture"
+ICON="w"
+PLATFORMS="wsl"
+BREW="wsl-only"
+EOF
 linux_plan="$(linux_df plan all --json)"
 printf '%s' "$linux_plan" | jq -e \
-    '.platform == "linux" and any(.tools[]; .name == "filecopy") and all(.tools[]; .name != "desktop")' \
+    '.platform == "linux" and any(.tools[]; .name == "filecopy") and all(.tools[]; .name != "desktop" and .name != "wsl-only")' \
     >/dev/null && pass "Linux plans include portable tools and exclude macOS tools" ||
     fail "Linux plan ignores PLATFORMS: $linux_plan"
 linux_profile="$(linux_df plan profile base --json)"
@@ -79,6 +109,17 @@ LINUX_BREWFILE="$SB/LinuxBrewfile"
 linux_df brewfile --output "$LINUX_BREWFILE" >/dev/null
 check "Linux Brewfile includes portable formulae" grep -Fx 'brew "filecopy"' "$LINUX_BREWFILE"
 checknot "Linux Brewfile excludes macOS casks" grep -F 'cask ' "$LINUX_BREWFILE"
+WSL_BREWFILE="$SB/WSLBrewfile"
+wsl_df brewfile --output "$WSL_BREWFILE" >/dev/null
+check "WSL inherits portable Linux formulae" grep -Fx 'brew "filecopy"' "$WSL_BREWFILE"
+check "WSL includes WSL-only formulae" grep -Fx 'brew "wsl-only"' "$WSL_BREWFILE"
+checknot "WSL Brewfile excludes macOS casks" grep -F 'cask ' "$WSL_BREWFILE"
+wsl_plan="$(wsl_df plan all --json)"
+printf '%s' "$wsl_plan" | jq -e \
+    '.platform == "wsl" and any(.tools[]; .name == "filecopy") and any(.tools[]; .name == "wsl-only") and all(.tools[]; .name != "desktop")' \
+    >/dev/null && pass "WSL plans inherit Linux tools and include WSL-only tools" ||
+    fail "WSL plan ignores platform inheritance: $wsl_plan"
+rm -rf "$FAKE/tools/wsl-only"
 MACOS_BREWFILE="$SB/MacOSBrewfile"
 macos_df brewfile --output "$MACOS_BREWFILE" >/dev/null
 check "macOS projection includes macOS casks" \

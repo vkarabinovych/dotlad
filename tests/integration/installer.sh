@@ -65,12 +65,21 @@ done
 
 case "$(uname -s)" in
     Darwin) TEST_PLATFORM=macos ;;
-    Linux) TEST_PLATFORM=linux ;;
+    Linux)
+        kernel_release="$(uname -r 2>/dev/null || true)"
+        if [[ -n "${WSL_DISTRO_NAME:-}" || -n "${WSL_INTEROP:-}" ||
+            "$kernel_release" == *[Mm]icrosoft* ]]; then
+            TEST_PLATFORM=wsl
+        else
+            TEST_PLATFORM=linux
+        fi
+        ;;
     *)
         printf 'unsupported test platform\n' >&2
         exit 1
         ;;
 esac
+unset kernel_release
 export TEST_PLATFORM
 
 SB="$(mktemp -d "${TMPDIR:-/tmp}/dotlad-test.XXXXXX")"

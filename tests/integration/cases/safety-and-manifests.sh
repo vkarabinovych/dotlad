@@ -186,7 +186,7 @@ rm -rf "$FAKE/tools/section-overlap"
 
 # Mutually exclusive platform tools may own the same destination: only the
 # active platform enters overlap validation or execution.
-for platform_tool in platform-macos platform-linux; do
+for platform_tool in platform-macos platform-linux platform-wsl; do
     mkdir -p "$FAKE/tools/$platform_tool/files"
     printf '%s\n' "$platform_tool" >"$FAKE/tools/$platform_tool/files/config"
 done
@@ -208,11 +208,23 @@ PLATFORMS="linux"
 SOURCE="files/config"
 DEST="$H/.config/platform-shared/config"
 EOF
+cat >"$FAKE/tools/platform-wsl/tool.conf" <<EOF
+NAME="platform-wsl"
+DESC="WSL destination fixture"
+ICON="!"
+PLATFORMS="wsl"
+[config.main]
+SOURCE="files/config"
+DEST="$H/.config/platform-shared/config"
+EOF
 check "disjoint platform tools may share a destination on macOS" \
     macos_df --config-only --json plan platform-macos
 check "disjoint platform tools may share a destination on Linux" \
     linux_df --config-only --json plan platform-linux
-rm -rf "$FAKE/tools/platform-macos" "$FAKE/tools/platform-linux"
+rc_is "WSL rejects overlapping Linux and WSL destinations" 1 \
+    wsl_df --config-only --json plan platform-wsl
+rm -rf "$FAKE/tools/platform-macos" "$FAKE/tools/platform-linux" \
+    "$FAKE/tools/platform-wsl"
 
 mkdir -p "$FAKE/tools/inject-collision/files/a" "$FAKE/tools/inject-collision/files/b"
 printf 'a\n' >"$FAKE/tools/inject-collision/files/a/shared.conf"
@@ -363,6 +375,15 @@ BREW="strict-manifest"
 CASK="1"
 EOF
 rc_is "manifest rejects a cask enabled on Linux" 1 df all
+cat >"$FAKE/tools/strict-manifest/tool.conf" <<'EOF'
+NAME="strict-manifest"
+DESC="WSL cask fixture"
+ICON="!"
+PLATFORMS="macos wsl"
+BREW="strict-manifest"
+CASK="1"
+EOF
+rc_is "manifest rejects a cask enabled on WSL" 1 df all
 cat >"$FAKE/tools/strict-manifest/tool.conf" <<EOF
 NAME="strict-manifest"
 DESC="Strict manifest fixture"

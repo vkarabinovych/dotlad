@@ -2,13 +2,14 @@
 
 [![CI](https://img.shields.io/github/actions/workflow/status/vkarabinovych/dotlad/ci.yml?branch=main&style=flat-square&logo=githubactions&label=CI)](https://github.com/vkarabinovych/dotlad/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/vkarabinovych/dotlad?style=flat-square&logo=github&label=release)](https://github.com/vkarabinovych/dotlad/releases/latest)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-000000?style=flat-square)](#requirements)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20WSL-000000?style=flat-square)](#requirements)
 [![Bash](https://img.shields.io/badge/bash-3.2%2B-4EAA25?style=flat-square&logo=gnubash&logoColor=white)](#requirements)
 [![License](https://img.shields.io/github/license/vkarabinovych/dotlad?style=flat-square&label=license)](LICENSE)
 
-Dotlad is a manifest-driven macOS and Linux CLI for installing packages and
-deploying dotfiles from a repository. It provides one interface for inspecting
-state, previewing changes, applying tools, and restoring replaced files.
+Dotlad is a manifest-driven macOS, Linux, and WSL CLI for installing packages
+and deploying dotfiles from a repository. It provides one interface for
+inspecting state, previewing changes, applying tools, and restoring replaced
+files.
 
 ![Dotlad interactive tool picker showing package and configuration state](.github/assets/demo/cli.gif)
 
@@ -28,10 +29,10 @@ source of truth; Dotlad never captures live configuration back into the project.
 
 ## Requirements
 
-Dotlad supports macOS and Linux while remaining compatible with the stock Bash
-3.2 shipped with macOS. It has no TUI framework dependency. A real terminal
-enables the interactive picker; `--plain` provides a read-only state view for
-scripts and non-interactive shells.
+Dotlad supports macOS, Linux, and WSL while remaining compatible with the stock
+Bash 3.2 shipped with macOS. It has no TUI framework dependency. A real
+terminal enables the interactive picker; `--plain` provides a read-only state
+view for scripts and non-interactive shells.
 
 A Nerd Font is optional but recommended for the picker's branding and
 manifest-defined icons. Without one, state and keyboard behavior still work,
@@ -39,8 +40,8 @@ but icon glyphs may use the terminal's missing-character fallback.
 
 Runtime dependencies are scoped to each tool and its resolver:
 
-- Homebrew on macOS or Linuxbrew on Linux installs declared `BREW` packages
-  and missing resolver or manifest-defined requirements.
+- Homebrew on macOS or Linuxbrew on Linux and WSL installs declared `BREW`
+  packages and missing resolver or manifest-defined requirements.
 - `curl` is required when an HTTPS installer must run.
 - `sha256sum` or `shasum` is required by checksum-pinned installers.
 - `jq`, `yq`, or `git` is required only by the corresponding merge resolver.
@@ -120,8 +121,9 @@ my-dotfiles/
 
 Tools may declare packages, one or more named config sections, or both. Each
 `[config.<name>]` chooses its own `SOURCE`, `DEST`, and optional `RESOLVER`.
-`PLATFORMS` limits a tool to `macos`, `linux`, or both; omitting it enables
-both platforms. Homebrew casks must explicitly use `PLATFORMS="macos"`.
+`PLATFORMS` limits a tool to `macos`, `linux`, or `wsl`. Omitting it keeps the
+default `macos linux`; Linux tools also run on WSL, while `wsl` selects WSL
+only. Homebrew casks must explicitly use `PLATFORMS="macos"`.
 The resolver defaults to `copy`, which copies a file or mirrors a directory
 exactly. Use `symlink` to point a destination at the repository source, or a
 merge resolver for machine-local file values. The `inject` resolver maintains

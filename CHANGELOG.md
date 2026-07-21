@@ -6,11 +6,12 @@ All notable user-facing changes are documented here.
 
 ### Added
 
-- Linux and Linuxbrew are supported alongside macOS, with the integration and
-  release suites running on both platforms.
+- Linux, WSL, and Linuxbrew are supported alongside macOS, with integration
+  and release suites covering every platform projection.
 - Tool manifests may declare `PLATFORMS="macos"`, `PLATFORMS="linux"`, or
-  both; omitted platform metadata enables both hosts, while inactive tools are
-  excluded from selection, plans, profiles, and generated Brewfiles.
+  `PLATFORMS="wsl"`; omitted platform metadata remains `macos linux`, Linux
+  tools also run on WSL, and inactive tools are excluded from selection,
+  plans, profiles, and generated Brewfiles.
 
 ### Changed
 

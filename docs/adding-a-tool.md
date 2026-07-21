@@ -55,7 +55,7 @@ RESOLVER="toml"
 | `DESC`           | yes      | Concise user-facing description shown in the picker                      |
 | `ICON`           | yes      | Short glyph shown in the picker                                          |
 | `ORDER`          | no       | Numeric manifest and batch order; defaults to `500`                      |
-| `PLATFORMS`      | no       | Space-separated `macos`/`linux` values; defaults to both                 |
+| `PLATFORMS`      | no       | Space-separated `macos`/`linux`/`wsl`; defaults to `macos linux`         |
 | `BREW`           | no       | Space-separated Homebrew formula or cask names                           |
 | `CASK`           | no       | `1` when every `BREW` item is a cask; defaults to `0`                    |
 | `CHECK`          | no       | Command or absolute path used to verify installation; defaults to `NAME` |
@@ -79,8 +79,9 @@ use fully qualified names such as `owner/tap/formula`.
 `PLATFORMS` values must be unique. Tools omitted from the active platform are
 hidden from the picker, `all`, profiles, plans, and generated Brewfiles. An
 explicit selection reports that the tool is unavailable. Omitted
-`PLATFORMS` means `macos linux`; use `PLATFORMS="macos"` for casks and other
-macOS-only tools.
+`PLATFORMS` means `macos linux`. A Linux tool is also active on WSL; use
+`PLATFORMS="wsl"` only when a tool is specific to that environment, and use
+`PLATFORMS="macos"` for casks and other macOS-only tools.
 
 `tool.conf` is parsed as data and never executed as Bash. Only the documented
 uppercase fields are accepted. Values may be double quoted, single quoted, or
@@ -382,7 +383,7 @@ Loading fails before deployment when:
 - a destination is `$HOME`, escapes it, traverses a parent symlink, or overlaps
   another config destination outside the distinct-basename `inject` exception;
 - `PLATFORMS` contains an unknown or duplicate value, or enables a cask on
-  Linux;
+  Linux or WSL;
 - a package token or installer URL is malformed; or
 - Homebrew and an HTTPS installer are both declared.
 
