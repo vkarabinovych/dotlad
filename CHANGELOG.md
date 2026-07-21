@@ -4,6 +4,8 @@ All notable user-facing changes are documented here.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-07-21
+
 ### Added
 
 - Remote installer manifests may declare `INSTALL_SHA256`; Dotlad verifies the
@@ -31,6 +33,17 @@ All notable user-facing changes are documented here.
 - Shell sources now share a checked `shfmt` profile through `.editorconfig`.
 - Relative config destinations resolve from the project root while retaining
   the existing `$HOME` containment and symlink-safety checks.
+
+### Fixed
+
+- Restore points containing only directory-layout changes remain visible and
+  restorable, while backup summaries continue to omit entries that already
+  match the current filesystem.
+- The `inject` resolver rejects malformed, duplicate, or cross-identity nested
+  managed blocks during preflight instead of risking an incorrect replacement.
+- Switching the picker to an operation mode with no relevant tools keeps a
+  stable, non-actionable empty state instead of failing on a missing row.
+- JSON plans escape every control character required by the JSON format.
 
 ## [0.6.0] - 2026-07-20
 
@@ -99,4 +112,5 @@ All notable user-facing changes are documented here.
 [0.4.0]: https://github.com/vkarabinovych/dotlad/releases/tag/v0.4.0
 [0.5.0]: https://github.com/vkarabinovych/dotlad/releases/tag/v0.5.0
 [0.6.0]: https://github.com/vkarabinovych/dotlad/releases/tag/v0.6.0
-[Unreleased]: https://github.com/vkarabinovych/dotlad/compare/v0.6.0...HEAD
+[0.7.0]: https://github.com/vkarabinovych/dotlad/releases/tag/v0.7.0
+[Unreleased]: https://github.com/vkarabinovych/dotlad/compare/v0.7.0...HEAD
