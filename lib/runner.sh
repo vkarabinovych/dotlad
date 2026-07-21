@@ -1,5 +1,8 @@
 # lib/runner.sh — foreground execution and the serialized TUI worker.
 
+QUEUE_LOCK_RUN=""
+QUEUE_LOCK_RETRIES="${QUEUE_LOCK_RETRIES:-200}"
+
 # Update named tools and report one foreground batch (`all`, profiles, or
 # explicit tool names).
 run_selected() {
@@ -43,15 +46,51 @@ queue_has_tool() { # <run-dir> <name>
 }
 
 queue_lock() {
-    local attempts=0
-    until mkdir "$1/queue.lock" 2>/dev/null; do
+    local run="$1" attempts=0
+    until mkdir "$run/queue.lock" 2>/dev/null; do
         attempts=$((attempts + 1))
-        [[ "$attempts" -gt 200 ]] && return 1
+        if [[ "$attempts" -gt "$QUEUE_LOCK_RETRIES" ]]; then
+            queue_reclaim_stale "$run" || return 1
+            attempts=0
+        fi
         sleep 0.02
     done
+    printf '%s' "$$" >"$run/queue.lock/owner" 2>/dev/null || {
+        rmdir "$run/queue.lock" 2>/dev/null || true
+        return 1
+    }
+    QUEUE_LOCK_RUN="$run"
 }
 
-queue_unlock() { rmdir "$1/queue.lock" 2>/dev/null || true; }
+queue_reclaim_stale() { # <run-dir>
+    local run="$1" lock="$1/queue.lock" reclaim="$1/queue.reclaim" owner=""
+    mkdir "$reclaim" 2>/dev/null || return 1
+    [[ -f "$lock/owner" ]] && owner="$(cat "$lock/owner" 2>/dev/null || true)"
+    if [[ "$owner" =~ ^[0-9]+$ ]] && kill -0 "$owner" 2>/dev/null; then
+        rmdir "$reclaim" 2>/dev/null || true
+        return 1
+    fi
+    rm -f "$lock/owner"
+    rmdir "$lock" 2>/dev/null || {
+        rmdir "$reclaim" 2>/dev/null || true
+        return 1
+    }
+    rmdir "$reclaim" 2>/dev/null || true
+}
+
+queue_unlock() { # <run-dir>
+    local run="$1" owner=""
+    [[ "$QUEUE_LOCK_RUN" == "$run" ]] || return 1
+    [[ -f "$run/queue.lock/owner" ]] &&
+        owner="$(cat "$run/queue.lock/owner" 2>/dev/null || true)"
+    [[ "$owner" == "$$" ]] || {
+        QUEUE_LOCK_RUN=""
+        return 1
+    }
+    rm -f "$run/queue.lock/owner"
+    rmdir "$run/queue.lock" 2>/dev/null || return 1
+    QUEUE_LOCK_RUN=""
+}
 
 runner_clear_result() { # <run-dir> <tool>
     local result
@@ -115,6 +154,10 @@ worker() {
     tab="$(printf '\t')"
     mkdir "$run/worker.lock" 2>/dev/null || return 0
     printf '%s' "$$" >"$run/worker.pid" 2>/dev/null || true
+    trap worker_cleanup EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    trap 'exit 129' HUP
     while [[ -d "$run" ]]; do
         line=""
         qmode=""
@@ -145,5 +188,18 @@ worker() {
         fi
         rm -f "$run/${name}.running"
     done
-    rmdir "$run/worker.lock" 2>/dev/null || true
+    worker_cleanup
+    trap - EXIT INT TERM HUP
+}
+
+# ShellCheck cannot see that worker's traps invoke this handler.
+# shellcheck disable=SC2317,SC2329
+worker_cleanup() {
+    local run="${DOTLAD_RUNDIR:-}"
+    [[ -z "$QUEUE_LOCK_RUN" ]] || queue_unlock "$QUEUE_LOCK_RUN" || true
+    if [[ -n "$run" ]]; then
+        rm -f "$run/worker.pid"
+        rmdir "$run/worker.lock" 2>/dev/null || true
+    fi
+    return 0
 }

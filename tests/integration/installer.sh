@@ -110,6 +110,10 @@ if [ "$1" = install ]; then
     fi
     mkdir -p "$BREW_PREFIX/opt/$n"
     printf '#!/bin/sh\nexit 0\n' > "$BREW_PREFIX/bin/$n" && chmod +x "$BREW_PREFIX/bin/$n"
+    if [ "$n" = requirement-provider ]; then
+      printf '#!/bin/sh\nexit 0\n' > "$BREW_PREFIX/bin/requirement-command"
+      chmod +x "$BREW_PREFIX/bin/requirement-command"
+    fi
   done
 fi
 exit 0

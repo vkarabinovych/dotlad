@@ -201,6 +201,20 @@ fi
 rm -rf "$BREW_PREFIX/opt/resolver-auto-req" "$BREW_PREFIX/bin/resolver-auto-req" \
     "$BREW_PREFIX/opt/tool-extra-req" "$BREW_PREFIX/bin/tool-extra-req"
 
+bundled_requirement_probe="$(cd "$FAKE" &&
+    PATH="$SB/brewprefix/bin:$SB/bin:$PATH" HOME="$H" ROOT="$FAKE" \
+        /bin/bash -c '
+    . "$DOTLAD_RUNTIME_ROOT/lib/runtime.sh"; manifest_load
+    i="$(tool_find jsonmerge)"
+    T_REQUIRES[$i]="requirement-provider requirement-command"
+    N_INSTALLED=0; ensure_requirements "$i" >/dev/null || exit 1
+    printf "%s|%s" "$N_INSTALLED" "$(tail -1 "$BREW_LOG")"')"
+[[ "$bundled_requirement_probe" == "1|requirement-provider" ]] &&
+    pass "one requirement formula may provide multiple commands" ||
+    fail "bundled requirements trigger redundant formula installs: $bundled_requirement_probe"
+rm -rf "$BREW_PREFIX/opt/requirement-provider" \
+    "$BREW_PREFIX/bin/requirement-provider" "$BREW_PREFIX/bin/requirement-command"
+
 # --symlink changes only the implicit resolver. Explicit tool choices still
 # win, and JSON plans expose the effective resolver.
 mkdir -p "$FAKE/tools/symlink-flag/files" "$FAKE/tools/explicit-copy/files"
@@ -417,6 +431,52 @@ IFS='|' read -r mode_cycle toggle_rc toggle_selected diff_key layout_ok queue_rc
     fail "Ukrainian keyboard normalization is incomplete"
 [[ "$queue_rc|$queue_quiet" == "1|1" ]] && pass "empty TUI run checks a missing queue silently" ||
     fail "missing TUI queue probe (got '$queue_rc|$queue_quiet')"
+
+lock_probe="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" /bin/bash -c '
+    . "$DOTLAD_RUNTIME_ROOT/lib/runtime.sh"
+    QUEUE_LOCK_RETRIES=0
+    run="$(mktemp -d)"
+    mkdir "$run/queue.lock"
+    printf "%s" "$$" >"$run/queue.lock/owner"
+    live_rc=0; queue_lock "$run" || live_rc=$?
+    live_intact=0; [[ -d "$run/queue.lock" ]] && live_intact=1
+    printf "%s" 99999999 >"$run/queue.lock/owner"
+    stale_rc=0; queue_lock "$run" || stale_rc=$?
+    stale_owner="$(cat "$run/queue.lock/owner" 2>/dev/null || true)"
+    queue_unlock "$run" || true
+    printf "%s:%s:%s:%s:%s" "$live_rc" "$live_intact" "$stale_rc" "$stale_owner" "$$"
+    rm -rf "$run"')"
+IFS=: read -r live_lock_rc live_lock_intact stale_lock_rc stale_lock_owner lock_probe_pid \
+    <<<"$lock_probe"
+[[ "$live_lock_rc|$live_lock_intact" == "1|1" ]] &&
+    pass "queue lock never steals ownership from a live process" ||
+    fail "queue lock stole a live lock ($lock_probe)"
+[[ "$stale_lock_rc|$stale_lock_owner" == "0|$lock_probe_pid" ]] &&
+    pass "queue lock reclaims a dead process lock" ||
+    fail "queue lock did not recover a stale lock ($lock_probe)"
+
+worker_signal_probe="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" /bin/bash -c '
+    run="$(mktemp -d)"
+    export DOTLAD_RUNDIR="$run"
+    mkdir "$run/queue.lock"
+    printf "%s" "$$" >"$run/queue.lock/owner"
+    QUEUE_LOCK_RETRIES=0 "$DOTLAD_RUNTIME_ROOT/dotlad" -C "$ROOT" _worker &
+    worker_pid=$!
+    attempt=0
+    while [[ ! -d "$run/worker.lock" && "$attempt" -lt 100 ]]; do
+        sleep 0.02; attempt=$((attempt + 1))
+    done
+    kill -TERM "$worker_pid" 2>/dev/null || true
+    worker_rc=0; wait "$worker_pid" 2>/dev/null || worker_rc=$?
+    cleanup_ok=0
+    [[ ! -e "$run/worker.pid" && ! -d "$run/worker.lock" ]] && cleanup_ok=1
+    foreign_lock_ok=0
+    [[ "$(cat "$run/queue.lock/owner" 2>/dev/null)" == "$$" ]] && foreign_lock_ok=1
+    printf "%s:%s:%s" "$worker_rc" "$cleanup_ok" "$foreign_lock_ok"
+    rm -rf "$run"')"
+[[ "$worker_signal_probe" == "143:1:1" ]] &&
+    pass "terminated worker cleans up without removing another process lock" ||
+    fail "worker signal cleanup is unsafe ($worker_signal_probe)"
 [[ "$log_heights" == "3 7 14 13 26" ]] &&
     pass "log panel fits content and expands when focused" ||
     fail "log panel height ignores content or focus (got '$log_heights')"

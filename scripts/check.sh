@@ -21,10 +21,20 @@ bash -n "${SOURCES[@]}"
     exit 1
 }
 
+command -v shellcheck >/dev/null 2>&1 ||
+    {
+        printf 'shellcheck is required for source linting.\n' >&2
+        printf 'Install it via Homebrew: brew install shellcheck\n' >&2
+        printf 'Or run syntax checks only: %s --syntax-only\n' "$0" >&2
+        exit 1
+    }
 shellcheck -s bash "${SOURCES[@]}"
+
 command -v shfmt >/dev/null 2>&1 ||
     {
         printf 'shfmt is required for source formatting checks.\n' >&2
+        printf 'Install it via Homebrew: brew install shfmt\n' >&2
+        printf 'Or run syntax checks only: %s --syntax-only\n' "$0" >&2
         exit 1
     }
 shfmt -d .
