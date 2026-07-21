@@ -137,7 +137,10 @@ else
     (cd "$DIST" && shasum -a 256 -c "dotlad-$VERSION.sha256") >/dev/null
 fi
 tar -C "$EXTRACTED" -xzf "$ARCHIVE"
-[[ -f "$EXTRACTED/dotlad-$VERSION/.github/assets/demo/cli.gif" ]]
+[[ -f "$EXTRACTED/dotlad-$VERSION/.github/assets/demo/cli-dark.gif" ]]
+[[ -f "$EXTRACTED/dotlad-$VERSION/.github/assets/demo/cli-light.gif" ]]
+[[ -f "$EXTRACTED/dotlad-$VERSION/.github/assets/dotlad-name-dark.svg" ]]
+[[ -f "$EXTRACTED/dotlad-$VERSION/.github/assets/dotlad-name-light.svg" ]]
 [[ -f "$EXTRACTED/dotlad-$VERSION/.editorconfig" ]]
 [[ -f "$EXTRACTED/dotlad-$VERSION/CHANGELOG.md" ]]
 [[ -f "$EXTRACTED/dotlad-$VERSION/CONTRIBUTING.md" ]]

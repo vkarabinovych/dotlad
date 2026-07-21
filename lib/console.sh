@@ -1,21 +1,53 @@
 # shellcheck disable=SC2034  # colour vars are consumed by the sibling libs
 # lib/console.sh — colours, prompts, and diffs. Small on purpose.
 
+console_color_scheme() {
+    local scheme="${DOTLAD_COLOR_SCHEME:-auto}" background
+
+    case "$scheme" in
+        dark | light) ;;
+        auto)
+            background="${COLORFGBG##*;}"
+            case "$background" in
+                7 | 15) scheme="light" ;;
+                *) scheme="dark" ;;
+            esac
+            ;;
+        *) scheme="dark" ;;
+    esac
+
+    printf '%s' "$scheme"
+}
+
 console_init_colors() {
+    local scheme
+
     if [[ -z "${DOTLAD_PLAIN:-}" ]] &&
         { [[ -n "${DOTLAD_FORCE_COLOR:-}" ]] || [[ -t 1 && -z "${NO_COLOR:-}" ]]; }; then
+        scheme="$(console_color_scheme)"
         C_RESET=$'\e[0m'
         C_BOLD=$'\e[1m'
         C_ITALIC=$'\e[3m'
         C_DIM=$'\e[2m'
-        C_RED=$'\e[31m'
-        C_GREEN=$'\e[32m'
-        C_YELLOW=$'\e[33m'
-        C_MAGENTA=$'\e[35m'
-        C_CYAN=$'\e[36m'
-        C_SKY_BLUE=$'\e[38;2;112;174;255m' # #70aeff
-        C_HL=$'\e[48;2;68;71;90m'          # Dracula "current line" — the TUI cursor bar
-        C_KEY_HL=$'\e[48;2;98;114;164m'    # muted accent for demo key highlighting
+        if [[ "$scheme" == "light" ]]; then
+            C_RED=$'\e[38;2;185;28;28m'
+            C_GREEN=$'\e[38;2;21;128;61m'
+            C_YELLOW=$'\e[38;2;146;64;14m'
+            C_MAGENTA=$'\e[38;2;190;24;93m'
+            C_CYAN=$'\e[38;2;3;105;161m'
+            C_SKY_BLUE=$'\e[38;2;0;87;184m'
+            C_HL=$'\e[38;2;17;24;39;48;2;219;234;254m'
+            C_KEY_HL=$'\e[38;2;17;24;39;48;2;191;219;254m'
+        else
+            C_RED=$'\e[38;2;255;85;85m'
+            C_GREEN=$'\e[38;2;80;250;123m'
+            C_YELLOW=$'\e[38;2;241;250;140m'
+            C_MAGENTA=$'\e[38;2;255;121;198m'
+            C_CYAN=$'\e[38;2;139;233;253m'
+            C_SKY_BLUE=$'\e[38;2;112;174;255m'
+            C_HL=$'\e[38;2;248;248;242;48;2;68;71;90m'
+            C_KEY_HL=$'\e[38;2;248;248;242;48;2;98;114;164m'
+        fi
     else
         C_RESET=''
         C_BOLD=''

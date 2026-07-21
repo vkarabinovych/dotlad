@@ -30,7 +30,10 @@ cp "$ROOT/VERSION" "$ROOT/LICENSE" "$ROOT/README.md" \
     "$ROOT/.editorconfig" "$ROOT/dotlad" "$ROOT/install.sh" "$bundle/"
 cp "$ROOT/bin/dotlad" "$bundle/bin/"
 cp "$ROOT/scripts/"*.sh "$bundle/scripts/"
-cp "$ROOT/.github/assets/demo/cli.gif" "$bundle/.github/assets/demo/"
+cp "$ROOT/.github/assets/dotlad-name-dark.svg" \
+    "$ROOT/.github/assets/dotlad-name-light.svg" "$bundle/.github/assets/"
+cp "$ROOT/.github/assets/demo/cli-dark.gif" \
+    "$ROOT/.github/assets/demo/cli-light.gif" "$bundle/.github/assets/demo/"
 cp -R "$ROOT/lib" "$ROOT/docs" "$ROOT/examples" "$ROOT/tests" "$bundle/"
 tar -C "$stage" -czf "$OUT_DIR/$ARCHIVE" "dotlad-$VERSION"
 

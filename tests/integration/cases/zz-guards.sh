@@ -18,6 +18,25 @@ grep -qF -- '-h, -H, --help' <<<"$help_output" && pass "help documents all help 
 grep -qF -- '-v, -V, --version' <<<"$help_output" && pass "help documents all version aliases" ||
     fail "help omits a version alias"
 
+dark_palette="$(DOTLAD_FORCE_COLOR=1 DOTLAD_COLOR_SCHEME=dark /bin/bash -c '
+    . "$1/lib/console.sh"
+    printf "%s|%s|%s" "$C_YELLOW" "$C_SKY_BLUE" "$C_HL"
+' _ "$ROOT")"
+light_palette="$(DOTLAD_FORCE_COLOR=1 DOTLAD_COLOR_SCHEME=light /bin/bash -c '
+    . "$1/lib/console.sh"
+    printf "%s|%s|%s" "$C_YELLOW" "$C_SKY_BLUE" "$C_HL"
+' _ "$ROOT")"
+auto_light_palette="$(DOTLAD_FORCE_COLOR=1 COLORFGBG='0;15' /bin/bash -c '
+    . "$1/lib/console.sh"
+    printf "%s|%s|%s" "$C_YELLOW" "$C_SKY_BLUE" "$C_HL"
+' _ "$ROOT")"
+if [[ "$dark_palette" != "$light_palette" &&
+    "$auto_light_palette" == "$light_palette" ]]; then
+    pass "console palette follows explicit and detected colour schemes"
+else
+    fail "console palette does not adapt to the terminal background"
+fi
+
 # Embedded wrappers have one command identity across CLI output and may use a
 # separate human-readable brand across presentation output.
 identity_help="$(cd "$FAKE" && HOME="$H" DOTLAD_PLAIN=1 \

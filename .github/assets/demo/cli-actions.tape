@@ -1,20 +1,3 @@
-# Dotlad's standalone README demo. Run from the repository root with:
-# vhs .github/assets/demo/cli.tape
-
-Require bash
-Require git
-
-Output .github/assets/demo/cli.gif
-
-Set Shell "bash"
-Set FontFamily "FiraCode Nerd Font"
-Set FontSize 15
-Set Width 960
-Set Height 420
-Set Padding 14
-Set Theme "Dracula+"
-Set TypingSpeed 55ms
-
 Hide
 Type@1ms "export DOTLAD_DEMO_ROOT=/tmp/dotlad-readme-demo" Enter
 Type@1ms "export DOTLAD_RUNTIME=$PWD" Enter

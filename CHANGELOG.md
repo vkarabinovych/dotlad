@@ -17,6 +17,9 @@ All notable user-facing changes are documented here.
 
 - Checksum-pinned remote installers accept `sha256sum` or `shasum`, allowing
   the host platform's standard SHA-256 utility.
+- The README demo follows the viewer's light or dark theme. Dotlad now adapts
+  its semantic colours and TUI highlights to the terminal background, with a
+  `DOTLAD_COLOR_SCHEME` override when automatic detection is unavailable.
 
 ## [0.7.0] - 2026-07-21
 

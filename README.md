@@ -22,7 +22,13 @@ and deploying dotfiles from a repository. It provides one interface for
 inspecting state, previewing changes, applying tools, and restoring replaced
 files.
 
-![Dotlad interactive tool picker showing package and configuration state](.github/assets/demo/cli.gif)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/demo/cli-dark.gif">
+  <source media="(prefers-color-scheme: light)" srcset=".github/assets/demo/cli-light.gif">
+  <img
+    alt="Dotlad interactive tool picker showing package and configuration state"
+    src=".github/assets/demo/cli-light.gif">
+</picture>
 
 ## Why Dotlad
 

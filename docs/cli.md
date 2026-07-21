@@ -235,6 +235,19 @@ The live apply log shrinks to its content and grows up to one third of the
 available terminal height. Focusing it with `Tab` raises that limit to two
 thirds. At least four rows remain visible for the tool tree.
 
+## Colour schemes
+
+Dotlad chooses a dark or light colour palette from `COLORFGBG` when the
+terminal provides it. Set `DOTLAD_COLOR_SCHEME` to `dark` or `light` to
+override that detection; the default is `auto` and falls back to the dark
+palette when the terminal background is unknown.
+
+| Dark theme                                                               | Light theme                                                                |
+| :----------------------------------------------------------------------: | :------------------------------------------------------------------------: |
+| ![Dotlad picker in a dark terminal](../.github/assets/demo/cli-dark.gif) | ![Dotlad picker in a light terminal](../.github/assets/demo/cli-light.gif) |
+
+## Embedded wrappers
+
 When embedding the runtime, set `DOTLAD_COMMAND_NAME` to the wrapper's shell
 command. Usage, errors, and command hints use that value. Set
 `DOTLAD_DISPLAY_NAME` for the human-readable brand used by help headings,
