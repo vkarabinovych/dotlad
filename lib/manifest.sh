@@ -4,6 +4,7 @@
 T_NAME=()
 T_DESC=()
 T_ICON=()
+T_PLATFORMS=()
 T_BREW=()
 T_CASK=()
 T_CHECK=()
@@ -94,12 +95,37 @@ manifest_expand_home() {
 # opaque uppercase keys while sharing the same value and duplicate rules.
 assignment_field_allowed() { # <tool|config|profile> <key>
     case "$1:$2" in
-        tool:NAME | tool:DESC | tool:ICON | tool:ORDER | tool:BREW | tool:CASK | \
+        tool:NAME | tool:DESC | tool:ICON | tool:ORDER | tool:PLATFORMS | \
+            tool:BREW | tool:CASK | \
             tool:CHECK | tool:INSTALL_URL | tool:INSTALL_SHA256 | tool:REQUIRES | \
             config:SOURCE | config:DEST | config:RESOLVER | \
             profile:extends | profile:tools) return 0 ;;
         *) return 1 ;;
     esac
+}
+
+platform_detect() {
+    case "$(uname -s 2>/dev/null)" in
+        Darwin) printf 'macos' ;;
+        Linux) printf 'linux' ;;
+        *) return 1 ;;
+    esac
+}
+
+platform_list_contains() { # <space-separated-platforms> <platform>
+    [[ " $1 " == *" $2 "* ]]
+}
+
+platform_list_valid() { # <space-separated-platforms>
+    local platforms="$1" platform count=0 seen=$'\n'
+    [[ -n "$platforms" ]] || return 1
+    for platform in $platforms; do
+        case "$platform" in macos | linux) ;; *) return 1 ;; esac
+        [[ "$seen" != *$'\n'"$platform"$'\n'* ]] || return 1
+        seen+="$platform"$'\n'
+        count=$((count + 1))
+    done
+    [[ "$count" -gt 0 ]]
 }
 
 assignment_read_file() { # <file> <tool|profile> — populate caller variables/CONFIG_*
@@ -245,7 +271,11 @@ source_path_safe() { # <tool-dir> <relative-source>
 }
 
 manifest_load() {
-    local f records=""
+    local f records="" detected_platform
+    detected_platform="$(platform_detect)" ||
+        fatal "unsupported platform: $(uname -s 2>/dev/null || printf unknown)"
+    DOTLAD_PLATFORM="$detected_platform"
+    export DOTLAD_PLATFORM
     resolver_known "$DOTLAD_DEFAULT_RESOLVER" ||
         fatal "unknown default resolver: '$DOTLAD_DEFAULT_RESOLVER'"
     # Loading is deliberately repeatable: probes and tests may refresh the
@@ -253,6 +283,7 @@ manifest_load() {
     T_NAME=()
     T_DESC=()
     T_ICON=()
+    T_PLATFORMS=()
     T_BREW=()
     T_CASK=()
     T_CHECK=()
@@ -281,6 +312,7 @@ manifest_load() {
                 DESC=""
                 ICON=""
                 ORDER="500"
+                PLATFORMS="macos linux"
                 BREW=""
                 CASK=""
                 CHECK=""
@@ -294,9 +326,10 @@ manifest_load() {
                 CONFIG_OPTION_COUNTS=()
                 CONFIG_OPTIONS=()
                 assignment_read_file "$f" tool || exit 1
-                printf '%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s' \
-                    "$f" "$ORDER" "$NAME" "$DESC" "$ICON" "$BREW" "$CASK" \
-                    "$CHECK" "$INSTALL_URL" "$INSTALL_SHA256" "$REQUIRES" "${#CONFIG_NAMES[@]}"
+                printf '%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s' \
+                    "$f" "$ORDER" "$NAME" "$DESC" "$ICON" "$PLATFORMS" "$BREW" \
+                    "$CASK" "$CHECK" "$INSTALL_URL" "$INSTALL_SHA256" "$REQUIRES" \
+                    "${#CONFIG_NAMES[@]}"
                 for ((config_i = 0; config_i < ${#CONFIG_NAMES[@]}; config_i++)); do
                     printf '\037%s\037%s\037%s\037%s\037%s' "${CONFIG_NAMES[$config_i]}" \
                         "${CONFIG_SOURCES[$config_i]}" "${CONFIG_DESTS[$config_i]}" \
@@ -312,7 +345,7 @@ manifest_load() {
             ) || fatal "cannot read $f"
         done
     )"
-    local record fields=() file order name desc icon brew cask check url sha256 requires config_count
+    local record fields=() file order name desc icon platforms brew cask check url sha256 requires config_count
     local config_name source dest resolver option_count options option_key option_value tool_dir src
     local i j option_i field_i prior destination_key token_chars='^[-[:space:]A-Za-z0-9@+._/]*$'
     local token_pattern='^[A-Za-z0-9][A-Za-z0-9@+._-]*(/[A-Za-z0-9][A-Za-z0-9@+._-]*)*$'
@@ -325,13 +358,14 @@ manifest_load() {
         name="${fields[2]:-}"
         desc="${fields[3]:-}"
         icon="${fields[4]:-}"
-        brew="${fields[5]:-}"
-        cask="${fields[6]:-}"
-        check="${fields[7]:-}"
-        url="${fields[8]:-}"
-        sha256="${fields[9]:-}"
-        requires="${fields[10]:-}"
-        config_count="${fields[11]:-}"
+        platforms="${fields[5]:-}"
+        brew="${fields[6]:-}"
+        cask="${fields[7]:-}"
+        check="${fields[8]:-}"
+        url="${fields[9]:-}"
+        sha256="${fields[10]:-}"
+        requires="${fields[11]:-}"
+        config_count="${fields[12]:-}"
         [[ "$config_count" =~ ^[0-9]+$ ]] ||
             fatal "corrupt manifest (newline in a value?)"
         [[ -f "$file" ]] || fatal "corrupt manifest (newline in a value?)"
@@ -343,9 +377,13 @@ manifest_load() {
         [[ -n "$desc" ]] || fatal "tools/$name: DESC is required"
         [[ -n "$icon" ]] || fatal "tools/$name: ICON is required"
         [[ "$order" =~ ^[0-9]+$ ]] || fatal "tools/$name: ORDER must be numeric"
+        platform_list_valid "$platforms" ||
+            fatal "tools/$name: PLATFORMS must contain unique 'macos' or 'linux' values"
         case "$cask" in "" | 0 | 1) ;; *) fatal "tools/$name: CASK must be 0 or 1" ;; esac
         cask="${cask:-0}"
         [[ "$cask" != "1" || -n "$brew" ]] || fatal "tools/$name: CASK requires BREW"
+        [[ "$cask" != "1" ]] || ! platform_list_contains "$platforms" linux ||
+            fatal "tools/$name: CASK is not supported on linux"
         [[ -z "$brew" || -z "$url" ]] || fatal "tools/$name: choose BREW or INSTALL_URL, not both"
         [[ -z "$url" || "$url" =~ ^https://[^[:space:]]+$ ]] ||
             fatal "tools/$name: INSTALL_URL must be a whitespace-free HTTPS URL"
@@ -366,7 +404,7 @@ manifest_load() {
         done
         T_CONFIG_START+=("$C_COUNT")
         T_CONFIG_COUNT+=("$config_count")
-        field_i=12
+        field_i=13
         for ((j = 0; j < config_count; j++)); do
             config_name="${fields[$field_i]}"
             source="${fields[$((field_i + 1))]}"
@@ -425,23 +463,25 @@ manifest_load() {
             fi
             dest_safe "$dest" ||
                 fatal "tools/${name}: DEST must be safely inside \$HOME: '$dest'"
-            for ((i = 0; i < ${#destinations[@]}; i++)); do
-                prior="${destinations[$i]}"
-                if [[ "$dest" == "$prior" ]]; then
-                    if [[ -n "$destination_key" && "$resolver" == "${destination_resolvers[$i]}" ]]; then
-                        [[ "$destination_key" != "${destination_keys[$i]}" ]] ||
-                            fatal "tools/$name [config.$config_name]: resolver destination key collides with ${destination_names[$i]}: '$destination_key'"
-                        continue
+            if platform_list_contains "$platforms" "$DOTLAD_PLATFORM"; then
+                for ((i = 0; i < ${#destinations[@]}; i++)); do
+                    prior="${destinations[$i]}"
+                    if [[ "$dest" == "$prior" ]]; then
+                        if [[ -n "$destination_key" && "$resolver" == "${destination_resolvers[$i]}" ]]; then
+                            [[ "$destination_key" != "${destination_keys[$i]}" ]] ||
+                                fatal "tools/$name [config.$config_name]: resolver destination key collides with ${destination_names[$i]}: '$destination_key'"
+                            continue
+                        fi
+                        fatal "tools/$name [config.$config_name]: DEST overlaps ${destination_names[$i]}: '$dest'"
+                    elif [[ "$dest" == "$prior"/* || "$prior" == "$dest"/* ]]; then
+                        fatal "tools/$name [config.$config_name]: DEST overlaps ${destination_names[$i]}: '$dest'"
                     fi
-                    fatal "tools/$name [config.$config_name]: DEST overlaps ${destination_names[$i]}: '$dest'"
-                elif [[ "$dest" == "$prior"/* || "$prior" == "$dest"/* ]]; then
-                    fatal "tools/$name [config.$config_name]: DEST overlaps ${destination_names[$i]}: '$dest'"
-                fi
-            done
-            destinations+=("$dest")
-            destination_names+=("tools/$name [config.$config_name]")
-            destination_resolvers+=("$resolver")
-            destination_keys+=("$destination_key")
+                done
+                destinations+=("$dest")
+                destination_names+=("tools/$name [config.$config_name]")
+                destination_resolvers+=("$resolver")
+                destination_keys+=("$destination_key")
+            fi
             C_NAME+=("$config_name")
             C_SRC+=("$src")
             C_DEST+=("$dest")
@@ -458,6 +498,7 @@ manifest_load() {
         T_NAME+=("$name")
         T_DESC+=("$desc")
         T_ICON+=("$icon")
+        T_PLATFORMS+=("$platforms")
         T_BREW+=("$brew")
         T_CASK+=("$cask")
         T_CHECK+=("$check")

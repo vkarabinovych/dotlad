@@ -4,7 +4,7 @@ Describe the user-visible change and why it is needed.
 
 ## Compatibility and safety
 
-Describe any CLI, manifest, filesystem, installer, or macOS Bash 3.2 impact.
+Describe any CLI, manifest, filesystem, installer, platform, or Bash 3.2 impact.
 
 ## Validation
 

@@ -20,14 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Install shfmt
-        run: |
-          curl -fsSLo "$RUNNER_TEMP/shfmt" \
-            https://github.com/mvdan/sh/releases/download/v3.13.1/shfmt_v3.13.1_linux_amd64
-          echo "fb096c5d1ac6beabbdbaa2874d025badb03ee07929f0c9ff67563ce8c75398b1  $RUNNER_TEMP/shfmt" \
-            | sha256sum -c -
-          chmod +x "$RUNNER_TEMP/shfmt"
-          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      - uses: ./.github/actions/setup-shfmt
 
       - name: Source checks
         run: /bin/bash scripts/check.sh
@@ -42,20 +35,6 @@ jobs:
           scripts/package.sh
           tar -tzf "dist/dotlad-$(cat VERSION).tar.gz" >/dev/null
 
-  test-bash32:
-    name: Tests (macOS Bash 3.2)
-    runs-on: macos-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Runtime dependencies
-        run: brew install jq yq
-
-      - name: Bash 3.2 syntax
-        run: |
-          /bin/bash --version | head -1
-          /bin/bash scripts/check.sh --syntax-only
-
-      - name: Integration suite
-        run: /bin/bash tests/run.sh
+  tests:
+    name: Platform tests
+    uses: ./.github/workflows/platform-tests.yml

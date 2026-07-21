@@ -37,6 +37,11 @@ selection_explicit() { # <tool names...>
             err "unknown tool: $name"
             return 1
         }
+        tool_platform_supported "$i" ||
+            {
+                err "$name is not available on $DOTLAD_PLATFORM"
+                return 1
+            }
         tool_relevant "$i" ||
             {
                 err "$name has nothing to do in $(mode_label) mode"
@@ -166,15 +171,25 @@ selection_prompt() { # <target-label> <tool names...>
 }
 
 ensure_brew() {
-    local candidate
+    local candidate platform candidates=()
     command -v brew >/dev/null 2>&1 && return 0
     confirm "Homebrew is missing. Install it now?" || return 0
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    for candidate in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+    platform="${DOTLAD_PLATFORM:-$(platform_detect)}"
+    if [[ "$platform" == linux ]]; then
+        candidates=("$HOME/.linuxbrew/bin/brew" /home/linuxbrew/.linuxbrew/bin/brew)
+    else
+        candidates=(/opt/homebrew/bin/brew /usr/local/bin/brew)
+    fi
+    for candidate in "${candidates[@]}"; do
         [[ -x "$candidate" ]] || continue
         eval "$("$candidate" shellenv)"
         break
     done
+    command -v brew >/dev/null 2>&1 || {
+        err "Homebrew was installed but is not available on PATH"
+        return 1
+    }
     BREW_PREFIX=""
     BREW_PREFIX_SET=""
 }

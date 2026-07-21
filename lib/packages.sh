@@ -1,6 +1,22 @@
 # shellcheck shell=bash
 # lib/packages.sh — package and command-level requirement installation.
 
+sha256_available() {
+    command -v sha256sum >/dev/null 2>&1 || command -v shasum >/dev/null 2>&1
+}
+
+sha256_file() { # <file> — print only the lowercase digest
+    local output
+    if command -v sha256sum >/dev/null 2>&1; then
+        output="$(sha256sum "$1" 2>/dev/null)" || return 1
+    elif command -v shasum >/dev/null 2>&1; then
+        output="$(shasum -a 256 "$1" 2>/dev/null)" || return 1
+    else
+        return 127
+    fi
+    printf '%s' "${output%% *}"
+}
+
 run_remote_installer() ( # <idx>
     local i="$1" installer="" actual
     trap '[[ -z "$installer" ]] || rm -f "$installer"' EXIT
@@ -13,8 +29,7 @@ run_remote_installer() ( # <idx>
         return 1
     fi
     if [[ -n "${T_INSTALL_SHA256[$i]}" ]]; then
-        actual="$(shasum -a 256 "$installer" 2>/dev/null)" || actual=""
-        actual="${actual%% *}"
+        actual="$(sha256_file "$installer")" || actual=""
         if [[ "$actual" != "${T_INSTALL_SHA256[$i]}" ]]; then
             err "${T_NAME[$i]}: installer checksum mismatch"
             return 1

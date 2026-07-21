@@ -34,6 +34,7 @@ mode_packages_enabled() { [[ "$DOTLAD_MODE" != "config" ]]; }
 mode_config_enabled() { [[ "$DOTLAD_MODE" != "packages" ]]; }
 tool_has_packages() { [[ -n "${T_BREW[$1]}" || -n "${T_INSTALL_URL[$1]}" ]]; }
 tool_has_config() { [[ "${T_CONFIG_COUNT[$1]}" -gt 0 ]]; }
+tool_platform_supported() { platform_list_contains "${T_PLATFORMS[$1]}" "$DOTLAD_PLATFORM"; }
 config_is_dir() { [[ -d "$ROOT/${C_SRC[$1]}" ]]; }
 config_action() { resolver_action "${C_RESOLVER[$1]}"; }
 
@@ -45,6 +46,7 @@ config_context() { # <config-idx> — populate resolver invocation context
 }
 
 tool_relevant() {
+    tool_platform_supported "$1" || return 1
     case "$DOTLAD_MODE" in
         packages) tool_has_packages "$1" ;;
         config) tool_has_config "$1" ;;
@@ -69,8 +71,14 @@ config_paths() {
 brew_prefix() {
     if [[ -z "${BREW_PREFIX_SET:-}" ]]; then
         local p=""
-        p="$(command -v brew 2>/dev/null)" || p=""
-        BREW_PREFIX="${p%/bin/brew}"
+        if command -v brew >/dev/null 2>&1; then
+            p="$(brew --prefix 2>/dev/null)" || p=""
+            [[ -n "$p" ]] || {
+                p="$(command -v brew 2>/dev/null)" || p=""
+                p="${p%/bin/brew}"
+            }
+        fi
+        BREW_PREFIX="$p"
         BREW_PREFIX_SET=1
     fi
     printf '%s' "$BREW_PREFIX"
@@ -250,8 +258,8 @@ preflight_inspect() { # <idx> — populate PREFLIGHT_MISSING/PREFLIGHT_BLOCKERS
             preflight_add_blocker "curl is required"
         fi
         if [[ "$PREFLIGHT_INSTALLED" == 0 && -n "${T_INSTALL_SHA256[$i]}" ]] &&
-            ! command -v shasum >/dev/null 2>&1; then
-            preflight_add_blocker "shasum is required"
+            ! sha256_available; then
+            preflight_add_blocker "sha256sum or shasum is required"
         fi
     fi
     if ! mode_config_enabled || ! tool_has_config "$i"; then

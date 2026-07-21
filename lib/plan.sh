@@ -121,7 +121,9 @@ plan_selected() { # <tool names...>
     local name i first=1 j
     UTD_CACHE=()
     if [[ "${DOTLAD_PLAN_JSON:-}" == 1 ]]; then
-        printf '{"mode":'
+        printf '{"platform":'
+        json_string "$DOTLAD_PLATFORM"
+        printf ',"mode":'
         json_string "$DOTLAD_MODE"
         printf ',"tools":['
         for name in "$@"; do

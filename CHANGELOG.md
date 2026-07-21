@@ -4,6 +4,19 @@ All notable user-facing changes are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- Linux and Linuxbrew are supported alongside macOS, with the integration and
+  release suites running on both platforms.
+- Tool manifests may declare `PLATFORMS="macos"`, `PLATFORMS="linux"`, or
+  both; omitted platform metadata enables both hosts, while inactive tools are
+  excluded from selection, plans, profiles, and generated Brewfiles.
+
+### Changed
+
+- Checksum-pinned remote installers accept `sha256sum` or `shasum`, allowing
+  the host platform's standard SHA-256 utility.
+
 ## [0.7.0] - 2026-07-21
 
 ### Added

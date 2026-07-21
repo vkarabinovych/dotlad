@@ -184,6 +184,36 @@ EOF
 rc_is "overlapping destinations within one tool are rejected" 1 df section-overlap
 rm -rf "$FAKE/tools/section-overlap"
 
+# Mutually exclusive platform tools may own the same destination: only the
+# active platform enters overlap validation or execution.
+for platform_tool in platform-macos platform-linux; do
+    mkdir -p "$FAKE/tools/$platform_tool/files"
+    printf '%s\n' "$platform_tool" >"$FAKE/tools/$platform_tool/files/config"
+done
+cat >"$FAKE/tools/platform-macos/tool.conf" <<EOF
+NAME="platform-macos"
+DESC="macOS destination fixture"
+ICON="!"
+PLATFORMS="macos"
+[config.main]
+SOURCE="files/config"
+DEST="$H/.config/platform-shared/config"
+EOF
+cat >"$FAKE/tools/platform-linux/tool.conf" <<EOF
+NAME="platform-linux"
+DESC="Linux destination fixture"
+ICON="!"
+PLATFORMS="linux"
+[config.main]
+SOURCE="files/config"
+DEST="$H/.config/platform-shared/config"
+EOF
+check "disjoint platform tools may share a destination on macOS" \
+    macos_df --config-only --json plan platform-macos
+check "disjoint platform tools may share a destination on Linux" \
+    linux_df --config-only --json plan platform-linux
+rm -rf "$FAKE/tools/platform-macos" "$FAKE/tools/platform-linux"
+
 mkdir -p "$FAKE/tools/inject-collision/files/a" "$FAKE/tools/inject-collision/files/b"
 printf 'a\n' >"$FAKE/tools/inject-collision/files/a/shared.conf"
 printf 'b\n' >"$FAKE/tools/inject-collision/files/b/shared.conf"
@@ -308,6 +338,31 @@ rm -rf "$FAKE/tools/empty-tool"
 # substitutions are rejected without executing project code.
 mkdir -p "$FAKE/tools/strict-manifest/files"
 printf 'strict\n' >"$FAKE/tools/strict-manifest/files/config"
+cat >"$FAKE/tools/strict-manifest/tool.conf" <<'EOF'
+NAME="strict-manifest"
+DESC="Invalid platform fixture"
+ICON="!"
+PLATFORMS="macos windows"
+BREW="strict-manifest"
+EOF
+rc_is "manifest rejects an unknown platform" 1 df all
+cat >"$FAKE/tools/strict-manifest/tool.conf" <<'EOF'
+NAME="strict-manifest"
+DESC="Duplicate platform fixture"
+ICON="!"
+PLATFORMS="linux linux"
+BREW="strict-manifest"
+EOF
+rc_is "manifest rejects duplicate platforms" 1 df all
+cat >"$FAKE/tools/strict-manifest/tool.conf" <<'EOF'
+NAME="strict-manifest"
+DESC="Linux cask fixture"
+ICON="!"
+PLATFORMS="macos linux"
+BREW="strict-manifest"
+CASK="1"
+EOF
+rc_is "manifest rejects a cask enabled on Linux" 1 df all
 cat >"$FAKE/tools/strict-manifest/tool.conf" <<EOF
 NAME="strict-manifest"
 DESC="Strict manifest fixture"
@@ -402,8 +457,7 @@ cat "$REMOTE_INSTALLER_SOURCE"
 EOF
 chmod +x "$SB/bin/curl"
 export REMOTE_INSTALLER_SOURCE="$remote_payload" REMOTE_INSTALLER_MARKER="$remote_marker"
-remote_sha256="$(shasum -a 256 "$remote_payload")"
-remote_sha256="${remote_sha256%% *}"
+remote_sha256="$(test_sha256 "$remote_payload")"
 cat >"$FAKE/tools/remote-installer/tool.conf" <<EOF
 NAME="remote-installer"
 DESC="Pinned remote installer fixture"

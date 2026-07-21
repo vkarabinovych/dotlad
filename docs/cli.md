@@ -1,7 +1,8 @@
 # CLI reference
 
 Dotlad reads tool manifests from a project and applies their package and
-configuration state to the current user's system.
+configuration state to the current user's system. It detects `macos` or
+`linux` from the host and excludes tools whose `PLATFORMS` do not match.
 
 ## Invocation
 
@@ -93,8 +94,8 @@ that will be synchronized.
 
 ### JSON plans
 
-JSON output contains the active `mode` and a `tools` array. Each tool
-reports:
+JSON output contains the active `platform`, `mode`, and a `tools` array. Each
+tool reports:
 
 | Field                  | Meaning                                         |
 | ---------------------- | ----------------------------------------------- |
@@ -163,6 +164,10 @@ dotlad --config-only starship
 Tools with no applicable action are hidden from the picker and excluded from
 `all` and profiles. Naming an irrelevant tool directly is an error. Press `m`
 in the picker to cycle through the same three modes.
+
+Platform filtering happens before operation-mode filtering. A tool omitted
+from the current host by `PLATFORMS` is also excluded from plans and reports a
+platform-specific error when named explicitly.
 
 ## Restore points
 
@@ -242,8 +247,8 @@ export DOTLAD_DISPLAY_NAME="My Dotfiles"
 
 ## Generate a Brewfile
 
-`brewfile` validates all project manifests and writes their formulae, casks,
-and third-party taps without installing anything:
+`brewfile` validates all project manifests and writes the active platform's
+formulae, casks, and third-party taps without installing anything:
 
 ```bash
 cd "$HOME/dotfiles"

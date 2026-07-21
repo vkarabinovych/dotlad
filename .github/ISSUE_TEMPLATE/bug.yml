@@ -17,7 +17,7 @@ body:
     id: environment
     attributes:
       label: Environment
-      description: macOS version, architecture, and /bin/bash version
+      description: OS version, architecture, and /bin/bash version
     validations:
       required: true
   - type: textarea

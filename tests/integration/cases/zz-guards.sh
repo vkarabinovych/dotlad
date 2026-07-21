@@ -73,3 +73,11 @@ identity_labels="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" \
 [[ "$identity_labels" == mydots ]] &&
     pass "TUI title falls back to the command name" ||
     fail "TUI title fallback is inconsistent: $identity_labels"
+identity_host_label="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" \
+    DOTLAD_PLATFORM=linux /bin/bash -c '
+    . "$DOTLAD_RUNTIME_ROOT/lib/runtime.sh"
+    hostname() { return 1; }
+    tui_init_labels; printf "%s" "$TUI_HOST_LABEL"')"
+[[ "$identity_host_label" == "this linux" ]] &&
+    pass "TUI host label falls back to the detected platform" ||
+    fail "TUI host label platform fallback is inconsistent: $identity_host_label"

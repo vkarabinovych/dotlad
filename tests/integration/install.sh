@@ -131,7 +131,11 @@ EXTRACTED="$SB/extracted"
 ARCHIVE="$DIST/dotlad-$VERSION.tar.gz"
 "$ROOT/scripts/package.sh" "$DIST" >/dev/null
 mkdir -p "$EXTRACTED"
-(cd "$DIST" && shasum -a 256 -c "dotlad-$VERSION.sha256") >/dev/null
+if command -v sha256sum >/dev/null 2>&1; then
+    (cd "$DIST" && sha256sum -c "dotlad-$VERSION.sha256") >/dev/null
+else
+    (cd "$DIST" && shasum -a 256 -c "dotlad-$VERSION.sha256") >/dev/null
+fi
 tar -C "$EXTRACTED" -xzf "$ARCHIVE"
 [[ -f "$EXTRACTED/dotlad-$VERSION/.github/assets/demo/cli.gif" ]]
 [[ -f "$EXTRACTED/dotlad-$VERSION/.editorconfig" ]]

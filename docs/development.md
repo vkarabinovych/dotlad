@@ -2,10 +2,10 @@
 
 ## Requirements
 
-Dotlad targets macOS Bash 3.2. Maintainer validation additionally uses
-ShellCheck, shfmt, jq, yq, Git, and standard archive/checksum tools. Run
-compatibility tests with `/bin/bash`; a newer interactive Bash can hide 3.2
-regressions.
+Dotlad targets macOS and Linux while preserving macOS Bash 3.2 compatibility.
+Maintainer validation additionally uses ShellCheck, shfmt, jq, yq, Git, and
+standard archive/checksum tools. Run compatibility tests with `/bin/bash`; a
+newer interactive Bash can hide 3.2 regressions.
 
 ## Standard validation
 
@@ -34,6 +34,10 @@ and editor indentation defaults. Run Prettier with `--write` instead of
 package prefix. `tests/integration/installer.sh` owns the shared fixture and
 sources ordered files under `tests/integration/cases/`. The suite must never
 read or change a maintainer's live dotfiles.
+
+CI runs the complete integration suite on macOS Bash 3.2 and Ubuntu Bash.
+Platform tests fake `uname` only for focused cross-platform projections; the
+Ubuntu job exercises real Linux detection and `sha256sum` behavior.
 
 Runtime probes should source `lib/runtime.sh` when they exercise multiple
 layers. Source an individual library only for a deliberately isolated probe;
@@ -164,7 +168,7 @@ incomplete notes. The workflow never creates or moves release tags.
 ## Change checklist
 
 1. Preserve the trusted runtime / data-only project boundary.
-2. Keep macOS Bash 3.2 and ShellCheck compatibility.
+2. Keep macOS Bash 3.2, Linux, and ShellCheck compatibility.
 3. Preserve destination validation, backups, and transactional writes.
 4. Add semantic integration coverage for behavior changes.
 5. Update CLI, manifest, profile, resolver, or safety documentation as needed.

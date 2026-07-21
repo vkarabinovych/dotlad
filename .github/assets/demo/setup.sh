@@ -49,6 +49,7 @@ ICON=""
 ORDER="10"
 BREW="starship zoxide"
 CHECK="starship"
+[config.main]
 SOURCE="files/config.toml"
 DEST="$HOME/.config/shell/config.toml"
 EOF
@@ -63,6 +64,7 @@ ICON="󰊢"
 ORDER="20"
 BREW="git git-delta"
 CHECK="git"
+[config.main]
 SOURCE="files/.gitconfig"
 DEST="$HOME/.gitconfig"
 EOF
@@ -76,6 +78,7 @@ ICON=""
 ORDER="30"
 BREW="neovim tree-sitter-cli"
 CHECK="nvim"
+[config.main]
 SOURCE="files/init.lua"
 DEST="$HOME/.config/editor/init.lua"
 EOF
@@ -87,9 +90,11 @@ NAME="terminal"
 DESC="Terminal application and portable visual defaults."
 ICON="󰆍"
 ORDER="40"
+PLATFORMS="macos"
 BREW="ghostty font-fira-code-nerd-font"
 CASK="1"
 CHECK="$HOME/Applications/Ghostty.app"
+[config.main]
 SOURCE="files/config"
 DEST="$HOME/.config/terminal/config"
 EOF

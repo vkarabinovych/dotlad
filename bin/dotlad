@@ -131,7 +131,8 @@ machine-local JSON, TOML, and Git values or deploy a repository symlink.
 Letter shortcuts use the same physical keys on Ukrainian keyboard layouts.
 
 JSON, TOML, and Git config merging requires jq, yq, and git respectively.
-HTTPS installers require curl; checksum-pinned installers also require shasum.
+HTTPS installers require curl; checksum-pinned installers also require
+sha256sum or shasum.
 
 Modes:
 EOF

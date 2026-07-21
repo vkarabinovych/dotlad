@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2015,SC2317,SC2329  # sourced cases call the shared helpers
 #
-# Test suite for dotlad. Runs on the stock macOS Bash 3.2.
+# Test suite for dotlad. Runs on macOS Bash 3.2 and Ubuntu Bash.
 # Assertions are semantic (jq / yq / git config), never exact output text.
 # Everything happens in a throwaway sandbox — the real $HOME is never touched.
 
@@ -30,6 +30,15 @@ checknot() {
     shift
     if "$@" >/dev/null 2>&1; then fail "$d"; else pass "$d"; fi
 }
+test_sha256() {
+    local output
+    if command -v sha256sum >/dev/null 2>&1; then
+        output="$(sha256sum "$1")" || return 1
+    else
+        output="$(shasum -a 256 "$1")" || return 1
+    fi
+    printf '%s' "${output%% *}"
+}
 rc_is() {
     local d="$1" want="$2"
     shift 2
@@ -53,6 +62,16 @@ for required in jq yq git; do
             exit 0
         }
 done
+
+case "$(uname -s)" in
+    Darwin) TEST_PLATFORM=macos ;;
+    Linux) TEST_PLATFORM=linux ;;
+    *)
+        printf 'unsupported test platform\n' >&2
+        exit 1
+        ;;
+esac
+export TEST_PLATFORM
 
 SB="$(mktemp -d "${TMPDIR:-/tmp}/dotlad-test.XXXXXX")"
 FAKE="$SB/repo"
@@ -153,6 +172,7 @@ NAME="desktop"
 DESC="Cask fixture"
 ICON="g"
 ORDER="50"
+PLATFORMS="macos"
 BREW="vendor/tap/desktop fixture-font"
 CASK="1"
 CHECK="$FAKE_APPLICATIONS/Desktop.app"

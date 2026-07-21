@@ -39,6 +39,7 @@ NAME="example"
 DESC="Short user-facing description of the tool and its value."
 ICON="◆"
 ORDER="500"
+PLATFORMS="macos linux"
 BREW="example"
 CASK="0"
 CHECK="example"
@@ -54,6 +55,7 @@ RESOLVER="toml"
 | `DESC`           | yes      | Concise user-facing description shown in the picker                      |
 | `ICON`           | yes      | Short glyph shown in the picker                                          |
 | `ORDER`          | no       | Numeric manifest and batch order; defaults to `500`                      |
+| `PLATFORMS`      | no       | Space-separated `macos`/`linux` values; defaults to both                 |
 | `BREW`           | no       | Space-separated Homebrew formula or cask names                           |
 | `CASK`           | no       | `1` when every `BREW` item is a cask; defaults to `0`                    |
 | `CHECK`          | no       | Command or absolute path used to verify installation; defaults to `NAME` |
@@ -73,6 +75,12 @@ Section names use lowercase letters, digits, and hyphens, and must be unique
 within the tool. `BREW` and `INSTALL_URL` are mutually exclusive. A tool must
 declare at least one package installer or config section. Package tokens may
 use fully qualified names such as `owner/tap/formula`.
+
+`PLATFORMS` values must be unique. Tools omitted from the active platform are
+hidden from the picker, `all`, profiles, plans, and generated Brewfiles. An
+explicit selection reports that the tool is unavailable. Omitted
+`PLATFORMS` means `macos linux`; use `PLATFORMS="macos"` for casks and other
+macOS-only tools.
 
 `tool.conf` is parsed as data and never executed as Bash. Only the documented
 uppercase fields are accepted. Values may be double quoted, single quoted, or
@@ -113,6 +121,7 @@ CASK="0"
 ```
 
 ```bash
+PLATFORMS="macos"
 BREW="ghostty font-example-nerd-font"
 CASK="1"
 CHECK="/Applications/Ghostty.app"
@@ -136,9 +145,9 @@ DEST="$HOME/.config/example/config.toml"
 
 Dotlad downloads the script to a temporary file and asks for confirmation
 unless `--yes` is active. When `INSTALL_SHA256` is present, the script runs
-only after `shasum` verifies its contents. The URL must use HTTPS and the
-digest must contain exactly 64 hexadecimal characters. Pin a digest whenever
-the publisher provides an immutable installer artifact.
+only after `sha256sum` or `shasum` verifies its contents. The URL must use
+HTTPS and the digest must contain exactly 64 hexadecimal characters. Pin a
+digest whenever the publisher provides an immutable installer artifact.
 
 ## Config deployment
 
@@ -372,6 +381,8 @@ Loading fails before deployment when:
 - a source path or payload contains symlinks or special filesystem entries;
 - a destination is `$HOME`, escapes it, traverses a parent symlink, or overlaps
   another config destination outside the distinct-basename `inject` exception;
+- `PLATFORMS` contains an unknown or duplicate value, or enables a cask on
+  Linux;
 - a package token or installer URL is malformed; or
 - Homebrew and an HTTPS installer are both declared.
 

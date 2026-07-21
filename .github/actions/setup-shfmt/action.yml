@@ -1,0 +1,15 @@
+name: Set up shfmt
+description: Install the pinned shfmt release used by repository checks.
+
+runs:
+  using: composite
+  steps:
+    - name: Install shfmt
+      shell: bash
+      run: |
+        curl -fsSLo "$RUNNER_TEMP/shfmt" \
+          https://github.com/mvdan/sh/releases/download/v3.13.1/shfmt_v3.13.1_linux_amd64
+        echo "fb096c5d1ac6beabbdbaa2874d025badb03ee07929f0c9ff67563ce8c75398b1  $RUNNER_TEMP/shfmt" \
+          | sha256sum -c -
+        chmod +x "$RUNNER_TEMP/shfmt"
+        echo "$RUNNER_TEMP" >> "$GITHUB_PATH"

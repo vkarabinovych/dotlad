@@ -22,8 +22,10 @@ LAST_SIG=""
 # --- actions ----------------------------------------------------------------
 
 tui_init_labels() {
+    local platform="${DOTLAD_PLATFORM:-}"
+    [[ -n "$platform" ]] || platform="$(platform_detect)"
     TUI_HEADER_TITLE="${DOTLAD_DISPLAY_NAME:-$DOTLAD_COMMAND_NAME}"
-    TUI_HOST_LABEL="$(hostname -s 2>/dev/null || printf 'this mac')"
+    TUI_HOST_LABEL="$(hostname -s 2>/dev/null || printf 'this %s' "$platform")"
 }
 
 tui_cleanup() {

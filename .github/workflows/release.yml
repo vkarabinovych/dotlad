@@ -7,57 +7,54 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  release:
-    name: Publish release assets
-    runs-on: macos-latest
-    timeout-minutes: 20
-    permissions:
-      contents: write
+  tests:
+    name: Platform tests
+    uses: ./.github/workflows/platform-tests.yml
+
+  build:
+    name: Validate and build release
+    needs: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Install shfmt
-        run: |
-          case "$(uname -m)" in
-            arm64)
-              asset="shfmt_v3.13.1_darwin_arm64"
-              digest="9680526be4a66ea1ffe988ed08af58e1400fe1e4f4aef5bd88b20bb9b3da33f8"
-              ;;
-            x86_64)
-              asset="shfmt_v3.13.1_darwin_amd64"
-              digest="6feedafc72915794163114f512348e2437d080d0047ef8b8fa2ec63b575f12af"
-              ;;
-            *)
-              echo "unsupported runner architecture: $(uname -m)" >&2
-              exit 1
-              ;;
-          esac
-          curl -fsSLo "$RUNNER_TEMP/shfmt" \
-            "https://github.com/mvdan/sh/releases/download/v3.13.1/$asset"
-          echo "$digest  $RUNNER_TEMP/shfmt" | shasum -a 256 -c -
-          chmod +x "$RUNNER_TEMP/shfmt"
-          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      - uses: ./.github/actions/setup-shfmt
 
-      - name: Runtime dependencies
-        run: brew install shellcheck jq yq
-
-      - name: Validate and test
+      - name: Validate release metadata
         run: |
           test "$GITHUB_REF_NAME" = "v$(cat VERSION)"
-          /bin/bash scripts/check.sh
-          /bin/bash tests/run.sh
+          test "$(git cat-file -t "$GITHUB_REF_NAME")" = tag
 
-      - name: Build archive and checksum
-        run: scripts/package.sh
+      - name: Source checks
+        run: /bin/bash scripts/check.sh
+
+      - name: Documentation and formatting checks
+        run: |
+          npx --yes markdownlint-cli2@0.23.1 "**/*.md"
+          npx --yes prettier@3.6.2 --check "**/*.{md,yaml,yml}" ".github/**/*.{yaml,yml}"
+
+      - name: Build and verify release bundle
+        run: |
+          release_dir="$RUNNER_TEMP/release"
+          scripts/package.sh "$release_dir"
+          archive="dotlad-$(cat VERSION).tar.gz"
+          checksums="dotlad-$(cat VERSION).sha256"
+          (cd "$release_dir" && sha256sum -c "$checksums")
+          tar -tzf "$release_dir/$archive" >/dev/null
 
       - name: Prepare release notes
         run: |
-          notes_file="$RUNNER_TEMP/release-notes.md"
+          notes_file="$RUNNER_TEMP/release/release-notes.md"
           scripts/release-notes.sh "$GITHUB_REF_NAME" > "$notes_file"
-          previous_tag="$(git describe --tags --abbrev=0 "$GITHUB_REF_NAME^" 2>/dev/null || true)"
+          previous_tag="$(git describe --tags --match 'v[0-9]*' --abbrev=0 "$GITHUB_REF_NAME^" 2>/dev/null || true)"
           if [[ -n "$previous_tag" ]]; then
               changes_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/compare/$previous_tag...$GITHUB_REF_NAME"
           else
@@ -66,9 +63,32 @@ jobs:
           fi
           printf '\n**Full Changelog**: %s\n' "$changes_url" >> "$notes_file"
 
+      - name: Upload release bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-bundle
+          path: ${{ runner.temp }}/release
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Download release bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: release-bundle
+          path: release
+
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
-          gh release create "$GITHUB_REF_NAME" dist/* --verify-tag
-          --notes-file "$RUNNER_TEMP/release-notes.md"
+          gh release create "$GITHUB_REF_NAME" release/*.tar.gz release/*.sha256
+          --repo "$GITHUB_REPOSITORY" --verify-tag
+          --notes-file release/release-notes.md

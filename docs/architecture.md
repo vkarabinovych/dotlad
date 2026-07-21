@@ -69,9 +69,10 @@ independent of terminal state.
 strict section-aware assignment reader. Project files are data: they cannot
 source files, run substitutions, or define executable hooks. Tool values are
 normalized into parallel `T_*` arrays ordered by numeric `ORDER` and then
-`NAME`; named config sections occupy contiguous ranges in parallel `C_*`
-arrays. Resolver options are carried as opaque key/value records and interpreted
-only by the selected resolver.
+`NAME`; each tool carries its normalized `PLATFORMS`, and host detection
+selects `macos` or `linux`. Named config sections occupy contiguous ranges in
+parallel `C_*` arrays. Resolver options are carried as opaque key/value records
+and interpreted only by the selected resolver.
 
 A tool may declare packages, multiple `[config.<name>]` sections, or both. No
 config section means package-only. Every section owns a `SOURCE`/`DEST` pair
@@ -103,6 +104,8 @@ config:  ready | update | new | package-only | skipped
 The active mode filters which side is relevant. State is semantic: a resolver
 destination is ready when applying the repository overlay would make no
 change, not necessarily when its bytes equal the repository file.
+Platform relevance is checked first, so inactive tools cannot enter state
+inspection, preflight, execution, picker queues, or generated Brewfiles.
 
 `preflight_inspect` produces the canonical read-only result for one tool. It
 checks installed state, requirements, resolver renderability, destination

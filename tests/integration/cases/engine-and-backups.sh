@@ -163,17 +163,17 @@ printf '%s\n' \
     'export PAGER=more' \
     '# dotlad:end tool=inject-block source=shell-init.sh' \
     '# dotlad:end tool=inject-block source=shell-extra.sh' >"$H/.zshrc"
-inject_nested_before="$(shasum -a 256 "$H/.zshrc")"
+inject_nested_before="$(test_sha256 "$H/.zshrc")"
 rc_is "inject rejects cross-identity nested managed blocks" 1 df --config-only inject-block
-inject_nested_after="$(shasum -a 256 "$H/.zshrc")"
+inject_nested_after="$(test_sha256 "$H/.zshrc")"
 [[ "$inject_nested_before" == "$inject_nested_after" ]] &&
     pass "inject leaves cross-identity nesting untouched" ||
     fail "inject rewrote a cross-identity nested destination"
 cp "$SB/inject-valid-zshrc" "$H/.zshrc"
 printf '# dotlad:begin tool=inject-block source=shell-init.sh\n' >>"$H/.zshrc"
-inject_broken_before="$(shasum -a 256 "$H/.zshrc")"
+inject_broken_before="$(test_sha256 "$H/.zshrc")"
 rc_is "inject rejects malformed or duplicate managed blocks" 1 df --config-only inject-block
-inject_broken_after="$(shasum -a 256 "$H/.zshrc")"
+inject_broken_after="$(test_sha256 "$H/.zshrc")"
 [[ "$inject_broken_before" == "$inject_broken_after" ]] &&
     pass "inject preflight leaves malformed destinations untouched" ||
     fail "inject mutated a malformed destination"

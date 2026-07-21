@@ -25,6 +25,7 @@ cmd_brewfile() (
     : >"$taps"
 
     while IFS=$'\t' read -r _ i; do
+        platform_list_contains "${T_PLATFORMS[$i]}" "$DOTLAD_PLATFORM" || continue
         [[ -n "${T_BREW[$i]}" ]] || continue
         printf '# %s: %s\n' "${T_NAME[$i]}" "${T_DESC[$i]}" >>"$body"
         for package in ${T_BREW[$i]}; do

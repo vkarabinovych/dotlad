@@ -5,8 +5,9 @@ and include regression coverage for behavior changes.
 
 ## Development setup
 
-Dotlad targets the stock macOS Bash 3.2. Maintainer checks additionally require
-ShellCheck, shfmt, jq, yq, and Git.
+Dotlad targets macOS and Linux while retaining compatibility with the stock
+macOS Bash 3.2. Maintainer checks additionally require ShellCheck, shfmt, jq,
+yq, and Git.
 
 ```bash
 git clone https://github.com/vkarabinovych/dotlad.git
@@ -24,7 +25,7 @@ and package prefix. Tests must not read or modify live user configuration.
    documentation.
 2. Add a semantic regression case for changes to manifests, resolvers,
    deployment, backups, workers, safety checks, or CLI exit behavior.
-3. Keep macOS Bash 3.2 compatibility and shared code ShellCheck-clean.
+3. Keep macOS Bash 3.2 and Linux compatibility and shared code ShellCheck-clean.
 4. Run the complete validation before opening a pull request.
 
 Use four-space indentation and quote expansions unless splitting is
