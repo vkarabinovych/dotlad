@@ -4,6 +4,8 @@ All notable user-facing changes are documented here.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-07-22
+
 ### Added
 
 - Linux, WSL, and Linuxbrew are supported alongside macOS, with integration
@@ -20,6 +22,11 @@ All notable user-facing changes are documented here.
 - The README demo follows the viewer's light or dark theme. Dotlad now adapts
   its semantic colours and TUI highlights to the terminal background, with a
   `DOTLAD_COLOR_SCHEME` override when automatic detection is unavailable.
+
+### Fixed
+
+- Background queue locks retain explicit process ownership, recover only locks
+  left by dead processes, and clean up safely when a worker is interrupted.
 
 ## [0.7.0] - 2026-07-21
 
@@ -130,4 +137,5 @@ All notable user-facing changes are documented here.
 [0.5.0]: https://github.com/vkarabinovych/dotlad/releases/tag/v0.5.0
 [0.6.0]: https://github.com/vkarabinovych/dotlad/releases/tag/v0.6.0
 [0.7.0]: https://github.com/vkarabinovych/dotlad/releases/tag/v0.7.0
-[Unreleased]: https://github.com/vkarabinovych/dotlad/compare/v0.7.0...HEAD
+[0.8.0]: https://github.com/vkarabinovych/dotlad/releases/tag/v0.8.0
+[Unreleased]: https://github.com/vkarabinovych/dotlad/compare/v0.8.0...HEAD
