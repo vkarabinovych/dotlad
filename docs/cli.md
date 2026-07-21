@@ -242,7 +242,7 @@ terminal provides it. Set `DOTLAD_COLOR_SCHEME` to `dark` or `light` to
 override that detection; the default is `auto` and falls back to the dark
 palette when the terminal background is unknown.
 
-| Dark theme                                                               | Light theme                                                                |
+|                                Dark theme                                |                                Light theme                                 |
 | :----------------------------------------------------------------------: | :------------------------------------------------------------------------: |
 | ![Dotlad picker in a dark terminal](../.github/assets/demo/cli-dark.gif) | ![Dotlad picker in a light terminal](../.github/assets/demo/cli-light.gif) |
 
