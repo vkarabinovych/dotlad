@@ -10,7 +10,10 @@
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset=".github/assets/dotlad-name-dark.svg">
     <source media="(prefers-color-scheme: light)" srcset=".github/assets/dotlad-name-light.svg">
-    <img width="60%" alt="Why Dotlad? Dotlad combines dotfiles with the Ukrainian word лад, meaning order and harmony." src=".github/assets/dotlad-name-light.svg">
+    <img
+      width="60%"
+      alt="Why Dotlad? Dotlad combines dotfiles with the Ukrainian word лад, meaning order and harmony."
+      src=".github/assets/dotlad-name-light.svg">
   </picture>
 </p>
 
