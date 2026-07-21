@@ -27,9 +27,8 @@
         <text x="500" y="408" fill="#0057B8" class="sans" font-size="54" font-weight="800">лад</text>
     </g>
     <!--right column-->
-    <text x="710" y="114" fill="#0057B8" class="sans" font-size="58" font-weight="800">лад</text>
-    <path stroke="#FFD700" stroke-width="8" d="M710 130h107"/>
-    <text x="710" y="176" fill="#f5f7fa" class="sans" font-size="32">Ukrainian word for</text>
+    <text x="710" y="126" fill="#0057B8" class="sans" font-size="80" font-weight="800">лад</text>
+    <text x="710" y="176" fill="#f5f7fa" class="sans" font-size="32"><tspan fill="#FFD700" font-size="50" font-weight="800">Ukrainian</tspan> word for</text>
     <text x="710" y="224" fill="#f5f7fa" class="sans" font-size="34" font-weight="800">order, harmony,</text>
     <text x="710" y="272" fill="#f5f7fa" class="sans" font-size="32">and everything in its place.</text>
     <path stroke="#2b3038" stroke-width="2" d="M710 300h422"/>
