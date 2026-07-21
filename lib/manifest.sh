@@ -121,21 +121,25 @@ platform_detect() {
     esac
 }
 
-platform_list_contains() { # <space-separated-platforms> <platform>
-    [[ " $1 " == *" $2 "* ]] ||
-        [[ "$2" == wsl && " $1 " == *" linux "* ]]
+platform_list_has() { # <space-separated-platforms> <platform>
+    [[ " $1 " == *" $2 "* ]]
+}
+
+platform_list_matches() { # <space-separated-platforms> <detected-platform>
+    platform_list_has "$1" "$2" && return 0
+    # WSL is Linux-compatible, but WSL-only tools stay hidden on Linux.
+    [[ "$2" == wsl ]] && platform_list_has "$1" linux
 }
 
 platform_list_valid() { # <space-separated-platforms>
-    local platforms="$1" platform count=0 seen=$'\n'
+    local platforms="$1" platform seen=$'\n'
     [[ -n "$platforms" ]] || return 1
     for platform in $platforms; do
         case "$platform" in macos | linux | wsl) ;; *) return 1 ;; esac
         [[ "$seen" != *$'\n'"$platform"$'\n'* ]] || return 1
         seen+="$platform"$'\n'
-        count=$((count + 1))
     done
-    [[ "$count" -gt 0 ]]
+    return 0
 }
 
 assignment_read_file() { # <file> <tool|profile> — populate caller variables/CONFIG_*
@@ -392,10 +396,11 @@ manifest_load() {
         case "$cask" in "" | 0 | 1) ;; *) fatal "tools/$name: CASK must be 0 or 1" ;; esac
         cask="${cask:-0}"
         [[ "$cask" != "1" || -n "$brew" ]] || fatal "tools/$name: CASK requires BREW"
-        [[ "$cask" != "1" ]] ||
-            { ! platform_list_contains "$platforms" linux &&
-                ! platform_list_contains "$platforms" wsl; } ||
+        if [[ "$cask" == "1" ]] &&
+            { platform_list_has "$platforms" linux ||
+                platform_list_has "$platforms" wsl; }; then
             fatal "tools/$name: CASK requires PLATFORMS=\"macos\""
+        fi
         [[ -z "$brew" || -z "$url" ]] || fatal "tools/$name: choose BREW or INSTALL_URL, not both"
         [[ -z "$url" || "$url" =~ ^https://[^[:space:]]+$ ]] ||
             fatal "tools/$name: INSTALL_URL must be a whitespace-free HTTPS URL"
@@ -475,7 +480,7 @@ manifest_load() {
             fi
             dest_safe "$dest" ||
                 fatal "tools/${name}: DEST must be safely inside \$HOME: '$dest'"
-            if platform_list_contains "$platforms" "$DOTLAD_PLATFORM"; then
+            if platform_list_matches "$platforms" "$DOTLAD_PLATFORM"; then
                 for ((i = 0; i < ${#destinations[@]}; i++)); do
                     prior="${destinations[$i]}"
                     if [[ "$dest" == "$prior" ]]; then

@@ -34,7 +34,7 @@ mode_packages_enabled() { [[ "$DOTLAD_MODE" != "config" ]]; }
 mode_config_enabled() { [[ "$DOTLAD_MODE" != "packages" ]]; }
 tool_has_packages() { [[ -n "${T_BREW[$1]}" || -n "${T_INSTALL_URL[$1]}" ]]; }
 tool_has_config() { [[ "${T_CONFIG_COUNT[$1]}" -gt 0 ]]; }
-tool_platform_supported() { platform_list_contains "${T_PLATFORMS[$1]}" "$DOTLAD_PLATFORM"; }
+tool_platform_supported() { platform_list_matches "${T_PLATFORMS[$1]}" "$DOTLAD_PLATFORM"; }
 config_is_dir() { [[ -d "$ROOT/${C_SRC[$1]}" ]]; }
 config_action() { resolver_action "${C_RESOLVER[$1]}"; }
 

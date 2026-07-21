@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 jobs:
-  linux:
+  linux-family:
     name: Tests (${{ matrix.platform }} Bash)
     runs-on: ubuntu-latest
     timeout-minutes: 20
