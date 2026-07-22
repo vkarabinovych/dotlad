@@ -8,7 +8,8 @@ or integration support.
 
 - The repository documentation is the primary support resource.
 - There is no public roadmap or response-time commitment.
-- Bug reports, feature requests, and pull requests are not publicly accepted.
+- Only repository collaborators can open bug reports, feature requests, and
+  pull requests.
 - Releases follow the maintainer's own needs rather than a published schedule.
 - Forks are welcome for workflows or priorities that differ from the project.
 
