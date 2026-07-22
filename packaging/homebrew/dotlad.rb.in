@@ -17,9 +17,7 @@ class Dotlad < Formula
                             File.foreach(zshrc).any? do |line|
                               line.include?("source <(dotlad completion zsh)")
                             end
-    if completion_configured
-      return "Zsh completion is already configured in #{zshrc}.\n"
-    end
+    return "Zsh completion is already configured in #{zshrc}.\n" if completion_configured
 
     <<~EOS
       To enable native Zsh completion, add this to ~/.zshrc:
