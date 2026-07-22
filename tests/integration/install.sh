@@ -183,6 +183,8 @@ esac
 grep -F "https://api.github.com/repos/vkarabinovych/dotlad/releases/latest" \
     "$DOWNLOAD_LOG" >/dev/null
 grep -F "Add this line to $HOME/.zshrc:" <<<"$latest_output" >/dev/null
+grep -Fqx '  Zsh completion:' <<<"$latest_output"
+grep -Fq "source <(dotlad completion zsh)" <<<"$latest_output"
 [[ -x "$COMMAND" && ! -L "$COMMAND" ]]
 grep -Fqx '# dotlad managed launcher' "$COMMAND"
 [[ -f "$INSTALL_DIR/.dotlad-managed" ]]

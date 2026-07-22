@@ -87,6 +87,11 @@ print_completion() { # <version-tag>
         "$GREEN" "$RESET" "$BLUE" "$1" "$RESET"
     printf '    %s%s%s\n' "$MUTED" "$message" "$RESET"
     printf '  %s━━━━━━━━━━━━━━━━━━━━━━━━━━━━%s\n' "$YELLOW" "$RESET"
+    printf '\n  %sZsh completion:%s\n' "$BLUE" "$RESET"
+    printf '    Add it to ~/.zshrc with:\n\n'
+    printf "    if ! grep -qF 'source <(dotlad completion zsh)' ~/.zshrc 2>/dev/null; then\n"
+    printf "        printf '\\n# Dotlad Zsh completion\\nautoload -Uz compinit && compinit\\nsource <(dotlad completion zsh)\\n' >> ~/.zshrc\n"
+    printf '    fi\n'
 }
 
 is_absolute_safe_path() {
