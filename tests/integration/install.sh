@@ -39,8 +39,11 @@ if "$ROOT/scripts/release-notes.sh" v9.9.9 "$NOTES_CHANGELOG" >/dev/null 2>&1; t
     exit 1
 fi
 
-mkdir -p "$HOME_DIR" "$BREW_CWD" "$PROJECT/tools/demo/files" "$PROJECT/profiles"
+mkdir -p "$HOME_DIR/backups/20260722_010000" "$BREW_CWD" \
+    "$PROJECT/tools/demo/files" "$PROJECT/profiles"
 printf 'installed = true\n' >"$PROJECT/tools/demo/files/config.toml"
+printf 'extends=""\ntools="demo"\n' >"$PROJECT/profiles/base.conf"
+printf 'extends="base"\ntools=""\n' >"$PROJECT/profiles/developer.conf"
 cat >"$PROJECT/tools/demo/tool.conf" <<'EOF'
 NAME="demo"
 DESC="Standalone install fixture"
@@ -67,6 +70,7 @@ DOTLAD_INSTALL_TEST_FAIL_AFTER_RUNTIME=1 "$ROOT/install.sh" \
 [[ -f "$PREFIX/libexec/dotlad/lib/tui/input.sh" ]]
 [[ -f "$PREFIX/libexec/dotlad/lib/tui/model.sh" ]]
 [[ -f "$PREFIX/libexec/dotlad/lib/tui/screen.sh" ]]
+[[ -f "$PREFIX/libexec/dotlad/completions/_dotlad" ]]
 [[ ! -e "$PREFIX/libexec/dotlad/lib/dotlad" ]]
 [[ "$(cd "$SB" && "$PREFIX/bin/dotlad" --version)" == "dotlad $VERSION" ]]
 [[ "$(cd "$SB" && "$PREFIX/bin/dotlad" help | head -1)" == "dotlad — install a project's packages and configs onto your system." ]]
@@ -77,6 +81,62 @@ if HOME="$HOME_DIR" "$PREFIX/bin/dotlad" -C >"$SB/missing-root.out" 2>&1; then
     exit 1
 fi
 grep -Fx 'dotlad: -C needs a path' "$SB/missing-root.out" >/dev/null
+
+COMPLETION_SCRIPT="$SB/dotlad-completion.zsh"
+COMPLETION_PROJECT_ROOT="$(cd "$PROJECT" && pwd)"
+HOME="$HOME_DIR" "$PREFIX/bin/dotlad" -C "$PROJECT" \
+    --backup-root "$HOME_DIR/backups" completion zsh >"$COMPLETION_SCRIPT"
+grep -Fx '#compdef dotlad' "$COMPLETION_SCRIPT" >/dev/null
+grep -Fqx 'compdef _dotlad dotlad' "$COMPLETION_SCRIPT"
+grep -Fq "_dotlad_project_roots[dotlad]=$COMPLETION_PROJECT_ROOT" "$COMPLETION_SCRIPT"
+grep -Fq "_dotlad_backup_roots[dotlad]=$HOME_DIR/backups" "$COMPLETION_SCRIPT"
+if command -v zsh >/dev/null 2>&1; then
+    zsh -n "$COMPLETION_SCRIPT"
+    completion_tools="$(PATH="$PREFIX/bin:$PATH" zsh -f -c '
+        compdef() { :; }
+        source "$1"
+        compadd() {
+            printf "%s\n" "$@" "${descriptions[@]}" "${tool_display[@]}" "${profile_display[@]}"
+        }
+        service=dotlad; words=(dotlad ""); CURRENT=2; _dotlad
+    ' completion-probe "$COMPLETION_SCRIPT")"
+    grep -Fx demo <<<"$completion_tools" >/dev/null
+    grep -Fx profile <<<"$completion_tools" >/dev/null
+    grep -Fx 'profile    -- apply a named profile' \
+        <<<"$completion_tools" >/dev/null
+    grep -Fx 'demo       -- • Standalone install fixture' \
+        <<<"$completion_tools" >/dev/null
+    completion_profile="$(PATH="$PREFIX/bin:$PATH" zsh -f -c '
+        compdef() { :; }
+        source "$1"
+        compadd() { printf "%s\n" "$@" "${profile_display[@]}"; }
+        service=dotlad; words=(dotlad profile ""); CURRENT=3; _dotlad
+    ' completion-probe "$COMPLETION_SCRIPT")"
+    grep -Fx base <<<"$completion_profile" >/dev/null
+    grep -Fx 'base      -- demo' <<<"$completion_profile" >/dev/null
+    grep -Fx 'developer -- ↳ base' \
+        <<<"$completion_profile" >/dev/null
+    completion_backup="$(PATH="$PREFIX/bin:$PATH" zsh -f -c '
+        compdef() { :; }
+        source "$1"
+        compadd() { printf "%s\n" "$@"; }
+        service=dotlad; words=(dotlad backup delete ""); CURRENT=4; _dotlad
+    ' completion-probe "$COMPLETION_SCRIPT")"
+    grep -Fx 20260722_010000 <<<"$completion_backup" >/dev/null
+    completion_path="$(PATH="$PREFIX/bin:$PATH" zsh -f -c '
+        compdef() { :; }
+        source "$1"
+        compset() { printf "compset:%s:%s\n" "$1" "$2"; }
+        _directories() { [[ -o extendedglob ]] && printf "directories\n"; }
+        service=dotlad; words=(dotlad --config=); CURRENT=2; _dotlad
+    ' completion-probe "$COMPLETION_SCRIPT")"
+    grep -Fx 'compset:-P:*\=' <<<"$completion_path" >/dev/null
+    grep -Fx directories <<<"$completion_path" >/dev/null
+fi
+if HOME="$HOME_DIR" "$PREFIX/bin/dotlad" completion bash >/dev/null 2>&1; then
+    printf 'dotlad accepted an unsupported completion shell\n' >&2
+    exit 1
+fi
 
 HOME="$HOME_DIR" "$PREFIX/bin/dotlad" -C "$PROJECT" \
     --config-only --yes demo >/dev/null
@@ -150,6 +210,7 @@ tar -C "$EXTRACTED" -xzf "$ARCHIVE"
 [[ -f "$EXTRACTED/dotlad-$VERSION/lib/tui/input.sh" ]]
 [[ -f "$EXTRACTED/dotlad-$VERSION/lib/tui/model.sh" ]]
 [[ -f "$EXTRACTED/dotlad-$VERSION/lib/tui/screen.sh" ]]
+[[ -f "$EXTRACTED/dotlad-$VERSION/completions/_dotlad" ]]
 [[ -f "$EXTRACTED/dotlad-$VERSION/examples/.gitignore" ]]
 [[ -x "$EXTRACTED/dotlad-$VERSION/examples/mydot" ]]
 [[ -f "$EXTRACTED/dotlad-$VERSION/examples/tools/multi-config/tool.conf" ]]

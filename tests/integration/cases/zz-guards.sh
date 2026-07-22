@@ -10,6 +10,8 @@ rc_is "uppercase help flag exits 0" 0 df -H
 rc_is "help flag rejects positional arguments" 1 df -H extra
 rc_is "uppercase version flag exits 0" 0 df -V
 rc_is "version flag rejects positional arguments" 1 df -V extra
+rc_is "Zsh completion command exits 0" 0 df completion zsh
+rc_is "completion command rejects an unsupported shell" 1 df completion bash
 help_output="$(df help)"
 grep -q -- '--symlink' <<<"$help_output" && pass "help documents --symlink" ||
     fail "help omits --symlink"
@@ -17,6 +19,35 @@ grep -qF -- '-h, -H, --help' <<<"$help_output" && pass "help documents all help 
     fail "help omits a help alias"
 grep -qF -- '-v, -V, --version' <<<"$help_output" && pass "help documents all version aliases" ||
     fail "help omits a version alias"
+grep -qF -- 'completion zsh' <<<"$help_output" && pass "help documents Zsh completion" ||
+    fail "help omits Zsh completion"
+
+completion_output="$(df completion zsh)"
+completion_project_root="$(cd "$FAKE" && pwd)"
+if grep -qF 'compadd ' <<<"$completion_output" &&
+    grep -qF 'compdef _dotlad dotlad' <<<"$completion_output" &&
+    grep -qF "_dotlad_project_roots[dotlad]=$completion_project_root" <<<"$completion_output" &&
+    grep -qF "_dotlad_backup_roots[dotlad]=$H/.dotlad_backup" <<<"$completion_output"; then
+    pass "Zsh completion preserves command and project identity"
+else
+    fail "Zsh completion omits compadd, compdef, or selected roots"
+fi
+completion_without_colorfgbg="$(cd "$FAKE" && env -u COLORFGBG \
+    DOTLAD_FORCE_COLOR=1 HOME="$H" /bin/bash "$ROOT/dotlad" \
+    -C "$FAKE" completion zsh)"
+grep -qF 'compdef _dotlad dotlad' <<<"$completion_without_colorfgbg" &&
+    pass "Zsh completion tolerates an unset COLORFGBG" ||
+    fail "Zsh completion requires COLORFGBG when colour is forced"
+wrapper_completion="$(cd "$FAKE" && HOME="$H" DOTLAD_COMMAND_NAME=mydots \
+    /bin/bash "$ROOT/dotlad" -C "$FAKE" --backup-root "$H/.dotlad_backup" \
+    completion zsh)"
+if grep -qF 'compdef _dotlad mydots' <<<"$wrapper_completion" &&
+    grep -qF "_dotlad_project_roots[mydots]=$completion_project_root" \
+        <<<"$wrapper_completion"; then
+    pass "Zsh completion registers an embedded wrapper"
+else
+    fail "Zsh completion loses an embedded wrapper identity"
+fi
 
 dark_palette="$(DOTLAD_FORCE_COLOR=1 DOTLAD_COLOR_SCHEME=dark /bin/bash -c '
     . "$1/lib/console.sh"

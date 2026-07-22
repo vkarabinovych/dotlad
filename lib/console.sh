@@ -7,7 +7,8 @@ console_color_scheme() {
     case "$scheme" in
         dark | light) ;;
         auto)
-            background="${COLORFGBG##*;}"
+            background="${COLORFGBG:-}"
+            background="${background##*;}"
             case "$background" in
                 7 | 15) scheme="light" ;;
                 *) scheme="dark" ;;

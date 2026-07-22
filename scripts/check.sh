@@ -15,6 +15,9 @@ SOURCES=(
 )
 
 bash -n "${SOURCES[@]}"
+if command -v zsh >/dev/null 2>&1; then
+    zsh -n completions/_dotlad
+fi
 [[ "${1:-}" == --syntax-only ]] && exit 0
 [[ $# -eq 0 ]] || {
     printf 'Usage: %s [--syntax-only]\n' "$0" >&2

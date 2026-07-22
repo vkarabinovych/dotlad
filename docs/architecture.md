@@ -11,6 +11,7 @@ DOTLAD_RUNTIME_ROOT/
 ├── VERSION
 ├── dotlad
 ├── bin/dotlad
+├── completions/_dotlad
 └── lib/
 
 DOTLAD_PROJECT_ROOT/
@@ -46,6 +47,7 @@ console → resolvers → manifest → brewfile → packages → backup → engi
 | Component      | Responsibility                                                    |
 | -------------- | ----------------------------------------------------------------- |
 | `bin/dotlad`   | Bootstrap, global option extraction, argument parsing, dispatch   |
+| `_dotlad`      | Native Zsh command, option, tool, profile, and backup completion  |
 | `console.sh`   | Shared colors, messages, prompts, paths, and diff output          |
 | `manifest.sh`  | Strict manifest/profile parsing, normalization, safety validation |
 | `resolvers.sh` | Load and dispatch trusted runtime resolver implementations        |

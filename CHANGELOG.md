@@ -4,6 +4,12 @@ All notable user-facing changes are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- `dotlad completion zsh` prints native `compdef`/`compadd` integration with
+  dynamic command, option, tool, profile, and restore-point completion. Custom
+  wrappers retain their command name and explicitly selected project roots.
+
 ## [0.8.0] - 2026-07-22
 
 ### Added

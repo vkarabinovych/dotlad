@@ -31,6 +31,7 @@ use the selected project and backup location consistently.
 | `dotlad backups`              | List restore points                                      |
 | `dotlad restore <name>`       | Restore every differing entry in a restore point         |
 | `dotlad backup delete <name>` | Permanently delete a restore point                       |
+| `dotlad completion zsh`       | Print native Zsh completion for the current command      |
 | `dotlad version`              | Print the installed version                              |
 | `dotlad help`                 | Print built-in help                                      |
 
@@ -62,6 +63,40 @@ that omit `RESOLVER`; an explicit section resolver always takes precedence.
 state view, but it does not make a named tool/profile/all action read-only.
 Use `plan` or `--dry-run` for that guarantee. Options such as `--output` and
 `--json` are rejected outside their documented command scope.
+
+## Zsh completion
+
+Initialize Zsh's completion system, then source Dotlad's generated integration
+from `.zshrc`:
+
+```zsh
+autoload -Uz compinit && compinit
+source <(dotlad completion zsh)
+```
+
+The generated script uses `compdef` and `compadd` directly. It completes global
+options and commands, shows each tool's manifest description, shows each
+profile's parent and directly declared tools, and lists restore points from the
+selected backup root. `-C`, `--config`, and `--backup-root` values on the command
+line take precedence. Metadata is read through Dotlad's strict parser; project
+files are never sourced or evaluated by Zsh.
+
+Completion rows share one aligned name and description grid when commands and
+tools appear together: `command -- description` and
+`tool -- ICON description`. Profiles follow the same grid with
+`profile -- own tools` at the root and `profile -- ↳ parent + own tools` when
+inherited. An empty addition is omitted. This remains readable across terminal
+themes and does not override user-defined Zsh completion colours.
+
+Embedded wrappers retain their own command identity and roots:
+
+```zsh
+source <(mydot completion zsh)
+```
+
+When the wrapper invokes Dotlad with `-C` or `--backup-root`, the generated
+registration records those resolved paths, so completion remains project-aware
+outside the project directory.
 
 ## Inspect and plan
 

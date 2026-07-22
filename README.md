@@ -57,6 +57,7 @@ but icon glyphs may use the terminal's missing-character fallback.
 
 Runtime dependencies are scoped to each tool and its resolver:
 
+- Zsh is required only for the optional native completion integration.
 - Homebrew on macOS or Linuxbrew on Linux and WSL installs declared `BREW`
   packages and missing resolver or manifest-defined requirements.
 - `curl` is required when an HTTPS installer must run.
@@ -84,6 +85,19 @@ updating the checkout, rerun `./install.sh` to replace the managed runtime.
 
 Use `./install.sh --prefix /absolute/path` to select another installation
 prefix. The installer refuses to overwrite an unmanaged `bin/dotlad`.
+
+Enable native Zsh completion after initializing its completion system:
+
+```zsh
+autoload -Uz compinit && compinit
+source <(dotlad completion zsh)
+```
+
+The completion function suggests commands, options, tools with their manifest
+icons and descriptions, profiles with their parent and directly declared tools,
+and restore points for the active project. Project-specific wrappers can
+register their own command name and fixed roots with
+`source <(mydot completion zsh)`.
 
 ## Create a first project
 

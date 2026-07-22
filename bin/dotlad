@@ -13,6 +13,10 @@ set -euo pipefail
 
 DOTLAD_RUNTIME_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DOTLAD_BIN="$DOTLAD_RUNTIME_ROOT/dotlad"
+DOTLAD_PROJECT_ROOT_EXPLICIT=0
+DOTLAD_BACKUP_ROOT_EXPLICIT=0
+[[ -z "${DOTLAD_PROJECT_ROOT+x}" ]] || DOTLAD_PROJECT_ROOT_EXPLICIT=1
+[[ -z "${DOTLAD_BACKUP_ROOT+x}" ]] || DOTLAD_BACKUP_ROOT_EXPLICIT=1
 DOTLAD_PROJECT_ROOT="${DOTLAD_PROJECT_ROOT:-$PWD}"
 DOTLAD_BACKUP_ROOT="${DOTLAD_BACKUP_ROOT:-$HOME/.dotlad_backup}"
 DOTLAD_COMMAND_NAME="${DOTLAD_COMMAND_NAME:-$(basename "$0")}"
@@ -31,10 +35,12 @@ while [[ $# -gt 0 ]]; do
                     exit 1
                 }
             DOTLAD_PROJECT_ROOT="$2"
+            DOTLAD_PROJECT_ROOT_EXPLICIT=1
             shift 2
             ;;
         --config=*)
             DOTLAD_PROJECT_ROOT="${1#*=}"
+            DOTLAD_PROJECT_ROOT_EXPLICIT=1
             shift
             ;;
         --backup-root)
@@ -44,10 +50,12 @@ while [[ $# -gt 0 ]]; do
                     exit 1
                 }
             DOTLAD_BACKUP_ROOT="$2"
+            DOTLAD_BACKUP_ROOT_EXPLICIT=1
             shift 2
             ;;
         --backup-root=*)
             DOTLAD_BACKUP_ROOT="${1#*=}"
+            DOTLAD_BACKUP_ROOT_EXPLICIT=1
             shift
             ;;
         --output)
@@ -91,6 +99,50 @@ print_help_row() { # <label-width> <label> <description>
     printf '  %s%*s  %s\n' "$label" "$padding" "" "$3"
 }
 
+print_zsh_completion() {
+    local completion_backup_root="$DOTLAD_BACKUP_ROOT"
+    case "$completion_backup_root" in
+        "~") completion_backup_root="$HOME" ;;
+        \~/*) completion_backup_root="$HOME/${completion_backup_root#\~/}" ;;
+    esac
+    [[ "$completion_backup_root" == /* ]] ||
+        completion_backup_root="$PWD/$completion_backup_root"
+    cat "$DOTLAD_RUNTIME_ROOT/completions/_dotlad"
+    printf '\ntypeset -gA _dotlad_project_roots _dotlad_backup_roots\n'
+    if [[ "$DOTLAD_PROJECT_ROOT_EXPLICIT" == 1 ]]; then
+        printf '_dotlad_project_roots[%q]=%q\n' "$DOTLAD_COMMAND_NAME" "$ROOT"
+    fi
+    if [[ "$DOTLAD_BACKUP_ROOT_EXPLICIT" == 1 ]]; then
+        printf '_dotlad_backup_roots[%q]=%q\n' \
+            "$DOTLAD_COMMAND_NAME" "$completion_backup_root"
+    fi
+    printf 'compdef _dotlad %q\n' "$DOTLAD_COMMAND_NAME"
+}
+
+print_completion_metadata() {
+    local i file name extends tools item direct_tools
+    for ((i = 0; i < T_COUNT; i++)); do
+        printf 'tool\037%s\037%s\037%s\n' \
+            "${T_NAME[$i]}" "${T_ICON[$i]}" "${T_DESC[$i]}"
+    done
+    [[ -d "$ROOT/profiles" && ! -L "$ROOT/profiles" ]] || return 0
+    for file in "$ROOT"/profiles/*.conf; do
+        [[ -e "$file" ]] || continue
+        name="${file##*/}"
+        name="${name%.conf}"
+        profile_tools "$name" >/dev/null || return 1
+        extends=""
+        tools=""
+        direct_tools=""
+        assignment_read_file "$file" profile || return 1
+        for item in $tools; do
+            direct_tools="${direct_tools:+$direct_tools }$item"
+        done
+        printf 'profile\037%s\037%s\037%s\n' \
+            "$name" "$extends" "$direct_tools"
+    done
+}
+
 usage() {
     local command_width=$((${#DOTLAD_COMMAND_NAME} + 19))
     printf "%s — install a project's packages and configs onto your system.\n\n" \
@@ -112,6 +164,8 @@ usage() {
     print_help_row "$command_width" "$DOTLAD_COMMAND_NAME backups" "List restore points"
     print_help_row "$command_width" "$DOTLAD_COMMAND_NAME restore NAME" "Restore a restore point"
     print_help_row "$command_width" "$DOTLAD_COMMAND_NAME backup delete NAME" "Delete a restore point"
+    print_help_row "$command_width" "$DOTLAD_COMMAND_NAME completion zsh" \
+        "Print native Zsh completion"
     print_help_row "$command_width" "$DOTLAD_COMMAND_NAME version" \
         "Print the installed $DOTLAD_DISPLAY_NAME version"
     print_help_row "$command_width" "$DOTLAD_COMMAND_NAME help" "This help"
@@ -207,6 +261,18 @@ main() {
                 exit 1
             }
             printf '%s %s\n' "$DOTLAD_DISPLAY_NAME" "$DOTLAD_VERSION"
+            exit 0
+            ;;
+        completion)
+            if [[ ${#pos[@]} -eq 2 && "${pos[1]}" == zsh ]]; then
+                print_zsh_completion
+            elif [[ ${#pos[@]} -eq 2 && "${pos[1]}" == _metadata ]]; then
+                manifest_load
+                print_completion_metadata
+            else
+                err "usage: $DOTLAD_COMMAND_NAME completion zsh"
+                exit 1
+            fi
             exit 0
             ;;
     esac

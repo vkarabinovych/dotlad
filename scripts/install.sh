@@ -92,7 +92,7 @@ if [[ "$ACTION" == "uninstall" ]]; then
     exit 0
 fi
 
-for required in VERSION dotlad bin/dotlad lib/runtime.sh; do
+for required in VERSION dotlad bin/dotlad completions/_dotlad lib/runtime.sh; do
     [[ -e "$SOURCE_ROOT/$required" ]] ||
         {
             printf 'dotlad install: incomplete source tree: missing %s\n' "$required" >&2
@@ -144,9 +144,10 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' HUP INT TERM
 
-mkdir -p "$stage/bin" "$stage/lib/resolvers" "$stage/lib/tui"
+mkdir -p "$stage/bin" "$stage/completions" "$stage/lib/resolvers" "$stage/lib/tui"
 cp "$SOURCE_ROOT/VERSION" "$SOURCE_ROOT/dotlad" "$stage/"
 cp "$SOURCE_ROOT/bin/dotlad" "$stage/bin/"
+cp "$SOURCE_ROOT/completions/_dotlad" "$stage/completions/"
 cp "$SOURCE_ROOT/lib/"*.sh "$stage/lib/"
 cp "$SOURCE_ROOT/lib/resolvers/"*.sh "$stage/lib/resolvers/"
 cp "$SOURCE_ROOT/lib/tui/"*.sh "$stage/lib/tui/"
