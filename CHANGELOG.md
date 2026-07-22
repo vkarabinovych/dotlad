@@ -18,6 +18,11 @@ All notable user-facing changes are documented here.
   lives in focused `lib/cli/` modules, leaving `bin/dotlad` as a thin
   executable entrypoint.
 
+### Fixed
+
+- Automatic colour-scheme detection no longer fails under `set -u` when a
+  terminal does not export `COLORFGBG`.
+
 ## [0.8.0] - 2026-07-22
 
 ### Added

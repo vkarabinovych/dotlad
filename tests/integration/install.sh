@@ -5,9 +5,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SB="$(mktemp -d "${TMPDIR:-/tmp}/dotlad-install-test.XXXXXX")"
 trap 'rm -rf "$SB"' EXIT HUP INT TERM
-VERSION="$(cat "$ROOT/VERSION")"
+SOURCE_VERSION="$(cat "$ROOT/VERSION")"
+VERSION="0.9.0"
 TAG="v$VERSION"
 DIST="$SB/dist"
+SOURCE_DIST="$SB/source-dist"
 DOWNLOAD_BIN="$SB/download-bin"
 DOWNLOAD_LOG="$SB/download.log"
 INSTALL_DIR="$SB/paths with spaces/share/dotlad"
@@ -42,9 +44,31 @@ if "$ROOT/scripts/release-notes.sh" v9.9.9 "$NOTES_CHANGELOG" >/dev/null 2>&1; t
     exit 1
 fi
 
-"$ROOT/scripts/package.sh" "$DIST" >/dev/null
+"$ROOT/scripts/package.sh" "$SOURCE_DIST" >/dev/null
+SOURCE_ARCHIVE="$SOURCE_DIST/dotlad-$SOURCE_VERSION.tar.gz"
+SOURCE_CHECKSUM="$SOURCE_DIST/dotlad-$SOURCE_VERSION.sha256"
+[[ -s "$SOURCE_ARCHIVE" && -s "$SOURCE_CHECKSUM" ]]
+if command -v sha256sum >/dev/null 2>&1; then
+    (cd "$SOURCE_DIST" && sha256sum -c "$(basename "$SOURCE_CHECKSUM")") >/dev/null
+else
+    (cd "$SOURCE_DIST" && shasum -a 256 -c "$(basename "$SOURCE_CHECKSUM")") >/dev/null
+fi
+
+# Model the first supported release without changing the repository version
+# before its release-preparation commit exists.
+FIXTURE_SOURCE="$SB/release-fixture"
+mkdir -p "$FIXTURE_SOURCE" "$DIST"
+tar -xzf "$SOURCE_ARCHIVE" -C "$FIXTURE_SOURCE"
+mv "$FIXTURE_SOURCE/dotlad-$SOURCE_VERSION" "$FIXTURE_SOURCE/dotlad-$VERSION"
+printf '%s\n' "$VERSION" >"$FIXTURE_SOURCE/dotlad-$VERSION/VERSION"
 ARCHIVE="$DIST/dotlad-$VERSION.tar.gz"
 CHECKSUM="$DIST/dotlad-$VERSION.sha256"
+tar -czf "$ARCHIVE" -C "$FIXTURE_SOURCE" "dotlad-$VERSION"
+if command -v sha256sum >/dev/null 2>&1; then
+    (cd "$DIST" && sha256sum "$(basename "$ARCHIVE")") >"$CHECKSUM"
+else
+    (cd "$DIST" && shasum -a 256 "$(basename "$ARCHIVE")") >"$CHECKSUM"
+fi
 [[ -s "$ARCHIVE" && -s "$CHECKSUM" ]]
 if command -v sha256sum >/dev/null 2>&1; then
     (cd "$DIST" && sha256sum -c "$(basename "$CHECKSUM")") >/dev/null
@@ -160,17 +184,24 @@ fi
 DOTLAD_VERSION="$TAG" run_installer >/dev/null
 [[ "$(cd / && "$COMMAND" --version)" == "dotlad $VERSION" ]]
 
-printf '0.7.0\n' >"$INSTALL_DIR/VERSION"
+printf '0.8.0\n' >"$INSTALL_DIR/VERSION"
 upgrade_output="$(DOTLAD_VERSION="$TAG" run_installer)"
-grep -F "dotlad install: updating from v0.7.0 to $TAG for" \
+grep -F "dotlad install: updating from v0.8.0 to $TAG for" \
     <<<"$upgrade_output" >/dev/null
-grep -Fqx "dotlad install: updated from v0.7.0 to $TAG" <<<"$upgrade_output"
+grep -Fqx "dotlad install: updated from v0.8.0 to $TAG" <<<"$upgrade_output"
 
-printf '0.9.0\n' >"$INSTALL_DIR/VERSION"
+printf '0.10.0\n' >"$INSTALL_DIR/VERSION"
 downgrade_output="$(DOTLAD_VERSION="$TAG" run_installer)"
-grep -F "dotlad install: downgrading from v0.9.0 to $TAG for" \
+grep -F "dotlad install: downgrading from v0.10.0 to $TAG for" \
     <<<"$downgrade_output" >/dev/null
-grep -Fqx "dotlad install: downgraded from v0.9.0 to $TAG" <<<"$downgrade_output"
+grep -Fqx "dotlad install: downgraded from v0.10.0 to $TAG" <<<"$downgrade_output"
+
+unsupported_rc=0
+DOTLAD_VERSION=v0.8.0 run_installer >/dev/null 2>"$SB/unsupported.err" || unsupported_rc=$?
+[[ "$unsupported_rc" != 0 ]]
+grep -Fqx \
+    '✗ dotlad install: release v0.8.0 is not supported; use v0.9.0 or newer' \
+    "$SB/unsupported.err"
 
 invalid_version_rc=0
 DOTLAD_VERSION=main run_installer >/dev/null 2>&1 || invalid_version_rc=$?

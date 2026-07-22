@@ -103,8 +103,11 @@ Pin an installation to a specific release when reproducibility matters:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vkarabinovych/dotlad/main/install.sh |
-  DOTLAD_VERSION=v0.8.0 bash
+  DOTLAD_VERSION=v0.9.0 bash
 ```
+
+The archive-based installer supports Dotlad `v0.9.0` and newer. Earlier
+releases predate this installation contract and are rejected explicitly.
 
 By default, application files are installed under
 `~/.local/share/dotlad`, and `~/.local/bin/dotlad` is a small managed launcher

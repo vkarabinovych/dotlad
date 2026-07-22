@@ -5,6 +5,7 @@ set -euo pipefail
 REPOSITORY="vkarabinovych/dotlad"
 GITHUB_URL="https://github.com/$REPOSITORY"
 API_URL="https://api.github.com/repos/$REPOSITORY"
+MIN_SUPPORTED_VERSION="v0.9.0"
 INSTALL_DIR="${DOTLAD_INSTALL_DIR:-$HOME/.local/share/dotlad}"
 BIN_DIR="${DOTLAD_BIN_DIR:-$HOME/.local/bin}"
 MANAGED_MARKER="dotlad managed installation"
@@ -487,6 +488,9 @@ if [[ -z "$VERSION" ]]; then
     [[ -n "$VERSION" ]] || fail "could not determine the latest release"
 fi
 validate_version "$VERSION"
+if [[ "$(compare_versions "$VERSION" "$MIN_SUPPORTED_VERSION")" == -1 ]]; then
+    fail "release $VERSION is not supported; use $MIN_SUPPORTED_VERSION or newer"
+fi
 
 RELEASE_VERSION="${VERSION#v}"
 ARCHIVE_NAME="dotlad-$RELEASE_VERSION.tar.gz"
