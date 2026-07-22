@@ -170,6 +170,25 @@ to the comparison with the previous tag, or to the release commit for the
 first tag. A missing or empty section fails the release instead of publishing
 incomplete notes. The workflow never creates or moves release tags.
 
+After publishing the GitHub Release, the workflow renders the Homebrew formula
+from that release's checksum and opens a pull request against
+`vkarabinovych/homebrew-tap`. Configure a fine-grained repository secret named
+`HOMEBREW_TAP_TOKEN` with contents and pull-request write access to that tap.
+The Homebrew job fails explicitly when the secret is absent or invalid, while
+the already published GitHub Release remains available.
+
+The separate tap repository owns its CI and access policy. To render or recover
+an update manually, run:
+
+```bash
+scripts/render-homebrew-formula.sh \
+  "v$(cat VERSION)" "dist/dotlad-$(cat VERSION).sha256" \
+  ../homebrew-tap/Formula/dotlad.rb
+```
+
+Then run `brew style`, `brew audit --strict --online`, install from source,
+and `brew test` in the tap checkout before merging the formula pull request.
+
 ## Change checklist
 
 1. Preserve the trusted runtime / data-only project boundary.

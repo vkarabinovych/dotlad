@@ -76,6 +76,27 @@ else
     (cd "$DIST" && shasum -a 256 -c "$(basename "$CHECKSUM")") >/dev/null
 fi
 
+# The tap formula is rendered from the checksum attached to the exact release.
+FORMULA="$SB/homebrew-tap/Formula/dotlad.rb"
+"$ROOT/scripts/render-homebrew-formula.sh" "$TAG" "$CHECKSUM" "$FORMULA" >/dev/null
+grep -Fqx \
+    "  url \"https://github.com/vkarabinovych/dotlad/releases/download/$TAG/dotlad-$VERSION.tar.gz\"" \
+    "$FORMULA"
+formula_sha256="$(awk '$1 == "sha256" { gsub(/\"/, "", $2); print $2 }' "$FORMULA")"
+archive_sha256="$(awk -v archive="dotlad-$VERSION.tar.gz" '$2 == archive { print $1 }' "$CHECKSUM")"
+[[ "$formula_sha256" == "$archive_sha256" ]]
+grep -Fqx '    libexec.install "VERSION", "dotlad", "bin", "lib"' "$FORMULA"
+grep -Fqx '    bin.write_exec_script libexec/"dotlad"' "$FORMULA"
+if grep -E '@(VERSION|SHA256)@' "$FORMULA" >/dev/null; then
+    printf 'rendered Homebrew formula retained a template placeholder\n' >&2
+    exit 1
+fi
+if "$ROOT/scripts/render-homebrew-formula.sh" v0.9.1 "$CHECKSUM" \
+    "$SB/invalid-formula.rb" >/dev/null 2>&1; then
+    printf 'Homebrew formula renderer accepted a mismatched checksum file\n' >&2
+    exit 1
+fi
+
 mkdir -p "$DOWNLOAD_BIN"
 cat >"$DOWNLOAD_BIN/curl" <<'EOF'
 #!/usr/bin/env bash

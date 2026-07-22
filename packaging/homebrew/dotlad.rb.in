@@ -1,0 +1,17 @@
+class Dotlad < Formula
+  desc "Install packages and deploy dotfiles from a manifest-driven project"
+  homepage "https://github.com/vkarabinovych/dotlad"
+  url "https://github.com/vkarabinovych/dotlad/releases/download/v@VERSION@/dotlad-@VERSION@.tar.gz"
+  sha256 "@SHA256@"
+  license "MIT"
+
+  def install
+    libexec.install "VERSION", "dotlad", "bin", "lib"
+    bin.write_exec_script libexec/"dotlad"
+  end
+
+  test do
+    assert_match version.to_s, shell_output("#{bin}/dotlad --version")
+    assert_match "install a project's packages and configs", shell_output("#{bin}/dotlad help")
+  end
+end

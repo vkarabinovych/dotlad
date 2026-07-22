@@ -75,7 +75,33 @@ additional commands needed by a particular tool's config deployment.
 
 ## Install
 
-Install the latest tagged release on macOS, Linux, or WSL:
+Dotlad supports Homebrew and a standalone curl installer on macOS, Linux, and
+WSL. Both methods install the same immutable, checksummed release archive.
+
+### Homebrew
+
+Install from the official tap:
+
+```bash
+brew install vkarabinovych/tap/dotlad
+```
+
+Homebrew owns the application under its active prefix, so the command works
+with Intel and Apple Silicon Homebrew installations without a fixed prefix.
+Use Homebrew for subsequent upgrades and removal:
+
+```bash
+brew upgrade dotlad
+brew uninstall dotlad
+```
+
+The tap starts with the first release that supports the archive installation
+contract (`v0.9.0` or newer). Homebrew itself must already be available on
+Linux and WSL.
+
+### Curl installer
+
+Install the latest tagged release without Homebrew:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/vkarabinovych/dotlad/main/install.sh | bash
@@ -156,6 +182,12 @@ For custom locations, remove the paths supplied through
 release archives against the SHA-256 file attached to the same GitHub Release.
 This detects corruption and incomplete downloads, but the checksums are not
 yet signed or published through an independent trust channel.
+
+Homebrew and curl installations may coexist: Homebrew uses its Cellar and
+prefix, while the standalone installer uses the paths above. The first
+`dotlad` on `PATH` is the one the shell runs, so using one installation method
+for routine updates avoids version ambiguity. Neither method modifies project
+manifests, deployed config, or backups when upgrading or uninstalling Dotlad.
 
 Enable native Zsh completion after initializing its completion system:
 
