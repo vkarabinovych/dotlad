@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
-# Standalone installation contract.
+# Release packaging and curl-installer contract.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SB="$(mktemp -d "${TMPDIR:-/tmp}/dotlad-install-test.XXXXXX")"
 trap 'rm -rf "$SB"' EXIT HUP INT TERM
-PREFIX="$SB/prefix"
-HOME_DIR="$SB/home"
-PROJECT="$SB/project"
-BREW_CWD="$SB/brew-cwd"
 VERSION="$(cat "$ROOT/VERSION")"
+TAG="v$VERSION"
+DIST="$SB/dist"
+DOWNLOAD_BIN="$SB/download-bin"
+DOWNLOAD_LOG="$SB/download.log"
+INSTALL_DIR="$SB/paths with spaces/share/dotlad"
+BIN_DIR="$SB/paths with spaces/bin"
+COMMAND="$BIN_DIR/dotlad"
 
 # Release notes come from exactly one versioned changelog section.
 NOTES_CHANGELOG="$SB/release-notes.md"
@@ -39,271 +42,252 @@ if "$ROOT/scripts/release-notes.sh" v9.9.9 "$NOTES_CHANGELOG" >/dev/null 2>&1; t
     exit 1
 fi
 
-case "$(uname -s)" in
-    Darwin) INACTIVE_PLATFORM=linux ;;
-    *) INACTIVE_PLATFORM=macos ;;
-esac
-mkdir -p "$HOME_DIR/backups/20260722_010000" \
-    "$HOME_DIR/backups/not-a-restore-point" "$BREW_CWD" \
-    "$PROJECT/tools/demo/files" "$PROJECT/tools/inactive" "$PROJECT/profiles"
-printf 'installed = true\n' >"$PROJECT/tools/demo/files/config.toml"
-printf 'extends=""\ntools="demo"\n' >"$PROJECT/profiles/base.conf"
-printf 'extends="base"\ntools=""\n' >"$PROJECT/profiles/developer.conf"
-cat >"$PROJECT/tools/demo/tool.conf" <<'EOF'
-NAME="demo"
-DESC="Standalone install fixture"
-ICON="•"
-BREW="demo"
-[config.main]
-SOURCE="files/config.toml"
-DEST="$HOME/.config/demo/config.toml"
-EOF
-cat >"$PROJECT/tools/inactive/tool.conf" <<EOF
-NAME="inactive"
-DESC="Inactive platform fixture"
-ICON="×"
-PLATFORMS="$INACTIVE_PLATFORM"
-BREW="inactive"
-EOF
-
-# A failed fresh install leaves neither half of the managed installation.
-FRESH_FAIL_PREFIX="$SB/fresh-fail-prefix"
-fresh_fail_rc=0
-DOTLAD_INSTALL_TEST_FAIL_AFTER_RUNTIME=1 "$ROOT/install.sh" \
-    --prefix "$FRESH_FAIL_PREFIX" >/dev/null 2>&1 || fresh_fail_rc=$?
-[[ "$fresh_fail_rc" == 97 ]]
-[[ ! -e "$FRESH_FAIL_PREFIX/libexec/dotlad" ]]
-[[ ! -e "$FRESH_FAIL_PREFIX/bin/dotlad" ]]
-
-"$ROOT/install.sh" --prefix "$PREFIX" >/dev/null
-[[ -x "$PREFIX/bin/dotlad" ]]
-[[ -f "$PREFIX/libexec/dotlad/lib/runtime.sh" ]]
-[[ -f "$PREFIX/libexec/dotlad/lib/console.sh" ]]
-[[ -f "$PREFIX/libexec/dotlad/lib/tui/input.sh" ]]
-[[ -f "$PREFIX/libexec/dotlad/lib/tui/model.sh" ]]
-[[ -f "$PREFIX/libexec/dotlad/lib/tui/screen.sh" ]]
-[[ -f "$PREFIX/libexec/dotlad/lib/cli/bootstrap.sh" ]]
-[[ -f "$PREFIX/libexec/dotlad/lib/cli/dispatch.sh" ]]
-[[ -f "$PREFIX/libexec/dotlad/lib/cli/main.sh" ]]
-[[ -f "$PREFIX/libexec/dotlad/lib/cli/presentation.sh" ]]
-[[ -f "$PREFIX/libexec/dotlad/lib/cli/spec.sh" ]]
-[[ -f "$PREFIX/libexec/dotlad/lib/cli/completion.zsh" ]]
-[[ ! -e "$PREFIX/libexec/dotlad/completions" ]]
-[[ ! -e "$PREFIX/libexec/dotlad/lib/dotlad" ]]
-[[ "$(cd "$SB" && "$PREFIX/bin/dotlad" --version)" == "dotlad $VERSION" ]]
-[[ "$(cd "$SB" && "$PREFIX/bin/dotlad" help | head -1)" == "dotlad — install a project's packages and configs onto your system." ]]
-(cd "$PROJECT" && HOME="$HOME_DIR" DOTLAD_PLAIN=1 \
-    "$PREFIX/bin/dotlad" >/dev/null)
-if HOME="$HOME_DIR" "$PREFIX/bin/dotlad" -C >"$SB/missing-root.out" 2>&1; then
-    printf 'dotlad accepted -C without a path\n' >&2
-    exit 1
-fi
-grep -Fx 'dotlad: -C needs a path' "$SB/missing-root.out" >/dev/null
-
-COMPLETION_SCRIPT="$SB/dotlad-completion.zsh"
-COMPLETION_PROJECT_ROOT="$(cd "$PROJECT" && pwd)"
-HOME="$HOME_DIR" "$PREFIX/bin/dotlad" -C "$PROJECT" \
-    --backup-root "$HOME_DIR/backups" completion zsh >"$COMPLETION_SCRIPT"
-grep -Fx '#compdef dotlad' "$COMPLETION_SCRIPT" >/dev/null
-grep -Fqx "_dotlad_register dotlad $COMPLETION_PROJECT_ROOT $HOME_DIR/backups" \
-    "$COMPLETION_SCRIPT"
-if command -v zsh >/dev/null 2>&1; then
-    zsh -n "$COMPLETION_SCRIPT"
-    completion_tools="$(PATH="$PREFIX/bin:$PATH" zsh -f -c '
-        compdef() { :; }
-        source "$1"
-        compadd() {
-            printf "%s\n" "$@" "${descriptions[@]}" "${tool_display[@]}" "${profile_display[@]}"
-        }
-        service=dotlad; words=(dotlad ""); CURRENT=2; _dotlad
-    ' completion-probe "$COMPLETION_SCRIPT")"
-    grep -Fx demo <<<"$completion_tools" >/dev/null
-    if grep -Fx inactive <<<"$completion_tools" >/dev/null; then
-        printf 'completion exposed a tool from an inactive platform\n' >&2
-        exit 1
-    fi
-    grep -Fx profile <<<"$completion_tools" >/dev/null
-    grep -Fx 'profile    -- Apply a named profile and its inherited tools' \
-        <<<"$completion_tools" >/dev/null
-    grep -Fx 'demo       -- • Standalone install fixture' \
-        <<<"$completion_tools" >/dev/null
-    completion_options="$(PATH="$PREFIX/bin:$PATH" zsh -f -c '
-        compdef() { :; }
-        source "$1"
-        compadd() { printf "%s\n" "${descriptions[@]}"; }
-        service=dotlad; words=(dotlad --); CURRENT=2; _dotlad
-    ' completion-probe "$COMPLETION_SCRIPT")"
-    config_description='select the manifest project (defaults to current directory)'
-    grep -Fx -- "-C              -- $config_description" \
-        <<<"$completion_options" >/dev/null
-    grep -Fx -- "--config        -- $config_description" \
-        <<<"$completion_options" >/dev/null
-    grep -Fx -- "--config=       -- $config_description" \
-        <<<"$completion_options" >/dev/null
-    HOME="$HOME_DIR" "$PREFIX/bin/dotlad" help |
-        grep -F -- "-C, --config PATH   $config_description" >/dev/null
-    completion_profile="$(PATH="$PREFIX/bin:$PATH" zsh -f -c '
-        compdef() { :; }
-        source "$1"
-        compadd() { printf "%s\n" "$@" "${profile_display[@]}"; }
-        service=dotlad; words=(dotlad profile ""); CURRENT=3; _dotlad
-    ' completion-probe "$COMPLETION_SCRIPT")"
-    grep -Fx base <<<"$completion_profile" >/dev/null
-    grep -Fx 'base      -- demo' <<<"$completion_profile" >/dev/null
-    grep -Fx 'developer -- ↳ base' \
-        <<<"$completion_profile" >/dev/null
-    completion_backup="$(PATH="$PREFIX/bin:$PATH" zsh -f -c '
-        compdef() { :; }
-        source "$1"
-        compadd() { printf "%s\n" "$@"; }
-        service=dotlad; words=(dotlad backup delete ""); CURRENT=4; _dotlad
-    ' completion-probe "$COMPLETION_SCRIPT")"
-    grep -Fx 20260722_010000 <<<"$completion_backup" >/dev/null
-    if grep -Fx not-a-restore-point <<<"$completion_backup" >/dev/null; then
-        printf 'completion exposed an invalid restore-point name\n' >&2
-        exit 1
-    fi
-    WRAPPER_COMPLETION_SCRIPT="$SB/wrapper-completion.zsh"
-    HOME="$HOME_DIR" DOTLAD_COMMAND_NAME='my dots' "$PREFIX/bin/dotlad" \
-        -C "$PROJECT" completion zsh >"$WRAPPER_COMPLETION_SCRIPT"
-    wrapper_project_root="$(zsh -f -c '
-        compdef() { :; }
-        source "$1"
-        key="my dots"
-        printf "%s" "${_dotlad_project_roots[$key]:-}"
-    ' completion-probe "$WRAPPER_COMPLETION_SCRIPT")"
-    [[ "$wrapper_project_root" == "$COMPLETION_PROJECT_ROOT" ]]
-    completion_path="$(PATH="$PREFIX/bin:$PATH" zsh -f -c '
-        compdef() { :; }
-        source "$1"
-        compset() { printf "compset:%s:%s\n" "$1" "$2"; }
-        _directories() {
-            [[ -o extendedglob && -o globdots ]] && printf "directories\n"
-        }
-        service=dotlad; words=(dotlad --config=); CURRENT=2; _dotlad
-    ' completion-probe "$COMPLETION_SCRIPT")"
-    grep -Fx 'compset:-P:*\=' <<<"$completion_path" >/dev/null
-    grep -Fx directories <<<"$completion_path" >/dev/null
-    completion_hidden_file="$(PATH="$PREFIX/bin:$PATH" zsh -f -c '
-        compdef() { :; }
-        source "$1"
-        compset() { :; }
-        _files() { [[ -o globdots ]] && printf "hidden files enabled\n"; }
-        service=dotlad; words=(dotlad --output=); CURRENT=2; _dotlad
-    ' completion-probe "$COMPLETION_SCRIPT")"
-    grep -Fx 'hidden files enabled' <<<"$completion_hidden_file" >/dev/null
-fi
-if HOME="$HOME_DIR" "$PREFIX/bin/dotlad" completion bash >/dev/null 2>&1; then
-    printf 'dotlad accepted an unsupported completion shell\n' >&2
-    exit 1
-fi
-
-HOME="$HOME_DIR" "$PREFIX/bin/dotlad" -C "$PROJECT" \
-    --config-only --yes demo >/dev/null
-cmp "$PROJECT/tools/demo/files/config.toml" "$HOME_DIR/.config/demo/config.toml"
-(cd "$BREW_CWD" && HOME="$HOME_DIR" "$PREFIX/bin/dotlad" \
-    -C "$PROJECT" brewfile >/dev/null)
-grep -Fx 'brew "demo"' "$BREW_CWD/Brewfile" >/dev/null
-[[ ! -e "$PROJECT/Brewfile" ]]
-
-# Reinstallation upgrades the managed runtime without replacing unrelated bins.
-printf 'old runtime survives rollback\n' >"$PREFIX/libexec/dotlad/rollback-sentinel"
-rollback_rc=0
-DOTLAD_INSTALL_TEST_FAIL_AFTER_RUNTIME=1 "$ROOT/install.sh" --prefix "$PREFIX" \
-    >/dev/null 2>&1 || rollback_rc=$?
-[[ "$rollback_rc" == 97 ]]
-grep -Fx 'old runtime survives rollback' "$PREFIX/libexec/dotlad/rollback-sentinel" >/dev/null
-[[ "$("$PREFIX/bin/dotlad" --version)" == "dotlad $VERSION" ]]
-rm -f "$PREFIX/libexec/dotlad/rollback-sentinel"
-"$ROOT/install.sh" --prefix "$PREFIX" >/dev/null
-printf '#!/bin/sh\n' >"$PREFIX/bin/foreign"
-"$ROOT/install.sh" --prefix "$PREFIX" --uninstall >/dev/null
-[[ ! -e "$PREFIX/bin/dotlad" ]]
-[[ ! -e "$PREFIX/libexec/dotlad" ]]
-[[ -f "$PREFIX/bin/foreign" ]]
-
-# Existing unrelated paths are never adopted or removed.
-FOREIGN_PREFIX="$SB/foreign-prefix"
-mkdir -p "$FOREIGN_PREFIX/libexec/dotlad" "$FOREIGN_PREFIX/bin"
-printf 'keep\n' >"$FOREIGN_PREFIX/libexec/dotlad/sentinel"
-if "$ROOT/install.sh" --prefix "$FOREIGN_PREFIX" >/dev/null 2>&1; then
-    printf 'installer replaced an unmanaged runtime\n' >&2
-    exit 1
-fi
-[[ "$(cat "$FOREIGN_PREFIX/libexec/dotlad/sentinel")" == "keep" ]]
-
-# Uninstall validates both owned paths before removing either one.
-MIXED_PREFIX="$SB/mixed-prefix"
-"$ROOT/install.sh" --prefix "$MIXED_PREFIX" >/dev/null
-rm -rf "$MIXED_PREFIX/libexec/dotlad"
-mkdir -p "$MIXED_PREFIX/libexec/dotlad"
-printf 'keep\n' >"$MIXED_PREFIX/libexec/dotlad/sentinel"
-if "$ROOT/install.sh" --prefix "$MIXED_PREFIX" --uninstall >/dev/null 2>&1; then
-    printf 'uninstall removed a mixed managed/unmanaged installation\n' >&2
-    exit 1
-fi
-[[ -x "$MIXED_PREFIX/bin/dotlad" ]]
-[[ "$(cat "$MIXED_PREFIX/libexec/dotlad/sentinel")" == "keep" ]]
-
-# The release archive contains the same installable command contract.
-DIST="$SB/dist"
-EXTRACTED="$SB/extracted"
-ARCHIVE="$DIST/dotlad-$VERSION.tar.gz"
 "$ROOT/scripts/package.sh" "$DIST" >/dev/null
-mkdir -p "$EXTRACTED"
+ARCHIVE="$DIST/dotlad-$VERSION.tar.gz"
+CHECKSUM="$DIST/dotlad-$VERSION.sha256"
+[[ -s "$ARCHIVE" && -s "$CHECKSUM" ]]
 if command -v sha256sum >/dev/null 2>&1; then
-    (cd "$DIST" && sha256sum -c "dotlad-$VERSION.sha256") >/dev/null
+    (cd "$DIST" && sha256sum -c "$(basename "$CHECKSUM")") >/dev/null
 else
-    (cd "$DIST" && shasum -a 256 -c "dotlad-$VERSION.sha256") >/dev/null
+    (cd "$DIST" && shasum -a 256 -c "$(basename "$CHECKSUM")") >/dev/null
 fi
-tar -C "$EXTRACTED" -xzf "$ARCHIVE"
-[[ -f "$EXTRACTED/dotlad-$VERSION/.github/assets/demo/cli-dark.gif" ]]
-[[ -f "$EXTRACTED/dotlad-$VERSION/.github/assets/demo/cli-light.gif" ]]
-[[ -f "$EXTRACTED/dotlad-$VERSION/.github/assets/dotlad-name-dark.svg" ]]
-[[ -f "$EXTRACTED/dotlad-$VERSION/.github/assets/dotlad-name-light.svg" ]]
-[[ -f "$EXTRACTED/dotlad-$VERSION/.editorconfig" ]]
-[[ -f "$EXTRACTED/dotlad-$VERSION/CHANGELOG.md" ]]
-[[ -f "$EXTRACTED/dotlad-$VERSION/CONTRIBUTING.md" ]]
-[[ -f "$EXTRACTED/dotlad-$VERSION/SECURITY.md" ]]
-[[ -f "$EXTRACTED/dotlad-$VERSION/lib/runtime.sh" ]]
-[[ -f "$EXTRACTED/dotlad-$VERSION/lib/console.sh" ]]
-[[ -f "$EXTRACTED/dotlad-$VERSION/lib/tui/input.sh" ]]
-[[ -f "$EXTRACTED/dotlad-$VERSION/lib/tui/model.sh" ]]
-[[ -f "$EXTRACTED/dotlad-$VERSION/lib/tui/screen.sh" ]]
-[[ -f "$EXTRACTED/dotlad-$VERSION/lib/cli/bootstrap.sh" ]]
-[[ -f "$EXTRACTED/dotlad-$VERSION/lib/cli/dispatch.sh" ]]
-[[ -f "$EXTRACTED/dotlad-$VERSION/lib/cli/main.sh" ]]
-[[ -f "$EXTRACTED/dotlad-$VERSION/lib/cli/presentation.sh" ]]
-[[ -f "$EXTRACTED/dotlad-$VERSION/lib/cli/spec.sh" ]]
-[[ -f "$EXTRACTED/dotlad-$VERSION/lib/cli/completion.zsh" ]]
-[[ -f "$EXTRACTED/dotlad-$VERSION/SUPPORT.md" ]]
-[[ ! -e "$EXTRACTED/dotlad-$VERSION/completions" ]]
-[[ -f "$EXTRACTED/dotlad-$VERSION/examples/.gitignore" ]]
-[[ -x "$EXTRACTED/dotlad-$VERSION/examples/mydot" ]]
-[[ -f "$EXTRACTED/dotlad-$VERSION/examples/tools/multi-config/tool.conf" ]]
-[[ ! -e "$EXTRACTED/dotlad-$VERSION/lib/dotlad" ]]
-[[ -f "$EXTRACTED/dotlad-$VERSION/scripts/check.sh" ]]
-[[ -f "$EXTRACTED/dotlad-$VERSION/tests/run.sh" ]]
-/bin/bash "$EXTRACTED/dotlad-$VERSION/scripts/check.sh" --syntax-only
-"$EXTRACTED/dotlad-$VERSION/install.sh" --prefix "$SB/archive-prefix" >/dev/null
-[[ "$("$SB/archive-prefix/bin/dotlad" --version)" == "dotlad $VERSION" ]]
-EXAMPLE_ROOT="$(cd "$EXTRACTED/dotlad-$VERSION/examples" && pwd)"
-[[ "$(HOME="$EXAMPLE_ROOT/.tmp" "$EXAMPLE_ROOT/mydot" --version)" == "My Dotfiles $VERSION" ]]
-mkdir -p "$EXAMPLE_ROOT/.tmp/output/copy-file"
-printf 'local example value\n' >"$EXAMPLE_ROOT/.tmp/output/copy-file/example.conf"
-HOME="$EXAMPLE_ROOT/.tmp" "$EXAMPLE_ROOT/mydot" \
-    --config-only --yes copy-file >/dev/null
-cmp "$EXAMPLE_ROOT/tools/copy-file/files/example.conf" \
-    "$EXAMPLE_ROOT/.tmp/output/copy-file/example.conf"
-EXAMPLE_BACKUP="$(find "$EXAMPLE_ROOT/.tmp/backups" -type f | head -1)"
-grep -qFx 'local example value' "$EXAMPLE_BACKUP"
-HOME="$EXAMPLE_ROOT/.tmp" "$EXAMPLE_ROOT/mydot" \
-    --config-only --yes inject-block >/dev/null
-grep -qE '^# dotlad:begin tool=inject-block source=aliases\.sh$' \
-    "$EXAMPLE_ROOT/.tmp/output/inject-block/shellrc"
-rm -f "$BREW_CWD/Brewfile"
-(cd "$BREW_CWD" && HOME="$HOME_DIR" "$SB/archive-prefix/bin/dotlad" \
-    --config="$PROJECT" brewfile >/dev/null)
-grep -Fx 'brew "demo"' "$BREW_CWD/Brewfile" >/dev/null
+
+mkdir -p "$DOWNLOAD_BIN"
+cat >"$DOWNLOAD_BIN/curl" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+destination=""
+url=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -o | --output)
+            destination="$2"
+            shift 2
+            ;;
+        *)
+            [[ "$1" == -* ]] || url="$1"
+            shift
+            ;;
+    esac
+done
+[[ -n "$destination" && -n "$url" ]]
+printf '%s\n' "$url" >>"$DOTLAD_TEST_DOWNLOAD_LOG"
+case "$url" in
+    https://api.github.com/repos/vkarabinovych/dotlad/releases/latest)
+        printf '{"tag_name":"v%s"}\n' "$DOTLAD_TEST_VERSION" >"$destination"
+        ;;
+    */dotlad-"$DOTLAD_TEST_VERSION".tar.gz)
+        if [[ -n "${DOTLAD_TEST_BAD_ARCHIVE:-}" ]]; then
+            printf 'corrupt archive\n' >"$destination"
+        else
+            cp "$DOTLAD_TEST_DIST/dotlad-$DOTLAD_TEST_VERSION.tar.gz" "$destination"
+        fi
+        ;;
+    */dotlad-"$DOTLAD_TEST_VERSION".sha256)
+        cp "$DOTLAD_TEST_DIST/dotlad-$DOTLAD_TEST_VERSION.sha256" "$destination"
+        ;;
+    *)
+        printf 'unexpected download: %s\n' "$url" >&2
+        exit 1
+        ;;
+esac
+EOF
+chmod +x "$DOWNLOAD_BIN/curl"
+
+run_installer() {
+    PATH="$DOWNLOAD_BIN:$PATH" \
+        DOTLAD_TEST_DIST="$DIST" \
+        DOTLAD_TEST_VERSION="$VERSION" \
+        DOTLAD_TEST_DOWNLOAD_LOG="$DOWNLOAD_LOG" \
+        DOTLAD_INSTALL_DIR="${DOTLAD_INSTALL_DIR:-$INSTALL_DIR}" \
+        DOTLAD_BIN_DIR="${DOTLAD_BIN_DIR:-$BIN_DIR}" \
+        "$ROOT/install.sh"
+}
+
+# Latest release lookup, paths containing spaces, and invocation away from the
+# repository all use the same verified archive contract.
+latest_output="$(SHELL=/bin/zsh run_installer)"
+grep -Fqx '  Welcome to' <<<"$latest_output"
+grep -Fqx '  ╭────────────────────────╮' <<<"$latest_output"
+grep -Fqx '  │  •  dotlad             │' <<<"$latest_output"
+grep -Fqx '  │     ━━━                │' <<<"$latest_output"
+grep -Fqx '  │  Dots, in order.       │' <<<"$latest_output"
+grep -Fqx '  ╰────────────────────────╯' <<<"$latest_output"
+grep -F "dotlad install: installing $TAG for" <<<"$latest_output" >/dev/null
+grep -Fqx '  → Resolving the latest GitHub release' <<<"$latest_output"
+grep -Fqx '  → Downloading the release archive and checksum' <<<"$latest_output"
+grep -Fqx '  → Verifying the SHA-256 checksum' <<<"$latest_output"
+grep -Fqx '  → Inspecting the release archive' <<<"$latest_output"
+grep -Fqx '  → Extracting the release archive' <<<"$latest_output"
+grep -Fqx '  → Staging the runtime and command' <<<"$latest_output"
+grep -Fqx '  ✓ SHA-256 checksum verified' <<<"$latest_output"
+grep -Fqx "  ✓ Dotlad $TAG is ready." <<<"$latest_output"
+completion_message="$(sed -n '/^  ✓ Dotlad .* is ready\.$/{n;p;}' <<<"$latest_output")"
+case "$completion_message" in
+    '    All set — enjoy a little more order and harmony!' | \
+        '    Everything is ready. Happy configuring!' | \
+        '    Your setup is ready — have fun making it yours!' | \
+        "    Nice and tidy. You're ready to go!" | \
+        '    Looking good — enjoy your freshly arranged setup!') ;;
+    *)
+        printf 'unexpected installer completion message: %s\n' "$completion_message" >&2
+        exit 1
+        ;;
+esac
+grep -F "https://api.github.com/repos/vkarabinovych/dotlad/releases/latest" \
+    "$DOWNLOAD_LOG" >/dev/null
+grep -F "Add this line to $HOME/.zshrc:" <<<"$latest_output" >/dev/null
+[[ -x "$COMMAND" && ! -L "$COMMAND" ]]
+grep -Fqx '# dotlad managed launcher' "$COMMAND"
+[[ -f "$INSTALL_DIR/.dotlad-managed" ]]
+[[ -f "$INSTALL_DIR/lib/runtime.sh" ]]
+[[ -f "$INSTALL_DIR/lib/tui/input.sh" ]]
+[[ -f "$INSTALL_DIR/lib/cli/completion.zsh" ]]
+mkdir "$SB/outside"
+[[ "$(cd "$SB/outside" && "$COMMAND" --version)" == "dotlad $VERSION" ]]
+[[ "$(cd "$SB/outside" && "$COMMAND" help | head -1)" == "dotlad — install a project's packages and configs onto your system." ]]
+
+# An explicit version skips the latest-release API and safely updates the
+# already managed installation. Running the same update again is idempotent.
+: >"$DOWNLOAD_LOG"
+update_output="$(DOTLAD_VERSION="$TAG" run_installer)"
+grep -F "dotlad install: reinstalling $TAG for" <<<"$update_output" >/dev/null
+grep -Fqx "dotlad install: reinstalled $TAG" <<<"$update_output"
+if grep -F '/releases/latest' "$DOWNLOAD_LOG" >/dev/null; then
+    printf 'explicit installer version queried the latest release\n' >&2
+    exit 1
+fi
+DOTLAD_VERSION="$TAG" run_installer >/dev/null
+[[ "$(cd / && "$COMMAND" --version)" == "dotlad $VERSION" ]]
+
+printf '0.7.0\n' >"$INSTALL_DIR/VERSION"
+upgrade_output="$(DOTLAD_VERSION="$TAG" run_installer)"
+grep -F "dotlad install: updating from v0.7.0 to $TAG for" \
+    <<<"$upgrade_output" >/dev/null
+grep -Fqx "dotlad install: updated from v0.7.0 to $TAG" <<<"$upgrade_output"
+
+printf '0.9.0\n' >"$INSTALL_DIR/VERSION"
+downgrade_output="$(DOTLAD_VERSION="$TAG" run_installer)"
+grep -F "dotlad install: downgrading from v0.9.0 to $TAG for" \
+    <<<"$downgrade_output" >/dev/null
+grep -Fqx "dotlad install: downgraded from v0.9.0 to $TAG" <<<"$downgrade_output"
+
+invalid_version_rc=0
+DOTLAD_VERSION=main run_installer >/dev/null 2>&1 || invalid_version_rc=$?
+[[ "$invalid_version_rc" != 0 ]]
+
+# Piped execution has no source-tree location and must follow the same path as
+# the documented curl command.
+PIPE_ROOT="$SB/piped"
+PATH="$DOWNLOAD_BIN:$PATH" \
+    DOTLAD_TEST_DIST="$DIST" \
+    DOTLAD_TEST_VERSION="$VERSION" \
+    DOTLAD_TEST_DOWNLOAD_LOG="$DOWNLOAD_LOG" \
+    DOTLAD_INSTALL_DIR="$PIPE_ROOT/share/dotlad" \
+    DOTLAD_BIN_DIR="$PIPE_ROOT/bin" \
+    DOTLAD_VERSION="$TAG" \
+    /bin/bash <"$ROOT/install.sh" >/dev/null
+[[ "$(cd / && "$PIPE_ROOT/bin/dotlad" --version)" == "dotlad $VERSION" ]]
+
+# A failure after the runtime swap restores both the previous runtime and its
+# command. A bad download also leaves the existing installation untouched.
+printf 'rollback sentinel\n' >"$INSTALL_DIR/rollback-sentinel"
+rollback_rc=0
+DOTLAD_VERSION="$TAG" DOTLAD_INSTALL_TEST_FAIL_AFTER_RUNTIME=1 \
+    run_installer >/dev/null 2>&1 || rollback_rc=$?
+[[ "$rollback_rc" == 97 ]]
+grep -Fx 'rollback sentinel' "$INSTALL_DIR/rollback-sentinel" >/dev/null
+[[ "$("$COMMAND" --version)" == "dotlad $VERSION" ]]
+
+bad_download_rc=0
+DOTLAD_VERSION="$TAG" DOTLAD_TEST_BAD_ARCHIVE=1 \
+    run_installer >/dev/null 2>&1 || bad_download_rc=$?
+[[ "$bad_download_rc" != 0 ]]
+grep -Fx 'rollback sentinel' "$INSTALL_DIR/rollback-sentinel" >/dev/null
+[[ "$("$COMMAND" --version)" == "dotlad $VERSION" ]]
+
+# Existing unrelated runtime or command paths are never adopted.
+FOREIGN_INSTALL="$SB/foreign/share/dotlad"
+FOREIGN_BIN="$SB/foreign/bin"
+mkdir -p "$FOREIGN_INSTALL" "$FOREIGN_BIN"
+printf 'keep\n' >"$FOREIGN_INSTALL/sentinel"
+foreign_rc=0
+DOTLAD_VERSION="$TAG" DOTLAD_INSTALL_DIR="$FOREIGN_INSTALL" \
+    DOTLAD_BIN_DIR="$FOREIGN_BIN" run_installer >/dev/null 2>&1 || foreign_rc=$?
+[[ "$foreign_rc" != 0 ]]
+grep -Fx keep "$FOREIGN_INSTALL/sentinel" >/dev/null
+
+COMMAND_ONLY_INSTALL="$SB/foreign-command/share/dotlad"
+COMMAND_ONLY_BIN="$SB/foreign-command/bin"
+mkdir -p "$COMMAND_ONLY_BIN"
+printf '#!/bin/sh\n' >"$COMMAND_ONLY_BIN/dotlad"
+command_rc=0
+DOTLAD_VERSION="$TAG" DOTLAD_INSTALL_DIR="$COMMAND_ONLY_INSTALL" \
+    DOTLAD_BIN_DIR="$COMMAND_ONLY_BIN" run_installer >/dev/null 2>&1 || command_rc=$?
+[[ "$command_rc" != 0 ]]
+grep -Fx '#!/bin/sh' "$COMMAND_ONLY_BIN/dotlad" >/dev/null
+[[ ! -e "$COMMAND_ONLY_INSTALL" ]]
+
+# Platform detection is validated through isolated uname projections. Each
+# projection performs a real staged install from the local release archive.
+PLATFORM_BIN="$SB/platform-bin"
+mkdir -p "$PLATFORM_BIN"
+cat >"$PLATFORM_BIN/uname" <<'EOF'
+#!/usr/bin/env bash
+case "${1:-}" in
+    -s) printf '%s\n' "$DOTLAD_TEST_UNAME_SYSTEM" ;;
+    -r) printf '%s\n' "$DOTLAD_TEST_UNAME_RELEASE" ;;
+    *) printf '%s\n' "$DOTLAD_TEST_UNAME_SYSTEM" ;;
+esac
+EOF
+chmod +x "$PLATFORM_BIN/uname"
+
+platform_install() { # <expected> <uname-system> <uname-release> [wsl-interop]
+    local expected="$1" system="$2" release="$3" interop="${4:-}" startup_file
+    local root="$SB/platform-$expected" output
+    output="$(PATH="$PLATFORM_BIN:$DOWNLOAD_BIN:$PATH" \
+        DOTLAD_TEST_UNAME_SYSTEM="$system" \
+        DOTLAD_TEST_UNAME_RELEASE="$release" \
+        WSL_INTEROP="$interop" \
+        DOTLAD_TEST_DIST="$DIST" \
+        DOTLAD_TEST_VERSION="$VERSION" \
+        DOTLAD_TEST_DOWNLOAD_LOG="$DOWNLOAD_LOG" \
+        DOTLAD_INSTALL_DIR="$root/share/dotlad" \
+        DOTLAD_BIN_DIR="$root/bin" \
+        DOTLAD_VERSION="$TAG" \
+        SHELL=/bin/bash \
+        "$ROOT/install.sh")"
+    grep -F "installing $TAG for $expected" <<<"$output" >/dev/null
+    if [[ "$expected" == macos ]]; then
+        startup_file="$HOME/.bash_profile"
+    else
+        startup_file="$HOME/.bashrc"
+    fi
+    grep -F "Add this line to $startup_file:" <<<"$output" >/dev/null
+    [[ "$("$root/bin/dotlad" --version)" == "dotlad $VERSION" ]]
+}
+
+platform_install macos Darwin 23.0.0
+platform_install linux Linux 6.8.0
+platform_install wsl Linux 5.15.0-microsoft-standard /run/WSL/1_interop
+
+# The release archive retains the complete source-bundle contract.
+EXTRACTED="$SB/extracted"
+mkdir "$EXTRACTED"
+tar -xzf "$ARCHIVE" -C "$EXTRACTED"
+BUNDLE="$EXTRACTED/dotlad-$VERSION"
+[[ -f "$BUNDLE/install.sh" ]]
+[[ -f "$BUNDLE/.github/assets/demo/cli-dark.gif" ]]
+[[ -f "$BUNDLE/.github/assets/demo/cli-light.gif" ]]
+[[ -f "$BUNDLE/.github/assets/dotlad-name-dark.svg" ]]
+[[ -f "$BUNDLE/.github/assets/dotlad-name-light.svg" ]]
+[[ -f "$BUNDLE/CHANGELOG.md" ]]
+[[ -f "$BUNDLE/CONTRIBUTING.md" ]]
+[[ -f "$BUNDLE/SECURITY.md" ]]
+[[ -f "$BUNDLE/SUPPORT.md" ]]
+[[ -f "$BUNDLE/examples/.gitignore" ]]
+[[ -x "$BUNDLE/examples/mydot" ]]
+[[ -f "$BUNDLE/tests/run.sh" ]]
+/bin/bash "$BUNDLE/scripts/check.sh" --syntax-only
 
 printf 'DOTLAD_INSTALL_TEST_OK\n'

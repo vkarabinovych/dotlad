@@ -6,6 +6,8 @@ All notable user-facing changes are documented here.
 
 ### Added
 
+- A checksum-verifying curl installer installs tagged release archives on
+  macOS, Linux, and WSL under the XDG-style user-local application layout.
 - `dotlad completion zsh` prints native, platform-aware Zsh completion for
   commands, options, tools, profiles, restore points, and hidden paths. Custom
   wrappers retain their command name and explicitly selected project roots.

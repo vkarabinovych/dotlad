@@ -33,10 +33,12 @@ bootstrap selects the project from `-C`, `--config`, or the current working
 directory. Resolver files always come from the runtime; manifests, profiles,
 and config payloads always come from the selected project.
 
-The standalone installer copies the runtime to `<prefix>/libexec/dotlad` and
-creates `<prefix>/bin/dotlad` as a managed launcher. The launcher resolves its
-runtime relative to the prefix, so standalone and submodule commands execute
-the same implementation.
+The standalone installer copies the runtime to
+`~/.local/share/dotlad` and creates `~/.local/bin/dotlad` as a small managed
+launcher. Both paths are independently configurable. The runtime
+entrypoint resolves `bin/` and `lib/` relative to its own installed location,
+so the command works from any current directory and standalone and submodule
+commands execute the same implementation.
 
 Release archives are complete source bundles containing the runtime,
 documentation, maintainer scripts, and isolated tests.

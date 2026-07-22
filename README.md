@@ -66,8 +66,8 @@ Runtime dependencies are scoped to each tool and its resolver:
 - Zsh is required only for the optional native completion integration.
 - Homebrew on macOS or Linuxbrew on Linux and WSL installs declared `BREW`
   packages and missing resolver or manifest-defined requirements.
-- `curl` is required when an HTTPS installer must run.
-- `sha256sum` or `shasum` is required by checksum-pinned installers.
+- `curl` or `wget` is required to install Dotlad or run another HTTPS installer.
+- `sha256sum` or `shasum` is required to verify checksum-pinned downloads.
 - `jq`, `yq`, or `git` is required only by the corresponding merge resolver.
 
 Built-in resolvers declare their own commands. Use `REQUIRES` only for
@@ -75,22 +75,84 @@ additional commands needed by a particular tool's config deployment.
 
 ## Install
 
-Install the self-contained command under `~/.local`:
+Install the latest tagged release on macOS, Linux, or WSL:
 
 ```bash
-git clone https://github.com/vkarabinovych/dotlad.git
-cd dotlad
-./install.sh
-export PATH="$HOME/.local/bin:$PATH"
-dotlad --version
+curl -fsSL https://raw.githubusercontent.com/vkarabinovych/dotlad/main/install.sh | bash
 ```
 
-Add `~/.local/bin` to your shell startup file to keep it on `PATH`. After
-updating the checkout, rerun `./install.sh` to replace the managed runtime.
-`./install.sh --uninstall` removes only the managed command and runtime.
+The installer uses `curl`, with `wget` as a fallback, and never invokes
+`sudo`. It downloads the GitHub Release archive rather than cloning the
+repository, verifies the published SHA-256 checksum, validates the archive,
+and stages the runtime before replacing an existing managed installation.
+It does not modify shell configuration.
 
-Use `./install.sh --prefix /absolute/path` to select another installation
-prefix. The installer refuses to overwrite an unmanaged `bin/dotlad`.
+To inspect the installer before running it:
+
+```bash
+installer="$(mktemp)"
+curl -fsSL \
+  https://raw.githubusercontent.com/vkarabinovych/dotlad/main/install.sh \
+  -o "$installer"
+less "$installer"
+bash "$installer"
+rm -f "$installer"
+```
+
+Pin an installation to a specific release when reproducibility matters:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/vkarabinovych/dotlad/main/install.sh |
+  DOTLAD_VERSION=v0.8.0 bash
+```
+
+By default, application files are installed under
+`~/.local/share/dotlad`, and `~/.local/bin/dotlad` is a small managed launcher
+for the runtime entrypoint. Override either absolute path independently:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/vkarabinovych/dotlad/main/install.sh |
+  DOTLAD_INSTALL_DIR="$HOME/apps/dotlad" \
+  DOTLAD_BIN_DIR="$HOME/bin" bash
+```
+
+If `~/.local/bin` is not already on `PATH`, add the matching line and restart
+the shell:
+
+```zsh
+# ~/.zshrc
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+```bash
+# ~/.bashrc on Linux/WSL; ~/.bash_profile for the stock macOS Bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+Rerun the one-line command to update to the latest release, or rerun the
+pinned command with another `DOTLAD_VERSION`. Updates replace only the managed
+application directory and command launcher; project manifests, deployed config,
+and backups remain untouched. The log identifies upgrades, downgrades, and
+same-version reinstalls with their exact versions. A failed transition restores
+the previous runtime.
+
+To uninstall the default layout, first confirm that the command is the managed
+launcher, then remove those two application paths:
+
+```bash
+if grep -Fqx '# dotlad managed launcher' "$HOME/.local/bin/dotlad" &&
+  grep -Fqx 'dotlad managed installation' \
+    "$HOME/.local/share/dotlad/.dotlad-managed"; then
+  rm "$HOME/.local/bin/dotlad"
+  rm -rf "$HOME/.local/share/dotlad"
+fi
+```
+
+For custom locations, remove the paths supplied through
+`DOTLAD_BIN_DIR` and `DOTLAD_INSTALL_DIR` instead. Dotlad currently verifies
+release archives against the SHA-256 file attached to the same GitHub Release.
+This detects corruption and incomplete downloads, but the checksums are not
+yet signed or published through an independent trust channel.
 
 Enable native Zsh completion after initializing its completion system:
 

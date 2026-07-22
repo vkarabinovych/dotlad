@@ -110,15 +110,19 @@ requirements or use a disposable environment for a true end-to-end test.
 Test the managed layout without touching the real user prefix:
 
 ```bash
-test_prefix="$(mktemp -d)/prefix"
-./install.sh --prefix "$test_prefix"
-"$test_prefix/bin/dotlad" --version
-./install.sh --prefix "$test_prefix" --uninstall
+test_root="$(mktemp -d)"
+DOTLAD_INSTALL_DIR="$test_root/share/dotlad" \
+DOTLAD_BIN_DIR="$test_root/bin" \
+DOTLAD_VERSION="v$(cat VERSION)" \
+./install.sh
+"$test_root/bin/dotlad" --version
 ```
 
-The prefix must be absolute. The installer refuses unmanaged command/runtime
-targets, stages and self-checks a complete replacement, and rolls back if the
-managed launcher cannot be committed.
+The paths must be absolute. Tests use a fake downloader backed by a locally
+built release archive, so they do not depend on a published release or alter
+the maintainer's home directory. The installer refuses unmanaged
+command/runtime targets, stages and self-checks a complete replacement, and
+rolls back if the managed command cannot be committed.
 
 ## Generated Brewfile
 
