@@ -11,6 +11,16 @@ class Dotlad < Formula
     bin.write_exec_script libexec/"dotlad"
   end
 
+  def caveats
+    <<~EOS
+      To enable native Zsh completion, add this to ~/.zshrc:
+
+        if ! grep -qF 'source <(dotlad completion zsh)' ~/.zshrc 2>/dev/null; then
+          printf '\\n# Dotlad Zsh completion\\nautoload -Uz compinit && compinit\\nsource <(dotlad completion zsh)\\n' >> ~/.zshrc
+        fi
+    EOS
+  end
+
   test do
     assert_match version.to_s, shell_output("#{bin}/dotlad --version")
     assert_match "install a project's packages and configs", shell_output("#{bin}/dotlad help")

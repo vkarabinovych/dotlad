@@ -88,6 +88,9 @@ archive_sha256="$(awk -v archive="dotlad-$VERSION.tar.gz" '$2 == archive { print
 grep -Fqx '    libexec.install "VERSION", "dotlad", "uninstall.sh", "bin", "lib"' "$FORMULA"
 grep -Fqx '    bin.write_exec_script libexec/"dotlad"' "$FORMULA"
 grep -Fqx '    (libexec/".dotlad-homebrew").write "dotlad Homebrew installation\n"' "$FORMULA"
+grep -Fqx '  def caveats' "$FORMULA"
+grep -Fqx '      To enable native Zsh completion, add this to ~/.zshrc:' "$FORMULA"
+grep -Fq 'source <(dotlad completion zsh)' "$FORMULA"
 if grep -E '@(VERSION|SHA256)@' "$FORMULA" >/dev/null; then
     printf 'rendered Homebrew formula retained a template placeholder\n' >&2
     exit 1
