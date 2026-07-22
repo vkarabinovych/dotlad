@@ -4,6 +4,10 @@ All notable user-facing changes are documented here.
 
 ## [Unreleased]
 
+No changes yet.
+
+## [0.9.0] - 2026-07-22
+
 ### Added
 
 - A checksum-verifying curl installer installs tagged release archives on
@@ -14,6 +18,8 @@ All notable user-facing changes are documented here.
 - `dotlad completion zsh` prints native, platform-aware Zsh completion for
   commands, options, tools, profiles, restore points, and hidden paths. Custom
   wrappers retain their command name and explicitly selected project roots.
+- Installers show a ready-to-copy Zsh completion setup and report when it is
+  already configured. Homebrew caveats provide the same guidance.
 
 ### Changed
 

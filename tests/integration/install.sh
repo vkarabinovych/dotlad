@@ -59,7 +59,9 @@ fi
 FIXTURE_SOURCE="$SB/release-fixture"
 mkdir -p "$FIXTURE_SOURCE" "$DIST"
 tar -xzf "$SOURCE_ARCHIVE" -C "$FIXTURE_SOURCE"
-mv "$FIXTURE_SOURCE/dotlad-$SOURCE_VERSION" "$FIXTURE_SOURCE/dotlad-$VERSION"
+if [[ "$SOURCE_VERSION" != "$VERSION" ]]; then
+    mv "$FIXTURE_SOURCE/dotlad-$SOURCE_VERSION" "$FIXTURE_SOURCE/dotlad-$VERSION"
+fi
 printf '%s\n' "$VERSION" >"$FIXTURE_SOURCE/dotlad-$VERSION/VERSION"
 ARCHIVE="$DIST/dotlad-$VERSION.tar.gz"
 CHECKSUM="$DIST/dotlad-$VERSION.sha256"
