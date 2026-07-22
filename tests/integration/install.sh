@@ -82,7 +82,7 @@ FORMULA="$SB/homebrew-tap/Formula/dotlad.rb"
 grep -Fqx \
     "  url \"https://github.com/vkarabinovych/dotlad/releases/download/$TAG/dotlad-$VERSION.tar.gz\"" \
     "$FORMULA"
-formula_sha256="$(awk '$1 == "sha256" { gsub(/\"/, "", $2); print $2 }' "$FORMULA")"
+formula_sha256="$(awk '$1 == "sha256" { gsub(/"/, "", $2); print $2 }' "$FORMULA")"
 archive_sha256="$(awk -v archive="dotlad-$VERSION.tar.gz" '$2 == archive { print $1 }' "$CHECKSUM")"
 [[ "$formula_sha256" == "$archive_sha256" ]]
 grep -Fqx '    libexec.install "VERSION", "dotlad", "bin", "lib"' "$FORMULA"
@@ -190,7 +190,8 @@ grep -Fqx '# dotlad managed launcher' "$COMMAND"
 [[ -f "$INSTALL_DIR/lib/cli/completion.zsh" ]]
 mkdir "$SB/outside"
 [[ "$(cd "$SB/outside" && "$COMMAND" --version)" == "dotlad $VERSION" ]]
-[[ "$(cd "$SB/outside" && "$COMMAND" help | head -1)" == "dotlad — install a project's packages and configs onto your system." ]]
+help_output="$(cd "$SB/outside" && "$COMMAND" help)"
+[[ "${help_output%%$'\n'*}" == "dotlad — install a project's packages and configs onto your system." ]]
 
 # An explicit version skips the latest-release API and safely updates the
 # already managed installation. Running the same update again is idempotent.
