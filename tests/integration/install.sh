@@ -276,6 +276,7 @@ tar -C "$EXTRACTED" -xzf "$ARCHIVE"
 [[ -f "$EXTRACTED/dotlad-$VERSION/lib/cli/presentation.sh" ]]
 [[ -f "$EXTRACTED/dotlad-$VERSION/lib/cli/spec.sh" ]]
 [[ -f "$EXTRACTED/dotlad-$VERSION/lib/cli/completion.zsh" ]]
+[[ -f "$EXTRACTED/dotlad-$VERSION/SUPPORT.md" ]]
 [[ ! -e "$EXTRACTED/dotlad-$VERSION/completions" ]]
 [[ -f "$EXTRACTED/dotlad-$VERSION/examples/.gitignore" ]]
 [[ -x "$EXTRACTED/dotlad-$VERSION/examples/mydot" ]]

@@ -22,6 +22,12 @@ and deploying dotfiles from a repository. It provides one interface for
 inspecting state, previewing changes, applying tools, and restoring replaced
 files.
 
+> [!NOTE]
+> Dotlad is a personal project maintained primarily for my own use and shared
+> as-is. It has no public support, roadmap, or response-time commitments.
+> Forks are welcome. Until 1.0, minor releases may contain breaking changes;
+> pin a release and review the changelog before updating.
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/assets/demo/cli-dark.gif">
   <source media="(prefers-color-scheme: light)" srcset=".github/assets/demo/cli-light.gif">
@@ -251,7 +257,8 @@ automation rather than exploratory runs.
 /bin/bash tests/run.sh
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow and
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the local development workflow,
+[SUPPORT.md](SUPPORT.md) for the maintenance policy, and
 [SECURITY.md](SECURITY.md) for private vulnerability reporting. Release notes
 are maintained in [CHANGELOG.md](CHANGELOG.md).
 

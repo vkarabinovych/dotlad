@@ -1,7 +1,9 @@
 # Contributing
 
-Contributions are welcome. Keep changes focused, preserve the safety contracts,
-and include regression coverage for behavior changes.
+Dotlad is a personal project and is not actively seeking public contributions.
+There is no review or merge timeline. Forks are welcome, and this document
+records the development discipline used by the maintainer and recommended for
+downstream changes.
 
 ## Development setup
 
@@ -27,17 +29,17 @@ and package prefix. Tests must not read or modify live user configuration.
    deployment, backups, workers, safety checks, or CLI exit behavior.
 3. Keep macOS Bash 3.2, Linux, and WSL compatibility and shared code
    ShellCheck-clean.
-4. Run the complete validation before opening a pull request.
+4. Run the complete validation before considering the change complete.
 
 Use four-space indentation and quote expansions unless splitting is
 intentional. Public environment variables use the `DOTLAD_` prefix. Resolver
 names are lowercase and hyphenated. Run `shfmt -w .` from the repository root
 after editing shell sources; its project options live in `.editorconfig`.
 
-## Pull requests
+## Change discipline
 
 Use a concise Conventional Commit subject, such as
-`fix(engine): preserve directory rollback`. A pull request should describe:
+`fix(engine): preserve directory rollback`. A change should record:
 
 - the user-visible behavior;
 - compatibility or safety impact;

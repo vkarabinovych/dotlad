@@ -2,7 +2,9 @@
 
 ## Supported versions
 
-Security fixes are provided for the latest release only.
+No version is formally supported. Security fixes may be published for the
+current development line at the maintainer's discretion, without a response,
+remediation, or release timeline.
 
 ## Report a vulnerability
 
@@ -17,7 +19,6 @@ and include:
 
 Reports involving destination escapes, symlink traversal, unsafe pruning,
 backup corruption, remote installer execution, or manifest code execution are
-especially important. You should receive an initial response within seven
-days.
+especially important. Reports are reviewed on a best-effort basis.
 
 Please allow time for a fix and coordinated release before public disclosure.
