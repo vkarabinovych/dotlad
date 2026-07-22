@@ -12,6 +12,15 @@ class Dotlad < Formula
   end
 
   def caveats
+    zshrc = File.expand_path("~/.zshrc")
+    completion_configured = File.file?(zshrc) &&
+                            File.foreach(zshrc).any? do |line|
+                              line.include?("source <(dotlad completion zsh)")
+                            end
+    if completion_configured
+      return "Zsh completion is already configured in #{zshrc}.\n"
+    end
+
     <<~EOS
       To enable native Zsh completion, add this to ~/.zshrc:
 

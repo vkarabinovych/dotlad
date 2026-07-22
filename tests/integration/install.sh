@@ -183,6 +183,12 @@ case "$completion_message" in
         exit 1
         ;;
 esac
+ZSH_HOME="$SB/zsh-home"
+mkdir -p "$ZSH_HOME"
+printf '%s\n' 'source <(dotlad completion zsh)' >"$ZSH_HOME/.zshrc"
+configured_output="$(HOME="$ZSH_HOME" DOTLAD_VERSION="$TAG" run_installer)"
+grep -Fqx "  ✓ Zsh completion is already configured in $ZSH_HOME/.zshrc." \
+    <<<"$configured_output"
 grep -F "https://api.github.com/repos/vkarabinovych/dotlad/releases/latest" \
     "$DOWNLOAD_LOG" >/dev/null
 grep -F "Add this line to $HOME/.zshrc:" <<<"$latest_output" >/dev/null

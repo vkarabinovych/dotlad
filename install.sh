@@ -88,6 +88,12 @@ print_completion() { # <version-tag>
     printf '    %s%s%s\n' "$MUTED" "$message" "$RESET"
     printf '  %s━━━━━━━━━━━━━━━━━━━━━━━━━━━━%s\n' "$YELLOW" "$RESET"
     printf '\n  %sZsh completion:%s\n' "$BLUE" "$RESET"
+    if [[ -f "$HOME/.zshrc" ]] &&
+        grep -qF 'source <(dotlad completion zsh)' "$HOME/.zshrc"; then
+        printf '  %s✓%s Zsh completion is already configured in %s.\n' \
+            "$GREEN" "$RESET" "$HOME/.zshrc"
+        return
+    fi
     printf '    Add it to ~/.zshrc with:\n\n'
     printf "    if ! grep -qF 'source <(dotlad completion zsh)' ~/.zshrc 2>/dev/null; then\n"
     printf "        printf '\\n# Dotlad Zsh completion\\nautoload -Uz compinit && compinit\\nsource <(dotlad completion zsh)\\n' >> ~/.zshrc\n"
