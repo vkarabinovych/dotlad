@@ -333,13 +333,14 @@ validate_archive_paths() { # <archive> <expected-root>
 validate_bundle() { # <bundle> <release-version>
     local bundle="$1" release_version="$2" unexpected
     [[ -d "$bundle" && ! -L "$bundle" ]] || fail "invalid extracted release layout"
-    for required in VERSION dotlad bin/dotlad lib/runtime.sh; do
+    for required in VERSION dotlad uninstall.sh bin/dotlad lib/runtime.sh; do
         [[ -f "$bundle/$required" && ! -L "$bundle/$required" ]] ||
             fail "release archive is missing $required"
     done
     [[ "$(cat "$bundle/VERSION")" == "$release_version" ]] ||
         fail "release archive version does not match v$release_version"
-    unexpected="$(find "$bundle/VERSION" "$bundle/dotlad" "$bundle/bin" "$bundle/lib" \
+    unexpected="$(find "$bundle/VERSION" "$bundle/dotlad" "$bundle/uninstall.sh" \
+        "$bundle/bin" "$bundle/lib" \
         -type l -print -o ! -type d ! -type f -print | sed -n '1p')"
     [[ -z "$unexpected" ]] || fail "release runtime contains an unsafe entry: $unexpected"
 }
@@ -383,16 +384,16 @@ validate_existing_installation() {
 }
 
 install_bundle() { # <bundle> <release-version>
-    local bundle="$1" release_version="$2" installed_version quoted_runtime
+    local bundle="$1" release_version="$2" installed_version quoted_runtime quoted_command
 
     validate_existing_installation
     STAGE_DIR="$(mktemp -d "$INSTALL_PARENT/.dotlad-install.XXXXXX")"
     mkdir -p "$STAGE_DIR/bin"
-    cp "$bundle/VERSION" "$bundle/dotlad" "$STAGE_DIR/"
+    cp "$bundle/VERSION" "$bundle/dotlad" "$bundle/uninstall.sh" "$STAGE_DIR/"
     cp "$bundle/bin/dotlad" "$STAGE_DIR/bin/"
     cp -R "$bundle/lib" "$STAGE_DIR/"
     printf '%s\n' "$MANAGED_MARKER" >"$STAGE_DIR/.dotlad-managed"
-    chmod +x "$STAGE_DIR/dotlad" "$STAGE_DIR/bin/dotlad"
+    chmod +x "$STAGE_DIR/dotlad" "$STAGE_DIR/uninstall.sh" "$STAGE_DIR/bin/dotlad"
 
     installed_version="$(cd / && "$STAGE_DIR/dotlad" --version)"
     [[ "$installed_version" == "dotlad $release_version" ]] ||
@@ -400,10 +401,12 @@ install_bundle() { # <bundle> <release-version>
 
     COMMAND_TEMP="$(mktemp "$BIN_DIR/.dotlad-command.XXXXXX")"
     quoted_runtime="${INSTALL_DIR//\'/\'\\\'\'}"
+    quoted_command="${COMMAND_PATH//\'/\'\\\'\'}"
     {
         printf '#!/usr/bin/env bash\n'
         printf '%s\n' "$COMMAND_MARKER"
         printf 'set -euo pipefail\n'
+        printf "export DOTLAD_LAUNCHER_PATH='%s'\n" "$quoted_command"
         printf "exec '%s/dotlad' \"\$@\"\n" "$quoted_runtime"
     } >"$COMMAND_TEMP"
     chmod +x "$COMMAND_TEMP"

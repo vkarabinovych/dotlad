@@ -4,6 +4,8 @@
 . "$DOTLAD_RUNTIME_ROOT/lib/cli/bootstrap.sh"
 # shellcheck source=lib/cli/spec.sh
 . "$DOTLAD_RUNTIME_ROOT/lib/cli/spec.sh"
+# shellcheck source=lib/cli/installation.sh
+. "$DOTLAD_RUNTIME_ROOT/lib/cli/installation.sh"
 # shellcheck source=lib/cli/presentation.sh
 . "$DOTLAD_RUNTIME_ROOT/lib/cli/presentation.sh"
 # shellcheck source=lib/cli/dispatch.sh

@@ -216,7 +216,7 @@ _dotlad() {
         completion)
             ((${#positional} == 1)) && compadd -J shells -X shells -- zsh
             ;;
-        all | brewfile | backups | version | help) ;;
+        all | brewfile | backups | uninstall | version | help) ;;
         *)
             ((${#tools} == 0)) ||
                 compadd -J tools -X tools \

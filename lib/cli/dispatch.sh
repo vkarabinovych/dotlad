@@ -67,6 +67,14 @@ cli_dispatch() {
             fi
             return 0
             ;;
+        uninstall)
+            [[ ${#pos[@]} -eq 1 ]] || {
+                err "usage: $DOTLAD_COMMAND_NAME uninstall"
+                return 1
+            }
+            cli_uninstall
+            return $?
+            ;;
     esac
     console_init_colors
     if [[ "$cmd" == "help" ]]; then

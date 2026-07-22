@@ -6,12 +6,14 @@ class Dotlad < Formula
   license "MIT"
 
   def install
-    libexec.install "VERSION", "dotlad", "bin", "lib"
+    libexec.install "VERSION", "dotlad", "uninstall.sh", "bin", "lib"
+    (libexec/".dotlad-homebrew").write "dotlad Homebrew installation\n"
     bin.write_exec_script libexec/"dotlad"
   end
 
   test do
     assert_match version.to_s, shell_output("#{bin}/dotlad --version")
     assert_match "install a project's packages and configs", shell_output("#{bin}/dotlad help")
+    assert_match "brew uninstall dotlad", shell_output("#{bin}/dotlad uninstall")
   end
 end

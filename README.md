@@ -165,23 +165,31 @@ and backups remain untouched. The log identifies upgrades, downgrades, and
 same-version reinstalls with their exact versions. A failed transition restores
 the previous runtime.
 
-To uninstall the default layout, first confirm that the command is the managed
-launcher, then remove those two application paths:
+An installed Dotlad can remove its curl-managed runtime and launcher safely:
 
 ```bash
-if grep -Fqx '# dotlad managed launcher' "$HOME/.local/bin/dotlad" &&
-  grep -Fqx 'dotlad managed installation' \
-    "$HOME/.local/share/dotlad/.dotlad-managed"; then
-  rm "$HOME/.local/bin/dotlad"
-  rm -rf "$HOME/.local/share/dotlad"
-fi
+dotlad uninstall
 ```
 
-For custom locations, remove the paths supplied through
-`DOTLAD_BIN_DIR` and `DOTLAD_INSTALL_DIR` instead. Dotlad currently verifies
-release archives against the SHA-256 file attached to the same GitHub Release.
-This detects corruption and incomplete downloads, but the checksums are not
-yet signed or published through an independent trust channel.
+If the command is unavailable, download and review the standalone uninstaller
+or run it directly for the default layout:
+
+```bash
+curl -fsSL \
+  https://raw.githubusercontent.com/vkarabinovych/dotlad/main/uninstall.sh |
+  bash
+```
+
+Both paths verify Dotlad's managed-installation markers before removing
+anything and preserve projects, deployed config, and backups. For a custom
+layout, pass the same `DOTLAD_INSTALL_DIR` and `DOTLAD_BIN_DIR` overrides used
+during installation. Both the installed command and standalone script detect
+a Homebrew installation and direct the user to `brew uninstall dotlad`.
+
+Dotlad currently verifies release archives against the SHA-256 file attached
+to the same GitHub Release. This detects corruption and incomplete downloads,
+but the checksums are not yet signed or published through an independent trust
+channel.
 
 Homebrew and curl installations may coexist: Homebrew uses its Cellar and
 prefix, while the standalone installer uses the paths above. The first
@@ -291,6 +299,7 @@ multi-config, and package-only manifests.
 | `dotlad backups`                  | List available restore points               |
 | `dotlad restore <name>`           | Restore a restore point                     |
 | `dotlad backup delete <name>`     | Delete a restore point                      |
+| `dotlad uninstall`                | Remove a global curl installation           |
 | `dotlad --packages-only <action>` | Install packages without deploying config   |
 | `dotlad --config-only <action>`   | Deploy config without installing packages   |
 | `dotlad --symlink <action>`       | Default implicit config deployment to links |

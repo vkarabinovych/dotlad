@@ -28,7 +28,7 @@ mkdir -p "$bundle/bin" "$bundle/scripts" "$bundle/.github/assets/demo"
 cp "$ROOT/VERSION" "$ROOT/LICENSE" "$ROOT/README.md" \
     "$ROOT/CHANGELOG.md" "$ROOT/CONTRIBUTING.md" "$ROOT/SECURITY.md" \
     "$ROOT/SUPPORT.md" "$ROOT/.editorconfig" "$ROOT/dotlad" \
-    "$ROOT/install.sh" "$bundle/"
+    "$ROOT/install.sh" "$ROOT/uninstall.sh" "$bundle/"
 cp "$ROOT/bin/dotlad" "$bundle/bin/"
 cp "$ROOT/scripts/"*.sh "$bundle/scripts/"
 cp "$ROOT/.github/assets/dotlad-name-dark.svg" \

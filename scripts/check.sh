@@ -6,7 +6,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 SOURCES=(
-    dotlad install.sh bin/dotlad
+    dotlad install.sh uninstall.sh bin/dotlad
     examples/mydot
     .github/assets/demo/setup.sh
     scripts/*.sh

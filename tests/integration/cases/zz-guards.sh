@@ -5,6 +5,8 @@ rc_is "unknown tool exits 1" 1 df nosuchtool
 rc_is "unknown option exits 1" 1 df --bogus
 rc_is "help rejects positional arguments" 1 df help extra
 rc_is "version rejects positional arguments" 1 df version extra
+rc_is "uninstall rejects a repository checkout" 1 df uninstall
+rc_is "uninstall rejects positional arguments" 1 df uninstall extra
 rc_is "help command exits 0" 0 df help
 rc_is "uppercase help flag exits 0" 0 df -H
 rc_is "help flag rejects positional arguments" 1 df -H extra
@@ -21,6 +23,9 @@ grep -qF -- '-v, -V, --version' <<<"$help_output" && pass "help documents all ve
     fail "help omits a version alias"
 grep -qF -- 'completion zsh' <<<"$help_output" && pass "help documents Zsh completion" ||
     fail "help omits Zsh completion"
+grep -qF -- 'uninstall' <<<"$help_output" &&
+    fail "repository help exposes global uninstall" ||
+    pass "repository help hides global uninstall"
 
 completion_output="$(df completion zsh)"
 completion_project_root="$(cd "$FAKE" && pwd)"

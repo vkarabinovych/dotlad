@@ -85,8 +85,9 @@ grep -Fqx \
 formula_sha256="$(awk '$1 == "sha256" { gsub(/"/, "", $2); print $2 }' "$FORMULA")"
 archive_sha256="$(awk -v archive="dotlad-$VERSION.tar.gz" '$2 == archive { print $1 }' "$CHECKSUM")"
 [[ "$formula_sha256" == "$archive_sha256" ]]
-grep -Fqx '    libexec.install "VERSION", "dotlad", "bin", "lib"' "$FORMULA"
+grep -Fqx '    libexec.install "VERSION", "dotlad", "uninstall.sh", "bin", "lib"' "$FORMULA"
 grep -Fqx '    bin.write_exec_script libexec/"dotlad"' "$FORMULA"
+grep -Fqx '    (libexec/".dotlad-homebrew").write "dotlad Homebrew installation\n"' "$FORMULA"
 if grep -E '@(VERSION|SHA256)@' "$FORMULA" >/dev/null; then
     printf 'rendered Homebrew formula retained a template placeholder\n' >&2
     exit 1
@@ -192,6 +193,7 @@ mkdir "$SB/outside"
 [[ "$(cd "$SB/outside" && "$COMMAND" --version)" == "dotlad $VERSION" ]]
 help_output="$(cd "$SB/outside" && "$COMMAND" help)"
 [[ "${help_output%%$'\n'*}" == "dotlad — install a project's packages and configs onto your system." ]]
+grep -Fq 'dotlad uninstall' <<<"$help_output"
 
 # An explicit version skips the latest-release API and safely updates the
 # already managed installation. Running the same update again is idempotent.
@@ -301,6 +303,7 @@ platform_install() { # <expected> <uname-system> <uname-release> [wsl-interop]
     output="$(PATH="$PLATFORM_BIN:$DOWNLOAD_BIN:$PATH" \
         DOTLAD_TEST_UNAME_SYSTEM="$system" \
         DOTLAD_TEST_UNAME_RELEASE="$release" \
+        WSL_DISTRO_NAME='' \
         WSL_INTEROP="$interop" \
         DOTLAD_TEST_DIST="$DIST" \
         DOTLAD_TEST_VERSION="$VERSION" \
@@ -330,6 +333,7 @@ mkdir "$EXTRACTED"
 tar -xzf "$ARCHIVE" -C "$EXTRACTED"
 BUNDLE="$EXTRACTED/dotlad-$VERSION"
 [[ -f "$BUNDLE/install.sh" ]]
+[[ -f "$BUNDLE/uninstall.sh" ]]
 [[ -f "$BUNDLE/.github/assets/demo/cli-dark.gif" ]]
 [[ -f "$BUNDLE/.github/assets/demo/cli-light.gif" ]]
 [[ -f "$BUNDLE/.github/assets/dotlad-name-dark.svg" ]]
@@ -342,5 +346,64 @@ BUNDLE="$EXTRACTED/dotlad-$VERSION"
 [[ -x "$BUNDLE/examples/mydot" ]]
 [[ -f "$BUNDLE/tests/run.sh" ]]
 /bin/bash "$BUNDLE/scripts/check.sh" --syntax-only
+
+# Homebrew owns its Cellar installation and the CLI only prints the matching
+# package-manager instruction; it never removes Homebrew-managed files itself.
+printf 'dotlad Homebrew installation\n' >"$BUNDLE/.dotlad-homebrew"
+homebrew_uninstall_output="$(cd "$SB/outside" && "$BUNDLE/dotlad" uninstall)"
+[[ "$homebrew_uninstall_output" == $'Dotlad was installed with Homebrew.\nRun: brew uninstall dotlad' ]]
+[[ -f "$BUNDLE/VERSION" ]]
+rm -f "$BUNDLE/.dotlad-homebrew"
+
+HOMEBREW_PREFIX="$SB/homebrew-prefix"
+HOMEBREW_BIN="$SB/homebrew-bin"
+mkdir -p "$HOMEBREW_PREFIX/libexec" "$HOMEBREW_BIN"
+printf 'dotlad Homebrew installation\n' >"$HOMEBREW_PREFIX/libexec/.dotlad-homebrew"
+cat >"$HOMEBREW_BIN/brew" <<'EOF'
+#!/usr/bin/env bash
+[[ "${1:-}" == --prefix && "${2:-}" == dotlad ]]
+printf '%s\n' "$DOTLAD_TEST_HOMEBREW_PREFIX"
+EOF
+chmod +x "$HOMEBREW_BIN/brew"
+standalone_homebrew_output="$(PATH="$HOMEBREW_BIN:$PATH" \
+    DOTLAD_TEST_HOMEBREW_PREFIX="$HOMEBREW_PREFIX" \
+    DOTLAD_INSTALL_DIR="$SB/missing/share/dotlad" \
+    DOTLAD_BIN_DIR="$SB/missing/bin" /bin/bash <"$ROOT/uninstall.sh")"
+[[ "$standalone_homebrew_output" == $'Dotlad was installed with Homebrew.\nRun: brew uninstall dotlad' ]]
+[[ -f "$HOMEBREW_PREFIX/libexec/.dotlad-homebrew" ]]
+
+# Both the installed command and the standalone script remove only the
+# curl-managed runtime and launcher, including custom paths containing spaces.
+UNINSTALL_INSTALL="$SB/uninstall paths/share/dotlad"
+UNINSTALL_BIN="$SB/uninstall paths/bin"
+DOTLAD_INSTALL_DIR="$UNINSTALL_INSTALL" DOTLAD_BIN_DIR="$UNINSTALL_BIN" \
+    DOTLAD_VERSION="$TAG" run_installer >/dev/null
+mkdir -p "$SB/user-project" "$SB/user-backups"
+printf 'keep\n' >"$SB/user-project/config"
+printf 'keep\n' >"$SB/user-backups/backup"
+uninstall_output="$(PATH="$UNINSTALL_BIN:$PATH" "$UNINSTALL_BIN/dotlad" uninstall)"
+grep -Fqx 'Dotlad was uninstalled. Your projects, deployed config, and backups were left untouched.' \
+    <<<"$uninstall_output"
+[[ ! -e "$UNINSTALL_INSTALL" && ! -e "$UNINSTALL_BIN/dotlad" ]]
+grep -Fqx keep "$SB/user-project/config"
+grep -Fqx keep "$SB/user-backups/backup"
+
+DOTLAD_INSTALL_DIR="$UNINSTALL_INSTALL" DOTLAD_BIN_DIR="$UNINSTALL_BIN" \
+    DOTLAD_VERSION="$TAG" run_installer >/dev/null
+standalone_uninstall_output="$(DOTLAD_INSTALL_DIR="$UNINSTALL_INSTALL" \
+    DOTLAD_BIN_DIR="$UNINSTALL_BIN" /bin/bash <"$ROOT/uninstall.sh")"
+grep -Fqx 'Dotlad was uninstalled. Your projects, deployed config, and backups were left untouched.' \
+    <<<"$standalone_uninstall_output"
+[[ ! -e "$UNINSTALL_INSTALL" && ! -e "$UNINSTALL_BIN/dotlad" ]]
+
+UNMANAGED_INSTALL="$SB/unmanaged/share/dotlad"
+UNMANAGED_BIN="$SB/unmanaged/bin"
+mkdir -p "$UNMANAGED_INSTALL" "$UNMANAGED_BIN"
+printf 'keep\n' >"$UNMANAGED_INSTALL/sentinel"
+unmanaged_uninstall_rc=0
+DOTLAD_INSTALL_DIR="$UNMANAGED_INSTALL" DOTLAD_BIN_DIR="$UNMANAGED_BIN" \
+    /bin/bash "$ROOT/uninstall.sh" >/dev/null 2>&1 || unmanaged_uninstall_rc=$?
+[[ "$unmanaged_uninstall_rc" != 0 ]]
+grep -Fqx keep "$UNMANAGED_INSTALL/sentinel"
 
 printf 'DOTLAD_INSTALL_TEST_OK\n'

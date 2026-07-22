@@ -25,11 +25,13 @@ cli_print_zsh_completion() {
     printf '\n_dotlad_root_commands=('
     for ((i = 0; i < ${#CLI_COMMAND_NAMES[@]}; i++)); do
         [[ -n "${CLI_COMMAND_NAMES[$i]}" ]] || continue
+        cli_command_is_visible "${CLI_COMMAND_NAMES[$i]}" || continue
         printf ' %q' "${CLI_COMMAND_NAMES[$i]}"
     done
     printf ' )\n_dotlad_root_descriptions=('
     for ((i = 0; i < ${#CLI_COMMAND_NAMES[@]}; i++)); do
         [[ -n "${CLI_COMMAND_NAMES[$i]}" ]] || continue
+        cli_command_is_visible "${CLI_COMMAND_NAMES[$i]}" || continue
         printf ' %q' "${CLI_COMMAND_DESCRIPTIONS[$i]}"
     done
     printf ' )\n_dotlad_option_alias_groups=('
@@ -76,10 +78,12 @@ cli_usage() {
 
     printf 'Usage:\n'
     for ((i = 0; i < ${#CLI_COMMAND_USAGE[@]}; i++)); do
+        cli_command_is_visible "${CLI_COMMAND_NAMES[$i]}" || continue
         label="$DOTLAD_COMMAND_NAME${CLI_COMMAND_USAGE[$i]:+ ${CLI_COMMAND_USAGE[$i]}}"
         [[ ${#label} -le $command_width ]] || command_width=${#label}
     done
     for ((i = 0; i < ${#CLI_COMMAND_USAGE[@]}; i++)); do
+        cli_command_is_visible "${CLI_COMMAND_NAMES[$i]}" || continue
         label="$DOTLAD_COMMAND_NAME${CLI_COMMAND_USAGE[$i]:+ ${CLI_COMMAND_USAGE[$i]}}"
         cli_print_help_row "$command_width" "$label" "${CLI_COMMAND_DESCRIPTIONS[$i]}"
     done
