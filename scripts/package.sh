@@ -29,7 +29,6 @@ cp "$ROOT/VERSION" "$ROOT/LICENSE" "$ROOT/README.md" \
     "$ROOT/CHANGELOG.md" "$ROOT/CONTRIBUTING.md" "$ROOT/SECURITY.md" \
     "$ROOT/.editorconfig" "$ROOT/dotlad" "$ROOT/install.sh" "$bundle/"
 cp "$ROOT/bin/dotlad" "$bundle/bin/"
-cp -R "$ROOT/completions" "$bundle/"
 cp "$ROOT/scripts/"*.sh "$bundle/scripts/"
 cp "$ROOT/.github/assets/dotlad-name-dark.svg" \
     "$ROOT/.github/assets/dotlad-name-light.svg" "$bundle/.github/assets/"

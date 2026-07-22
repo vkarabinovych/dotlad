@@ -6,9 +6,15 @@ All notable user-facing changes are documented here.
 
 ### Added
 
-- `dotlad completion zsh` prints native `compdef`/`compadd` integration with
-  dynamic command, option, tool, profile, and restore-point completion. Custom
+- `dotlad completion zsh` prints native, platform-aware Zsh completion for
+  commands, options, tools, profiles, restore points, and hidden paths. Custom
   wrappers retain their command name and explicitly selected project roots.
+
+### Changed
+
+- Help and Zsh completion share one command manifest. The complete CLI now
+  lives in focused `lib/cli/` modules, leaving `bin/dotlad` as a thin
+  executable entrypoint.
 
 ## [0.8.0] - 2026-07-22
 

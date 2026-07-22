@@ -48,7 +48,7 @@ this keeps production and test load order aligned.
 
 | Change                            | Primary location               |
 | --------------------------------- | ------------------------------ |
-| CLI parsing or dispatch           | `bin/dotlad`                   |
+| CLI composition, parsing, or help | `lib/cli/*.sh`                 |
 | Shared console output and prompts | `lib/console.sh`               |
 | Command behavior and selections   | `lib/commands.sh`              |
 | Manifest or profile contracts     | `lib/manifest.sh`              |

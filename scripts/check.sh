@@ -10,13 +10,13 @@ SOURCES=(
     examples/mydot
     .github/assets/demo/setup.sh
     scripts/*.sh
-    lib/*.sh lib/resolvers/*.sh lib/tui/*.sh
+    lib/*.sh lib/cli/*.sh lib/resolvers/*.sh lib/tui/*.sh
     tests/run.sh tests/integration/*.sh tests/integration/cases/*.sh
 )
 
 bash -n "${SOURCES[@]}"
 if command -v zsh >/dev/null 2>&1; then
-    zsh -n completions/_dotlad
+    zsh -n lib/cli/completion.zsh
 fi
 [[ "${1:-}" == --syntax-only ]] && exit 0
 [[ $# -eq 0 ]] || {

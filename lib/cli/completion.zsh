@@ -2,22 +2,31 @@
 
 # Native Zsh completion for Dotlad and project-specific wrappers.
 typeset -gA _dotlad_project_roots _dotlad_backup_roots
+typeset -ga _dotlad_root_commands _dotlad_root_descriptions
+typeset -ga _dotlad_option_alias_groups _dotlad_option_group_descriptions
+
+_dotlad_register() {
+    emulate -L zsh
+    local command_name="$1" project_root="$2" backup_root="$3"
+
+    [[ -z "$project_root" ]] || _dotlad_project_roots[$command_name]="$project_root"
+    [[ -z "$backup_root" ]] || _dotlad_backup_roots[$command_name]="$backup_root"
+    compdef _dotlad "$command_name"
+}
 
 _dotlad() {
     emulate -L zsh
-    setopt local_options null_glob extended_glob
+    setopt local_options null_glob extended_glob glob_dots
 
     local service_name="${service:-${words[1]:t}}"
     local project_root="${_dotlad_project_roots[$service_name]:-${DOTLAD_PROJECT_ROOT:-$PWD}}"
     local backup_root="${_dotlad_backup_roots[$service_name]:-${DOTLAD_BACKUP_ROOT:-$HOME/.dotlad_backup}}"
-    local current="${words[CURRENT]:-}" value_option="" word manifest entry name
+    local current="${words[CURRENT]:-}" value_option="" word entry name
     local metadata kind field1 field2 detail parent direct_tools icon
-    local -a positional candidates descriptions tools profiles backups root_commands
+    local -a positional candidates descriptions tools profiles backups aliases
     local -a tool_display profile_display
     local -A tool_icons tool_details profile_parents profile_direct_tools
     local i width mixed_width
-
-    root_commands=(all profile plan brewfile backups restore backup completion version help)
 
     for ((i = 2; i < CURRENT; i++)); do
         word="${words[i]}"
@@ -70,38 +79,16 @@ _dotlad() {
     esac
 
     if [[ "$current" == -* ]]; then
-        candidates=(
-            --plain --yes --dry-run --json --symlink
-            --packages-only --config-only
-            -C --config --config= --backup-root --backup-root=
-            --output --output=
-            -h -H --help -v -V --version
-        )
-        descriptions=(
-            "disable colour and the interactive screen"
-            "accept mutation confirmation prompts"
-            "show a read-only plan"
-            "emit a JSON plan"
-            "default omitted resolvers to symlink"
-            "install packages without deploying config"
-            "deploy config without installing packages"
-            "select the manifest project"
-            "select the manifest project"
-            "select the manifest project"
-            "select the backup location"
-            "select the backup location"
-            "select the generated Brewfile path"
-            "select the generated Brewfile path"
-            "print help"
-            "print help"
-            "print help"
-            "print the installed version"
-            "print the installed version"
-            "print the installed version"
-        )
+        for ((i = 1; i <= ${#_dotlad_option_alias_groups}; i++)); do
+            IFS=' ' read -rA aliases <<<"${_dotlad_option_alias_groups[i]}"
+            for word in "${aliases[@]}"; do
+                candidates+=("$word")
+                descriptions+=("${_dotlad_option_group_descriptions[i]}")
+            done
+        done
         width=0
         for word in "${candidates[@]}"; do
-            (( ${#word} > width )) && width=${#word}
+            ((${#word} > width)) && width=${#word}
         done
         for ((i = 1; i <= ${#candidates}; i++)); do
             descriptions[i]="$(printf '%-*s -- %s' \
@@ -122,15 +109,10 @@ _dotlad() {
     [[ "$project_root" == /* ]] || project_root="$PWD/$project_root"
     [[ "$backup_root" == /* ]] || backup_root="$PWD/$backup_root"
 
-    for manifest in "$project_root"/tools/*/tool.conf(N); do
-        name="${manifest:h:t}"
-        tools+=("$name")
-    done
-    for entry in "$project_root"/profiles/*.conf(N); do
-        profiles+=("${entry:t:r}")
-    done
     for entry in "$backup_root"/*(N/); do
-        backups+=("${entry:t}")
+        name="${entry:t}"
+        [[ "$name" =~ "^[0-9]{8}_[0-9]{6}(-[0-9]{2})?$" ]] || continue
+        backups+=("$name")
     done
 
     metadata="$(DOTLAD_PLAIN=1 "${words[1]}" -C "$project_root" \
@@ -139,10 +121,12 @@ _dotlad() {
         [[ -n "$name" ]] || continue
         case "$kind" in
             tool)
+                tools+=("$name")
                 tool_icons[$name]="$field1"
                 tool_details[$name]="$field2"
                 ;;
             profile)
+                profiles+=("$name")
                 profile_parents[$name]="$field1"
                 profile_direct_tools[$name]="$field2"
                 ;;
@@ -150,8 +134,8 @@ _dotlad() {
     done <<<"$metadata"
 
     mixed_width=0
-    for name in "${root_commands[@]}" "${tools[@]}"; do
-        (( ${#name} > mixed_width )) && mixed_width=${#name}
+    for name in "${_dotlad_root_commands[@]}" "${tools[@]}"; do
+        ((${#name} > mixed_width)) && mixed_width=${#name}
     done
     for ((i = 1; i <= ${#tools}; i++)); do
         icon="${tool_icons[${tools[i]}]:-}"
@@ -162,7 +146,7 @@ _dotlad() {
     done
     width=0
     for name in "${profiles[@]}"; do
-        (( ${#name} > width )) && width=${#name}
+        ((${#name} > width)) && width=${#name}
     done
     for ((i = 1; i <= ${#profiles}; i++)); do
         parent="${profile_parents[${profiles[i]}]:-}"
@@ -177,50 +161,39 @@ _dotlad() {
             "$width" "${profiles[i]}" "$detail")"
     done
 
-    if (( ${#positional} == 0 )); then
-        candidates=("${root_commands[@]}")
-        descriptions=(
-            "apply every relevant tool"
-            "apply a named profile"
-            "show a read-only plan"
-            "generate a Homebrew Bundle file"
-            "list restore points"
-            "restore a restore point"
-            "manage restore points"
-            "generate shell completion"
-            "print the installed version"
-            "print help"
-        )
+    if ((${#positional} == 0)); then
+        candidates=("${_dotlad_root_commands[@]}")
+        descriptions=("${_dotlad_root_descriptions[@]}")
         for ((i = 1; i <= ${#candidates}; i++)); do
             descriptions[i]="$(printf '%-*s -- %s' \
                 "$mixed_width" "${candidates[i]}" "${descriptions[i]}")"
         done
         compadd -J commands -d descriptions -- "${candidates[@]}"
-        (( ${#tools} == 0 )) ||
+        ((${#tools} == 0)) ||
             compadd -J tools -X tools -d tool_display -- "${tools[@]}"
         return
     fi
 
     case "${positional[1]}" in
         profile)
-            (( ${#positional} == 1 && ${#profiles} > 0 )) &&
+            ((${#positional} == 1 && ${#profiles} > 0)) &&
                 compadd -J profiles -X profiles \
                     -d profile_display -- "${profiles[@]}"
             ;;
         restore)
-            (( ${#positional} == 1 && ${#backups} > 0 )) &&
+            ((${#positional} == 1 && ${#backups} > 0)) &&
                 compadd -J backups -X "restore points" -- "${backups[@]}"
             ;;
         backup)
-            if (( ${#positional} == 1 )); then
+            if ((${#positional} == 1)); then
                 compadd -J commands -X "backup actions" -- delete
             elif [[ "${positional[2]}" == delete ]] &&
-                (( ${#positional} == 2 && ${#backups} > 0 )); then
+                ((${#positional} == 2 && ${#backups} > 0)); then
                 compadd -J backups -X "restore points" -- "${backups[@]}"
             fi
             ;;
         plan)
-            if (( ${#positional} == 1 )); then
+            if ((${#positional} == 1)); then
                 candidates=(all profile)
                 descriptions=("plan every relevant tool" "plan a named profile")
                 for ((i = 1; i <= ${#candidates}; i++)); do
@@ -228,24 +201,24 @@ _dotlad() {
                         "$mixed_width" "${candidates[i]}" "${descriptions[i]}")"
                 done
                 compadd -J targets -d descriptions -- "${candidates[@]}"
-                (( ${#tools} == 0 )) ||
+                ((${#tools} == 0)) ||
                     compadd -J tools -X tools \
                         -d tool_display -- "${tools[@]}"
             elif [[ "${positional[2]}" == profile ]] &&
-                (( ${#positional} == 2 && ${#profiles} > 0 )); then
+                ((${#positional} == 2 && ${#profiles} > 0)); then
                 compadd -J profiles -X profiles \
                     -d profile_display -- "${profiles[@]}"
-            elif [[ "${positional[2]}" != all ]] && (( ${#tools} > 0 )); then
+            elif [[ "${positional[2]}" != all ]] && ((${#tools} > 0)); then
                 compadd -J tools -X tools \
                     -d tool_display -- "${tools[@]}"
             fi
             ;;
         completion)
-            (( ${#positional} == 1 )) && compadd -J shells -X shells -- zsh
+            ((${#positional} == 1)) && compadd -J shells -X shells -- zsh
             ;;
         all | brewfile | backups | version | help) ;;
         *)
-            (( ${#tools} == 0 )) ||
+            ((${#tools} == 0)) ||
                 compadd -J tools -X tools \
                     -d tool_display -- "${tools[@]}"
             ;;

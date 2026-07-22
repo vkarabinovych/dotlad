@@ -11,8 +11,15 @@ DOTLAD_RUNTIME_ROOT/
 ├── VERSION
 ├── dotlad
 ├── bin/dotlad
-├── completions/_dotlad
 └── lib/
+    ├── cli/
+    │   ├── main.sh
+    │   ├── bootstrap.sh
+    │   ├── spec.sh
+    │   ├── presentation.sh
+    │   ├── dispatch.sh
+    │   └── completion.zsh
+    └── …
 
 DOTLAD_PROJECT_ROOT/
 ├── tools/<name>/tool.conf
@@ -21,10 +28,10 @@ DOTLAD_PROJECT_ROOT/
 ```
 
 The root `dotlad` file is a stable repository/submodule entrypoint.
-`bin/dotlad` resolves the runtime from its own location and selects the project
-from `-C`, `--config`, or the current working directory. Resolver files always
-come from the runtime; manifests, profiles, and config payloads always come
-from the selected project.
+`bin/dotlad` only resolves the runtime and invokes `lib/cli/main.sh`. The CLI
+bootstrap selects the project from `-C`, `--config`, or the current working
+directory. Resolver files always come from the runtime; manifests, profiles,
+and config payloads always come from the selected project.
 
 The standalone installer copies the runtime to `<prefix>/libexec/dotlad` and
 creates `<prefix>/bin/dotlad` as a managed launcher. The launcher resolves its
@@ -36,30 +43,32 @@ documentation, maintainer scripts, and isolated tests.
 
 ## Component map
 
-`lib/runtime.sh` is the canonical loader for both production and test
-probes. It sources libraries in dependency order:
+`lib/cli/main.sh` composes bootstrap, shared command specification,
+presentation, and dispatch around `lib/runtime.sh`. The latter remains the
+canonical engine loader for both production and test probes:
 
 ```text
 console → resolvers → manifest → brewfile → packages → backup → engine
    → plan → picker model → runner → commands → TUI
 ```
 
-| Component      | Responsibility                                                    |
-| -------------- | ----------------------------------------------------------------- |
-| `bin/dotlad`   | Bootstrap, global option extraction, argument parsing, dispatch   |
-| `_dotlad`      | Native Zsh command, option, tool, profile, and backup completion  |
-| `console.sh`   | Shared colors, messages, prompts, paths, and diff output          |
-| `manifest.sh`  | Strict manifest/profile parsing, normalization, safety validation |
-| `resolvers.sh` | Load and dispatch trusted runtime resolver implementations        |
-| `packages.sh`  | Package, remote-installer, and requirement installation           |
-| `backup.sh`    | Restore-point creation, listing, restoration, and deletion        |
-| `engine.sh`    | State inspection, preflight, config transactions, synchronization |
-| `plan.sh`      | Human and JSON projections of canonical preflight state           |
-| `pick.sh`      | Presentation model shared by plain output and the TUI             |
-| `runner.sh`    | Foreground batches, serialized queue, and worker lifecycle        |
-| `commands.sh`  | Command implementations and tool selection                        |
-| `tui.sh`       | Interactive actions, details, cleanup, and the main event loop    |
-| `tui/*.sh`     | Keyboard input, cached screen model, layout, and full rendering   |
+| Component            | Responsibility                                                    |
+| -------------------- | ----------------------------------------------------------------- |
+| `bin/dotlad`         | Thin executable entrypoint that locates and starts the CLI        |
+| `cli/*.sh`           | Bootstrap, shared specification, presentation, and dispatch       |
+| `cli/completion.zsh` | Native Zsh command, option, tool, profile, and backup completion  |
+| `console.sh`         | Shared colors, messages, prompts, paths, and diff output          |
+| `manifest.sh`        | Strict manifest/profile parsing, normalization, safety validation |
+| `resolvers.sh`       | Load and dispatch trusted runtime resolver implementations        |
+| `packages.sh`        | Package, remote-installer, and requirement installation           |
+| `backup.sh`          | Restore-point creation, listing, restoration, and deletion        |
+| `engine.sh`          | State inspection, preflight, config transactions, synchronization |
+| `plan.sh`            | Human and JSON projections of canonical preflight state           |
+| `pick.sh`            | Presentation model shared by plain output and the TUI             |
+| `runner.sh`          | Foreground batches, serialized queue, and worker lifecycle        |
+| `commands.sh`        | Command implementations and tool selection                        |
+| `tui.sh`             | Interactive actions, details, cleanup, and the main event loop    |
+| `tui/*.sh`           | Keyboard input, cached screen model, layout, and full rendering   |
 
 `commands.sh` and the TUI depend on lower layers; lower layers do not call into
 presentation code. This keeps read-only probes and non-interactive commands
