@@ -2,9 +2,9 @@
 
 [![CI](https://github.com/vkarabinovych/dotlad/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/vkarabinovych/dotlad/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/vkarabinovych/dotlad?style=flat&logo=github&label=release)](https://github.com/vkarabinovych/dotlad/releases/latest)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20WSL-000000?style=flat)](#requirements)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20WSL-0057B8?style=flat)](#requirements)
 [![Bash](https://img.shields.io/badge/bash-3.2%2B-4EAA25?style=flat&logo=gnubash&logoColor=white)](#requirements)
-[![License](https://img.shields.io/github/license/vkarabinovych/dotlad?style=flat&label=license)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-0057B8?style=flat)](LICENSE)
 
 <p align="center">
   <picture>

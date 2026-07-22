@@ -1,9 +1,14 @@
 # Contributing
 
-Dotlad is a personal project and is not actively seeking public contributions.
-There is no review or merge timeline. Forks are welcome, and this document
-records the development discipline used by the maintainer and recommended for
-downstream changes.
+> [!IMPORTANT]
+> Dotlad is a personal project maintained primarily for the author's own use.
+>
+> - It is not actively seeking public contributions.
+> - There is no review or merge timeline.
+> - Forks are welcome for different workflows or priorities.
+
+This document records the development discipline used by the maintainer and
+recommended for downstream changes.
 
 ## Development setup
 
