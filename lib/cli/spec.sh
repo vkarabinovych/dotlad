@@ -2,7 +2,7 @@
 # Canonical command and option names, help usage, aliases, and descriptions.
 
 CLI_COMMAND_NAMES=(
-    "" "" profile all brewfile plan backups restore backup completion uninstall version help
+    "" "" profile all brewfile plan backups restore backup completion update uninstall version help
 )
 CLI_COMMAND_USAGE=(
     ""
@@ -15,6 +15,7 @@ CLI_COMMAND_USAGE=(
     "restore NAME"
     "backup delete NAME"
     "completion zsh"
+    "update"
     "uninstall"
     "version"
     "help"
@@ -30,6 +31,7 @@ CLI_COMMAND_DESCRIPTIONS=(
     "Restore a restore point"
     "Delete a restore point"
     "Print native Zsh completion"
+    "Update a global installation"
     "Remove the global installation"
     "Print the installed version"
     "Print this help"

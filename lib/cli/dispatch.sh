@@ -67,6 +67,14 @@ cli_dispatch() {
             fi
             return 0
             ;;
+        update)
+            [[ ${#pos[@]} -eq 1 ]] || {
+                err "usage: $DOTLAD_COMMAND_NAME update"
+                return 1
+            }
+            cli_update
+            return $?
+            ;;
         uninstall)
             [[ ${#pos[@]} -eq 1 ]] || {
                 err "usage: $DOTLAD_COMMAND_NAME uninstall"

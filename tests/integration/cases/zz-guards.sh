@@ -7,6 +7,8 @@ rc_is "help rejects positional arguments" 1 df help extra
 rc_is "version rejects positional arguments" 1 df version extra
 rc_is "uninstall rejects a repository checkout" 1 df uninstall
 rc_is "uninstall rejects positional arguments" 1 df uninstall extra
+rc_is "update rejects a repository checkout" 1 df update
+rc_is "update rejects positional arguments" 1 df update extra
 rc_is "help command exits 0" 0 df help
 rc_is "uppercase help flag exits 0" 0 df -H
 rc_is "help flag rejects positional arguments" 1 df -H extra
@@ -26,6 +28,9 @@ grep -qF -- 'completion zsh' <<<"$help_output" && pass "help documents Zsh compl
 grep -qF -- 'uninstall' <<<"$help_output" &&
     fail "repository help exposes global uninstall" ||
     pass "repository help hides global uninstall"
+grep -qF -- 'dotlad update' <<<"$help_output" &&
+    fail "repository help exposes global update" ||
+    pass "repository help hides global update"
 
 completion_output="$(df completion zsh)"
 completion_project_root="$(cd "$FAKE" && pwd)"

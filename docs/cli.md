@@ -32,6 +32,7 @@ use the selected project and backup location consistently.
 | `dotlad restore <name>`       | Restore every differing entry in a restore point         |
 | `dotlad backup delete <name>` | Permanently delete a restore point                       |
 | `dotlad completion zsh`       | Print native Zsh completion for the current command      |
+| `dotlad update`               | Update a global curl installation                        |
 | `dotlad uninstall`            | Remove a global curl installation                        |
 | `dotlad version`              | Print the installed version                              |
 | `dotlad help`                 | Print built-in help                                      |
@@ -44,6 +45,11 @@ removes its managed runtime and launcher while preserving projects, deployed
 config, and backups. A Homebrew-installed command prints the corresponding
 `brew uninstall dotlad` instruction instead. Repository checkouts and pinned
 project wrappers reject the command.
+
+`update` follows the same installation scope. Curl-installed commands download
+the current verified installer and update their managed runtime in place;
+Homebrew-installed commands print `brew upgrade dotlad`. Repository checkouts
+and pinned project wrappers reject the command.
 
 ## Options
 

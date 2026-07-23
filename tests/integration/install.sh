@@ -137,6 +137,9 @@ case "$url" in
     */dotlad-"$DOTLAD_TEST_VERSION".sha256)
         cp "$DOTLAD_TEST_DIST/dotlad-$DOTLAD_TEST_VERSION.sha256" "$destination"
         ;;
+    https://raw.githubusercontent.com/vkarabinovych/dotlad/main/install.sh)
+        cp "$DOTLAD_TEST_SOURCE_INSTALLER" "$destination"
+        ;;
     *)
         printf 'unexpected download: %s\n' "$url" >&2
         exit 1
@@ -207,6 +210,17 @@ mkdir "$SB/outside"
 help_output="$(cd "$SB/outside" && "$COMMAND" help)"
 [[ "${help_output%%$'\n'*}" == "dotlad — install a project's packages and configs onto your system." ]]
 grep -Fq 'dotlad uninstall' <<<"$help_output"
+
+update_output="$(cd "$SB/outside" && PATH="$DOWNLOAD_BIN:$PATH" \
+    DOTLAD_TEST_DIST="$DIST" DOTLAD_TEST_VERSION="$VERSION" \
+    DOTLAD_TEST_DOWNLOAD_LOG="$DOWNLOAD_LOG" \
+    DOTLAD_TEST_SOURCE_INSTALLER="$ROOT/install.sh" \
+    "$COMMAND" update)"
+grep -F "dotlad install: reinstalling $TAG for" <<<"$update_output" >/dev/null
+grep -Fqx "dotlad install: reinstalled $TAG" <<<"$update_output"
+grep -Fqx \
+    'https://raw.githubusercontent.com/vkarabinovych/dotlad/main/install.sh' \
+    "$DOWNLOAD_LOG"
 
 # An explicit version skips the latest-release API and safely updates the
 # already managed installation. Running the same update again is idempotent.
@@ -365,6 +379,8 @@ BUNDLE="$EXTRACTED/dotlad-$VERSION"
 printf 'dotlad Homebrew installation\n' >"$BUNDLE/.dotlad-homebrew"
 homebrew_uninstall_output="$(cd "$SB/outside" && "$BUNDLE/dotlad" uninstall)"
 [[ "$homebrew_uninstall_output" == $'Dotlad was installed with Homebrew.\nRun: brew uninstall dotlad' ]]
+homebrew_update_output="$(cd "$SB/outside" && "$BUNDLE/dotlad" update)"
+[[ "$homebrew_update_output" == $'Dotlad was installed with Homebrew.\nRun: brew upgrade dotlad' ]]
 [[ -f "$BUNDLE/VERSION" ]]
 rm -f "$BUNDLE/.dotlad-homebrew"
 

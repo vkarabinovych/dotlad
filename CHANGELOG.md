@@ -4,7 +4,11 @@ All notable user-facing changes are documented here.
 
 ## [Unreleased]
 
-No changes yet.
+### Added
+
+- `dotlad update` updates global curl installations to the latest verified
+  release and prints the matching `brew upgrade dotlad` instruction for
+  Homebrew installations.
 
 ## [0.9.0] - 2026-07-22
 

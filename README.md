@@ -158,12 +158,13 @@ export PATH="$HOME/.local/bin:$PATH"
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-Rerun the one-line command to update to the latest release, or rerun the
-pinned command with another `DOTLAD_VERSION`. Updates replace only the managed
-application directory and command launcher; project manifests, deployed config,
-and backups remain untouched. The log identifies upgrades, downgrades, and
-same-version reinstalls with their exact versions. A failed transition restores
-the previous runtime.
+Run `dotlad update` to update a global curl installation to the latest release,
+or rerun the one-line command with another `DOTLAD_VERSION`. Homebrew installs
+use `brew upgrade dotlad`. Updates replace only the managed application
+directory and command launcher; project manifests, deployed config, and backups
+remain untouched. The log identifies upgrades, downgrades, and same-version
+reinstalls with their exact versions. A failed transition restores the previous
+runtime.
 
 An installed Dotlad can remove its curl-managed runtime and launcher safely:
 
@@ -299,6 +300,7 @@ multi-config, and package-only manifests.
 | `dotlad backups`                  | List available restore points               |
 | `dotlad restore <name>`           | Restore a restore point                     |
 | `dotlad backup delete <name>`     | Delete a restore point                      |
+| `dotlad update`                   | Update a global curl installation           |
 | `dotlad uninstall`                | Remove a global curl installation           |
 | `dotlad --packages-only <action>` | Install packages without deploying config   |
 | `dotlad --config-only <action>`   | Deploy config without installing packages   |
