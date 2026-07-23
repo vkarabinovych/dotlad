@@ -38,11 +38,10 @@ CLI_COMMAND_DESCRIPTIONS=(
 )
 
 CLI_OPTION_NAMES=(
-    config backup-root output packages-only config-only symlink dry-run json yes plain help version
+    backup output packages-only config-only symlink dry-run json yes plain help version
 )
 CLI_OPTION_USAGE=(
-    "-C, --config PATH"
-    "--backup-root PATH"
+    "--backup PATH"
     "--output PATH"
     "--packages-only"
     "--config-only"
@@ -55,8 +54,7 @@ CLI_OPTION_USAGE=(
     "-v, -V, --version"
 )
 CLI_OPTION_ALIASES=(
-    "-C --config --config="
-    "--backup-root --backup-root="
+    "--backup --backup="
     "--output --output="
     "--packages-only"
     "--config-only"
@@ -69,7 +67,6 @@ CLI_OPTION_ALIASES=(
     "-v -V --version"
 )
 CLI_OPTION_DESCRIPTIONS=(
-    "select the manifest project (defaults to current directory)"
     "select the backup location (defaults to ~/.dotlad_backup)"
     "select the generated Brewfile path (defaults to ./Brewfile)"
     "install packages without deploying config"

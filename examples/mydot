@@ -8,6 +8,6 @@ export DOTLAD_COMMAND_NAME="${DOTLAD_COMMAND_NAME:-mydot}"
 export DOTLAD_DISPLAY_NAME="${DOTLAD_DISPLAY_NAME:-My Dotfiles}"
 
 exec "$DOTLAD_EXAMPLE_BIN" \
-    -C "$EXAMPLE_ROOT" \
-    --backup-root "$EXAMPLE_ROOT/.tmp/backups" \
+    "$EXAMPLE_ROOT" \
+    --backup "$EXAMPLE_ROOT/.tmp/backups" \
     "$@"

@@ -339,19 +339,19 @@ if [[ "$activity_lines" == 4 &&
 else
     fail "focused backup activity ignores its row budget: $backup_activity_probe"
 fi
-activity_restore_out="$(df --backup-root "$activity_root" --yes restore "$activity_name")"
+activity_restore_out="$(df --backup "$activity_root" --yes restore "$activity_name")"
 [[ "$activity_restore_out" == *'restored 5 files'* ]] &&
     pass "restore skips entries that already match the backup" ||
     fail "restore counts identical entries: $activity_restore_out"
-activity_list_after="$(df --backup-root "$activity_root" backups)"
+activity_list_after="$(df --backup "$activity_root" backups)"
 [[ "$activity_list_after" == *$'20000101_010101\t0 files'* ]] &&
     pass "fully matching backup remains visible with zero changes" ||
     fail "fully matching backup has a nonzero count: $activity_list_after"
-activity_noop_out="$(df --backup-root "$activity_root" --yes restore "$activity_name")"
+activity_noop_out="$(df --backup "$activity_root" --yes restore "$activity_name")"
 [[ "$activity_noop_out" == *'everything already matches this backup'* ]] &&
     pass "restoring a matching backup is a successful no-op" ||
     fail "matching backup restore is misleading: $activity_noop_out"
-df --backup-root "$activity_root" --yes backup delete "$activity_name" >/dev/null 2>&1
+df --backup "$activity_root" --yes backup delete "$activity_name" >/dev/null 2>&1
 checknot "zero-change backup can still be deleted" test -e "$activity_root/$activity_name"
 rm -rf "$activity_root" "$H/.activity"
 rc_is "backup CLI rejects an invalid restore name" 1 df --yes restore ../outside
@@ -477,15 +477,15 @@ SOURCE="files"
 DEST="$H/.config/symlink-empty-directory"
 RESOLVER="symlink"
 EOF
-df --backup-root "$empty_directory_backup_root" --config-only \
+df --backup "$empty_directory_backup_root" --config-only \
     symlink-empty-directory >/dev/null 2>&1
 empty_directory_backup_name="$(find "$empty_directory_backup_root" -mindepth 1 \
     -maxdepth 1 -type d -exec basename {} \; | head -1)"
-empty_directory_list="$(df --backup-root "$empty_directory_backup_root" backups)"
+empty_directory_list="$(df --backup "$empty_directory_backup_root" backups)"
 [[ "$empty_directory_list" == *$'\t2 directories'* ]] &&
     pass "directory-only backup reports directory changes" ||
     fail "directory-only backup is reported as unchanged: $empty_directory_list"
-empty_directory_restore="$(df --backup-root "$empty_directory_backup_root" --yes \
+empty_directory_restore="$(df --backup "$empty_directory_backup_root" --yes \
     restore "$empty_directory_backup_name")"
 checknot "directory-only restore removes its managed symlink" \
     test -L "$H/.config/symlink-empty-directory"
@@ -507,7 +507,7 @@ ln -s "$SB/outside-backups" "$H/.backup-link"
 mkdir -p "$H/.config/multipkg"
 printf 'backup-root-keep\n' >"$H/.config/multipkg/config"
 rc_is "backup root with a symlinked parent is rejected" 1 \
-    df --backup-root "$H/.backup-link/store" --config-only multipkg
+    df --backup "$H/.backup-link/store" --config-only multipkg
 check "unsafe backup root prevents config mutation" grep -qxF backup-root-keep "$H/.config/multipkg/config"
 checknot "unsafe backup root writes nothing outside HOME" test -e "$SB/outside-backups/store"
 rm -f "$H/.backup-link" "$H/.config/multipkg/config"

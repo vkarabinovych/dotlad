@@ -250,7 +250,7 @@ EOF
 
 df() { (cd "$FAKE" && PATH="$SB/brewprefix/bin:$SB/bin:$PATH" HOME="$H" \
     DOTLAD_YES=1 DOTLAD_PLAIN=1 /bin/bash "$ROOT/dotlad" \
-    -C "$FAKE" --backup-root "$H/.dotlad_backup" "$@"); }
+    "$FAKE" --backup "$H/.dotlad_backup" "$@"); }
 state_json() { # print ST_CFG/ST_INSTALLED for a tool via a tiny sourced probe
     (cd "$FAKE" && PATH="$SB/brewprefix/bin:$SB/bin:$PATH" HOME="$H" DOTLAD_PLAIN=1 \
         ROOT="$FAKE" /bin/bash -c '

@@ -5,9 +5,9 @@ problem is project selection, manifest validation, installed-state detection,
 or execution preflight:
 
 ```bash
-dotlad -C /path/to/project --plain
-dotlad -C /path/to/project plan
-dotlad -C /path/to/project plan --json
+dotlad /path/to/project --plain
+dotlad /path/to/project plan
+dotlad /path/to/project plan --json
 ```
 
 ## `no tools/ directory`
@@ -16,7 +16,7 @@ Dotlad is using the wrong project root. Run it from the directory that owns
 `tools/`, or pass that directory explicitly:
 
 ```bash
-dotlad -C "$HOME/dotfiles" --plain
+dotlad "$HOME/dotfiles" --plain
 ```
 
 The standalone installation contains only the runtime; it does not create or
@@ -40,8 +40,8 @@ Mutating commands require confirmation and refuse to prompt when stdin is not a
 terminal. Review a plan, then opt into automation explicitly:
 
 ```bash
-dotlad -C /path/to/project plan profile base
-dotlad -C /path/to/project --yes profile base
+dotlad /path/to/project plan profile base
+dotlad /path/to/project --yes profile base
 ```
 
 Use `--plain` for a read-only state listing. `--plain` changes presentation; it
@@ -166,7 +166,7 @@ untouched while this blocker exists.
 List restore points using the same backup root used during deployment:
 
 ```bash
-dotlad --backup-root "$HOME/.my-backups" backups
+dotlad --backup "$HOME/.my-backups" backups
 ```
 
 Backup names are directory timestamps exactly as printed by `backups`; the

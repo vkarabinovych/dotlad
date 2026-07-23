@@ -89,8 +89,8 @@ instead of consulting the host system.
 Read-only validation can safely target a real consumer checkout:
 
 ```bash
-/path/to/dotlad/dotlad -C /path/to/project --plain
-/path/to/dotlad/dotlad -C /path/to/project plan
+/path/to/dotlad/dotlad /path/to/project --plain
+/path/to/dotlad/dotlad /path/to/project plan
 ```
 
 For deployment tests, use a temporary HOME and config-only mode so package
@@ -99,7 +99,7 @@ installation cannot touch the host:
 ```bash
 test_home="$(mktemp -d)"
 HOME="$test_home" /path/to/dotlad/dotlad \
-    -C /path/to/project --config-only --yes all
+    /path/to/project --config-only --yes all
 ```
 
 This still runs declared resolver commands from `PATH`. Stub external
@@ -129,8 +129,8 @@ rolls back if the managed command cannot be committed.
 Generate Homebrew Bundle metadata from a consumer project with:
 
 ```bash
-dotlad -C /path/to/project brewfile
-dotlad -C /path/to/project brewfile --output packaging/Brewfile
+dotlad /path/to/project brewfile
+dotlad /path/to/project brewfile --output packaging/Brewfile
 ```
 
 The default output is `Brewfile` in the current working directory. Relative

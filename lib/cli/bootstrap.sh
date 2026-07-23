@@ -3,6 +3,8 @@
 # shellcheck disable=SC2034 # Globals are consumed by sibling CLI/runtime modules.
 
 cli_bootstrap() {
+    local candidate i project_candidate
+    local -a project_args
     DOTLAD_BIN="$DOTLAD_RUNTIME_ROOT/dotlad"
     DOTLAD_PROJECT_ROOT_EXPLICIT=0
     DOTLAD_BACKUP_ROOT_EXPLICIT=0
@@ -20,30 +22,16 @@ cli_bootstrap() {
     CLI_BOOTSTRAP_ARGS=("")
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            -C | --config)
+            --backup)
                 [[ $# -gt 1 ]] || {
-                    printf '%s: %s needs a path\n' "$DOTLAD_COMMAND_NAME" "$1" >&2
-                    return 1
-                }
-                DOTLAD_PROJECT_ROOT="$2"
-                DOTLAD_PROJECT_ROOT_EXPLICIT=1
-                shift 2
-                ;;
-            --config=*)
-                DOTLAD_PROJECT_ROOT="${1#*=}"
-                DOTLAD_PROJECT_ROOT_EXPLICIT=1
-                shift
-                ;;
-            --backup-root)
-                [[ $# -gt 1 ]] || {
-                    printf '%s: --backup-root needs a path\n' "$DOTLAD_COMMAND_NAME" >&2
+                    printf '%s: --backup needs a path\n' "$DOTLAD_COMMAND_NAME" >&2
                     return 1
                 }
                 DOTLAD_BACKUP_ROOT="$2"
                 DOTLAD_BACKUP_ROOT_EXPLICIT=1
                 shift 2
                 ;;
-            --backup-root=*)
+            --backup=*)
                 DOTLAD_BACKUP_ROOT="${1#*=}"
                 DOTLAD_BACKUP_ROOT_EXPLICIT=1
                 shift
@@ -66,6 +54,21 @@ cli_bootstrap() {
                 ;;
         esac
     done
+    candidate="${CLI_BOOTSTRAP_ARGS[1]:-}"
+    project_candidate=0
+    [[ -d "$candidate" ]] && project_candidate=1
+    case "$candidate" in
+        . | .. | ./* | ../* | */*) project_candidate=1 ;;
+    esac
+    if [[ "$project_candidate" == 1 ]]; then
+        DOTLAD_PROJECT_ROOT="$candidate"
+        DOTLAD_PROJECT_ROOT_EXPLICIT=1
+        project_args=("")
+        for ((i = 2; i < ${#CLI_BOOTSTRAP_ARGS[@]}; i++)); do
+            project_args+=("${CLI_BOOTSTRAP_ARGS[$i]}")
+        done
+        CLI_BOOTSTRAP_ARGS=("${project_args[@]}")
+    fi
     [[ -d "$DOTLAD_PROJECT_ROOT" ]] || {
         printf '%s: project root does not exist: %s\n' \
             "$DOTLAD_COMMAND_NAME" "$DOTLAD_PROJECT_ROOT" >&2

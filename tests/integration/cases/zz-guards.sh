@@ -3,12 +3,21 @@
 # --- guards -----------------------------------------------------------------
 rc_is "unknown tool exits 1" 1 df nosuchtool
 rc_is "unknown option exits 1" 1 df --bogus
+rc_is "removed -C option exits 1" 1 df -C "$FAKE"
+rc_is "removed --config option exits 1" 1 df --config "$FAKE"
 rc_is "help rejects positional arguments" 1 df help extra
 rc_is "version rejects positional arguments" 1 df version extra
 rc_is "uninstall rejects a repository checkout" 1 df uninstall
 rc_is "uninstall rejects positional arguments" 1 df uninstall extra
 rc_is "update rejects a repository checkout" 1 df update
 rc_is "update rejects positional arguments" 1 df update extra
+direct_project_rc=0
+(cd "$FAKE" && PATH="$SB/brewprefix/bin:$SB/bin:$PATH" HOME="$H" \
+    DOTLAD_PLAIN=1 /bin/bash "$ROOT/dotlad" "$FAKE" --plain >/dev/null) ||
+    direct_project_rc=$?
+[[ "$direct_project_rc" == 0 ]] &&
+    pass "direct project path selects the manifest root" ||
+    fail "direct project path was not accepted (rc=$direct_project_rc)"
 rc_is "help command exits 0" 0 df help
 rc_is "uppercase help flag exits 0" 0 df -H
 rc_is "help flag rejects positional arguments" 1 df -H extra
@@ -17,6 +26,19 @@ rc_is "version flag rejects positional arguments" 1 df -V extra
 rc_is "Zsh completion command exits 0" 0 df completion zsh
 rc_is "completion command rejects an unsupported shell" 1 df completion bash
 help_output="$(df help)"
+grep -qF -- 'dotlad /path/to/project' <<<"$help_output" &&
+    pass "help documents direct project paths" ||
+    fail "help omits direct project paths"
+help_usage_line="$(printf '%s\n' "$help_output" | awk \
+    '/^  dotlad \/path\/to\/project \[OPTIONS\] \[COMMAND \| TOOL…\]$/ { print NR; exit }')"
+help_commands_line="$(printf '%s\n' "$help_output" | awk \
+    '/^Commands:$/ { print NR; exit }')"
+if [[ -n "$help_usage_line" && -n "$help_commands_line" &&
+    "$help_usage_line" -lt "$help_commands_line" ]]; then
+    pass "help presents PATH as an invocation form"
+else
+    fail "help omits the canonical PATH invocation form"
+fi
 grep -q -- '--symlink' <<<"$help_output" && pass "help documents --symlink" ||
     fail "help omits --symlink"
 grep -qF -- '-h, -H, --help' <<<"$help_output" && pass "help documents all help aliases" ||
@@ -43,12 +65,12 @@ else
 fi
 completion_without_colorfgbg="$(cd "$FAKE" && env -u COLORFGBG \
     DOTLAD_FORCE_COLOR=1 HOME="$H" /bin/bash "$ROOT/dotlad" \
-    -C "$FAKE" completion zsh)"
+    "$FAKE" completion zsh)"
 grep -qF '_dotlad_register dotlad' <<<"$completion_without_colorfgbg" &&
     pass "Zsh completion tolerates an unset COLORFGBG" ||
     fail "Zsh completion requires COLORFGBG when colour is forced"
 wrapper_completion="$(cd "$FAKE" && HOME="$H" DOTLAD_COMMAND_NAME=mydots \
-    /bin/bash "$ROOT/dotlad" -C "$FAKE" --backup-root "$H/.dotlad_backup" \
+    /bin/bash "$ROOT/dotlad" "$FAKE" --backup "$H/.dotlad_backup" \
     completion zsh)"
 if grep -qF "_dotlad_register mydots $completion_project_root $H/.dotlad_backup" \
     <<<"$wrapper_completion"; then
@@ -113,8 +135,8 @@ identity_expected_version="$(cat "$ROOT/VERSION")"
     pass "display name reaches version output" ||
     fail "display name missing from version output: $identity_version"
 identity_error="$(cd "$FAKE" && HOME="$H" DOTLAD_COMMAND_NAME=mydots \
-    /bin/bash "$ROOT/dotlad" -C 2>&1 || true)"
-[[ "$identity_error" == "mydots: -C needs a path" ]] &&
+    /bin/bash "$ROOT/dotlad" --backup 2>&1 || true)"
+[[ "$identity_error" == "mydots: --backup needs a path" ]] &&
     pass "custom command name prefixes bootstrap errors" ||
     fail "custom command name missing from bootstrap error: $identity_error"
 identity_labels="$(cd "$FAKE" && HOME="$H" ROOT="$FAKE" \

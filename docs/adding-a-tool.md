@@ -355,9 +355,9 @@ users should receive it; inheritance supplies it to child profiles. See
 Start with read-only project validation and planning:
 
 ```bash
-dotlad -C /path/to/project --plain
-dotlad -C /path/to/project plan example
-dotlad -C /path/to/project brewfile
+dotlad /path/to/project --plain
+dotlad /path/to/project plan example
+dotlad /path/to/project brewfile
 ```
 
 For changes to Dotlad itself, also run:

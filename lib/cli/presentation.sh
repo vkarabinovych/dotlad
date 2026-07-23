@@ -77,18 +77,30 @@ cli_usage() {
         "$DOTLAD_DISPLAY_NAME"
 
     printf 'Usage:\n'
+    printf '  %s [OPTIONS] [COMMAND | TOOL…]\n' "$DOTLAD_COMMAND_NAME"
+    printf '  %s /path/to/project [OPTIONS] [COMMAND | TOOL…]\n\n' \
+        "$DOTLAD_COMMAND_NAME"
+    printf '/path/to/project selects an existing project directory; omitted, it\n'
+    printf 'defaults to the current directory.\n\n'
+    printf 'Commands:\n'
     for ((i = 0; i < ${#CLI_COMMAND_USAGE[@]}; i++)); do
+        [[ -n "${CLI_COMMAND_USAGE[$i]}" ]] || continue
         cli_command_is_visible "${CLI_COMMAND_NAMES[$i]}" || continue
         label="$DOTLAD_COMMAND_NAME${CLI_COMMAND_USAGE[$i]:+ ${CLI_COMMAND_USAGE[$i]}}"
         [[ ${#label} -le $command_width ]] || command_width=${#label}
     done
+    [[ ${#DOTLAD_COMMAND_NAME} -le $command_width ]] ||
+        command_width=${#DOTLAD_COMMAND_NAME}
+    cli_print_help_row "$command_width" "$DOTLAD_COMMAND_NAME" \
+        "${CLI_COMMAND_DESCRIPTIONS[0]}"
     for ((i = 0; i < ${#CLI_COMMAND_USAGE[@]}; i++)); do
+        [[ -n "${CLI_COMMAND_USAGE[$i]}" ]] || continue
         cli_command_is_visible "${CLI_COMMAND_NAMES[$i]}" || continue
         label="$DOTLAD_COMMAND_NAME${CLI_COMMAND_USAGE[$i]:+ ${CLI_COMMAND_USAGE[$i]}}"
         cli_print_help_row "$command_width" "$label" "${CLI_COMMAND_DESCRIPTIONS[$i]}"
     done
 
-    printf "\nThe list shows each tool's state:\n"
+    printf "\nState:\n"
     cli_print_help_row 18 "✓ up to date" "the config matches the repo, or the package is installed"
     cli_print_help_row 18 "↑ update available" "the config differs — updating would change it"
     cli_print_help_row 18 "+ not set up" "no config deployed yet"
@@ -96,21 +108,23 @@ cli_usage() {
 
     cat <<EOF
 
-Move with ↑/↓, pick with space and run with enter (a = all, d = diff,
-m = mode, q = quit). Replaced files are backed up to $(pretty_path "$DOTLAD_BACKUP_ROOT") and
-appear at the bottom of the list to restore. Named resolvers can preserve
-machine-local JSON, TOML, and Git values or deploy a repository symlink.
-Letter shortcuts use the same physical keys on Ukrainian keyboard layouts.
+Interactive mode:
+  Move with ↑/↓, pick with space and run with enter (a = all, d = diff,
+  m = mode, q = quit). Replaced files are backed up to $(pretty_path "$DOTLAD_BACKUP_ROOT") and
+  appear at the bottom of the list to restore. Named resolvers can preserve
+  machine-local JSON, TOML, and Git values or deploy a repository symlink.
+  Letter shortcuts use the same physical keys on Ukrainian keyboard layouts.
 
-JSON, TOML, and Git config merging requires jq, yq, and git respectively.
-HTTPS installers require curl; checksum-pinned installers also require
-sha256sum or shasum.
+Requirements:
+  JSON, TOML, and Git config merging requires jq, yq, and git respectively.
+  HTTPS installers require curl; checksum-pinned installers also require
+  sha256sum or shasum.
 
 Modes:
 EOF
     for ((i = 0; i < ${#CLI_OPTION_NAMES[@]}; i++)); do
         case "${CLI_OPTION_NAMES[$i]}" in
-            packages-only | config-only | symlink)
+            packages-only | config-only)
                 cli_print_help_row 15 "${CLI_OPTION_USAGE[$i]}" \
                     "${CLI_OPTION_DESCRIPTIONS[$i]}"
                 ;;
@@ -120,10 +134,16 @@ EOF
 
     printf '\nOptions:\n'
     for ((i = 0; i < ${#CLI_OPTION_USAGE[@]}; i++)); do
+        case "${CLI_OPTION_NAMES[$i]}" in
+            packages-only | config-only) continue ;;
+        esac
         [[ ${#CLI_OPTION_USAGE[$i]} -le $option_width ]] ||
             option_width=${#CLI_OPTION_USAGE[$i]}
     done
     for ((i = 0; i < ${#CLI_OPTION_USAGE[@]}; i++)); do
+        case "${CLI_OPTION_NAMES[$i]}" in
+            packages-only | config-only) continue ;;
+        esac
         cli_print_help_row "$option_width" "${CLI_OPTION_USAGE[$i]}" \
             "${CLI_OPTION_DESCRIPTIONS[$i]}"
     done

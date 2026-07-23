@@ -55,8 +55,8 @@ use `base`, `developer`, and `ci`; a personal project might use `terminal` and
 ## Apply or plan a profile
 
 ```bash
-dotlad -C /path/to/project plan profile workstation
-dotlad -C /path/to/project profile workstation
+dotlad /path/to/project plan profile workstation
+dotlad /path/to/project profile workstation
 ```
 
 The plan is read-only. Applying a profile shows one confirmation for the
@@ -65,8 +65,8 @@ resolved selection and then preflights the entire batch before making changes.
 Operation modes filter the resolved tools:
 
 ```bash
-dotlad -C /path/to/project plan profile workstation --packages-only
-dotlad -C /path/to/project profile workstation --config-only
+dotlad /path/to/project plan profile workstation --packages-only
+dotlad /path/to/project profile workstation --config-only
 ```
 
 A tool that has no action in the active mode is omitted. A profile resolving
@@ -80,7 +80,7 @@ WSL inherits tools marked `linux` and adds tools marked `wsl`.
 1. Create `profiles/<name>.conf` with a short lowercase hyphenated name.
 2. Set `extends` to one existing parent or an empty string.
 3. List only tools introduced at this level.
-4. Run `dotlad -C /path/to/project plan profile <name>`.
+4. Run `dotlad /path/to/project plan profile <name>`.
 5. Apply it only in an isolated HOME or disposable machine during testing.
 6. Document the profile in the consumer project's README when users should
    discover it.

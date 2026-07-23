@@ -39,19 +39,26 @@ _dotlad() {
             continue
         fi
         case "$word" in
-            -C | --config) value_option="project" ;;
-            --backup-root) value_option="backup" ;;
+            --backup) value_option="backup" ;;
             --output) value_option="output" ;;
-            --config=*) project_root="${word#*=}" ;;
-            --backup-root=*) backup_root="${word#*=}" ;;
+            --backup=*) backup_root="${word#*=}" ;;
             --output=*) ;;
             -*) ;;
-            *) positional+=("$word") ;;
+            *)
+                if ((${#positional} == 0)) &&
+                    { [[ -d "$word" ]] || [[ "$word" == . || "$word" == .. ||
+                        "$word" == ./* || "$word" == ../* || "$word" == */* ||
+                        "$word" == /* ]]; }; then
+                    project_root="$word"
+                else
+                    positional+=("$word")
+                fi
+                ;;
         esac
     done
 
     case "$value_option" in
-        project | backup)
+        backup)
             _directories
             return
             ;;
@@ -60,13 +67,15 @@ _dotlad() {
             return
             ;;
     esac
+    if ((${#positional} == 0)) &&
+        { [[ -d "$current" ]] || [[ "$current" == . || "$current" == .. ||
+            "$current" == ./* || "$current" == ../* || "$current" == */* ||
+            "$current" == /* ]]; }; then
+        _directories
+        return
+    fi
     case "$current" in
-        --config=*)
-            compset -P '*\='
-            _directories
-            return
-            ;;
-        --backup-root=*)
+        --backup=*)
             compset -P '*\='
             _directories
             return
@@ -115,7 +124,7 @@ _dotlad() {
         backups+=("$name")
     done
 
-    metadata="$(DOTLAD_PLAIN=1 "${words[1]}" -C "$project_root" \
+    metadata="$(DOTLAD_PLAIN=1 "${words[1]}" "$project_root" \
         completion _metadata 2>/dev/null)" || metadata=""
     while IFS=$'\x1f' read -r kind name field1 field2; do
         [[ -n "$name" ]] || continue

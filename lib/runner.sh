@@ -144,7 +144,7 @@ enqueue() { # <tool names...>
     done
     queue_unlock "$run"
     nohup env DOTLAD_YES=1 "$DOTLAD_BIN" \
-        -C "$ROOT" --backup-root "$BACKUP_ROOT" _worker \
+        "$ROOT" --backup "$BACKUP_ROOT" _worker \
         >/dev/null 2>&1 </dev/null &
 }
 

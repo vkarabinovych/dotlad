@@ -238,17 +238,17 @@ EOF
 Inspect the project and preview the exact action before applying it:
 
 ```bash
-dotlad -C "$HOME/dotfiles" --plain
-dotlad -C "$HOME/dotfiles" plan starship
-dotlad -C "$HOME/dotfiles" starship
+dotlad "$HOME/dotfiles" --plain
+dotlad "$HOME/dotfiles" plan starship
+dotlad "$HOME/dotfiles" starship
 ```
 
 The first two commands are read-only. The final command shows a diff, asks for
 confirmation, installs the package when missing, backs up an existing
 destination, and deploys the config.
 
-Run `dotlad -C "$HOME/dotfiles"` without a command to open the picker. `-C` is
-optional when the current directory is already the project root.
+Run `dotlad "$HOME/dotfiles"` without a command to open the picker. The
+project path defaults to the current directory when omitted.
 
 ## Project model
 
@@ -326,8 +326,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export DOTLAD_COMMAND_NAME="my-dotfiles"
 export DOTLAD_DISPLAY_NAME="My Dotfiles"
-exec "$ROOT/vendor/dotlad/dotlad" "$@" \
-    -C "$ROOT" --backup-root "$HOME/.my-dotfiles-backup"
+exec "$ROOT/vendor/dotlad/dotlad" "$ROOT" "$@" \
+    --backup "$HOME/.my-dotfiles-backup"
 ```
 
 The standalone command and embedded entrypoint load the same runtime code.

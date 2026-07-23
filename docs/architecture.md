@@ -29,9 +29,9 @@ DOTLAD_PROJECT_ROOT/
 
 The root `dotlad` file is a stable repository/submodule entrypoint.
 `bin/dotlad` only resolves the runtime and invokes `lib/cli/main.sh`. The CLI
-bootstrap selects the project from `-C`, `--config`, or the current working
-directory. Resolver files always come from the runtime; manifests, profiles,
-and config payloads always come from the selected project.
+bootstrap selects the project from a leading directory path or the current
+working directory. Resolver files always come from the runtime;
+manifests, profiles, and config payloads always come from the selected project.
 
 The standalone installer copies the runtime to
 `~/.local/share/dotlad` and creates `~/.local/bin/dotlad` as a small managed

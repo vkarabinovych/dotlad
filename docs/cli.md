@@ -7,15 +7,17 @@ Linux-scoped tools also match WSL; WSL-scoped tools do not match native Linux.
 
 ## Invocation
 
-Run Dotlad from the project root or select a project explicitly:
+Run Dotlad from the project root or pass a project path explicitly. The path
+defaults to the current directory:
 
 ```bash
 dotlad [OPTIONS] [COMMAND | TOOL…]
-dotlad -C /path/to/project [OPTIONS] [COMMAND | TOOL…]
+dotlad /path/to/project [OPTIONS] [COMMAND | TOOL…]
 ```
 
-Options may appear before or after positional arguments. `-C` and
-`--backup-root` are resolved before the runtime loads; all commands therefore
+An existing directory as the first positional argument selects the project
+root directly. Options may appear before or after positional arguments.
+`--backup` is resolved before the runtime loads; all commands therefore
 use the selected project and backup location consistently.
 
 ## Commands
@@ -55,8 +57,7 @@ and pinned project wrappers reject the command.
 
 | Option                  | Scope                   | Behavior                                           |
 | ----------------------- | ----------------------- | -------------------------------------------------- |
-| `-C`, `--config PATH`   | all project commands    | Use `PATH` as the project root instead of `$PWD`   |
-| `--backup-root PATH`    | config and backup tasks | Use `PATH` instead of `~/.dotlad_backup`           |
+| `--backup PATH`         | config and backup tasks | Use `PATH` instead of `~/.dotlad_backup`           |
 | `--plain`               | display                 | Disable color and the interactive screen           |
 | `--yes`                 | mutating commands       | Accept confirmation prompts                        |
 | `--packages-only`       | tool/profile/all/plan   | Include package actions and omit config actions    |
@@ -90,7 +91,7 @@ source <(dotlad completion zsh)
 The generated script uses `compdef` and `compadd` directly. It completes global
 options and commands, shows each tool's manifest description, shows each
 profile's parent and directly declared tools, and lists restore points from the
-selected backup root. `-C`, `--config`, and `--backup-root` values on the command
+selected backup root. `--backup` values on the command
 line take precedence. Metadata is read through Dotlad's strict parser; project
 files are never sourced or evaluated by Zsh.
 
@@ -107,7 +108,7 @@ Embedded wrappers retain their own command identity and roots:
 source <(mydot completion zsh)
 ```
 
-When the wrapper invokes Dotlad with `-C` or `--backup-root`, the generated
+When the wrapper invokes Dotlad with `--backup`, the generated
 registration records those resolved paths, so completion remains project-aware
 outside the project directory.
 
@@ -169,7 +170,7 @@ Every `configs` entry reports:
 For example, reject a reviewed automation step when any tool is blocked:
 
 ```bash
-plan="$(dotlad -C "$HOME/dotfiles" plan --json profile base)"
+plan="$(dotlad "$HOME/dotfiles" plan --json profile base)"
 printf '%s\n' "$plan" | jq -e '[.tools[].blockers[]] | length == 0'
 ```
 
@@ -316,7 +317,7 @@ formulae, casks, and third-party taps without installing anything:
 cd "$HOME/dotfiles"
 dotlad brewfile
 dotlad brewfile --output packaging/Brewfile
-dotlad -C "$HOME/dotfiles" brewfile
+dotlad "$HOME/dotfiles" brewfile
 ```
 
 The first and third examples write `Brewfile` in the shell's current working

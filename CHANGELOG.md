@@ -4,6 +4,12 @@ All notable user-facing changes are documented here.
 
 ## [Unreleased]
 
+### Breaking changes
+
+- The project root is now passed as the first positional `PATH` (defaulting to
+  the current directory); the `-C`/`--config` options have been removed.
+- `--backup-root PATH` has been replaced by `--backup PATH`.
+
 ### Added
 
 - `dotlad update` updates global curl installations to the latest verified

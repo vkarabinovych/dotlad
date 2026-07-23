@@ -14,7 +14,7 @@ lives in `lib/`; each named resolver has one file under
 - `/bin/bash scripts/check.sh` runs syntax, ShellCheck, and whitespace checks.
 - `/bin/bash scripts/check.sh --syntax-only` checks the same files without linting.
 - `scripts/package.sh` builds the versioned release archive and checksum.
-- `dotlad -C /path/to/project brewfile` regenerates a consumer's Homebrew Bundle metadata.
+- `dotlad /path/to/project brewfile` regenerates a consumer's Homebrew Bundle metadata.
 
 ## Coding Style & Naming Conventions
 
