@@ -22,7 +22,7 @@ jobs:
     env:
       WSL_DISTRO_NAME: ${{ matrix.wsl_distro }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Runtime dependencies
         run: |
@@ -48,7 +48,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Runtime dependencies
         run: brew install jq yq
