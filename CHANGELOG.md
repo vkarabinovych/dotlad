@@ -171,9 +171,9 @@ All notable user-facing changes are documented here.
 - Standalone installation, pinned-submodule usage, Brewfile generation, and
   reproducible release archives with SHA-256 checksums.
 
-[0.4.0]: https://github.com/vkarabinovych/dotlad/releases/tag/v0.4.0
-[0.5.0]: https://github.com/vkarabinovych/dotlad/releases/tag/v0.5.0
-[0.6.0]: https://github.com/vkarabinovych/dotlad/releases/tag/v0.6.0
-[0.7.0]: https://github.com/vkarabinovych/dotlad/releases/tag/v0.7.0
-[0.8.0]: https://github.com/vkarabinovych/dotlad/releases/tag/v0.8.0
-[Unreleased]: https://github.com/vkarabinovych/dotlad/compare/v0.8.0...HEAD
+[0.4.0]: https://github.com/ter-sh/dotlad/releases/tag/v0.4.0
+[0.5.0]: https://github.com/ter-sh/dotlad/releases/tag/v0.5.0
+[0.6.0]: https://github.com/ter-sh/dotlad/releases/tag/v0.6.0
+[0.7.0]: https://github.com/ter-sh/dotlad/releases/tag/v0.7.0
+[0.8.0]: https://github.com/ter-sh/dotlad/releases/tag/v0.8.0
+[Unreleased]: https://github.com/ter-sh/dotlad/compare/v0.8.0...HEAD

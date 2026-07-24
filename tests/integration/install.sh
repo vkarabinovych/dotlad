@@ -82,7 +82,7 @@ fi
 FORMULA="$SB/homebrew-tap/Formula/dotlad.rb"
 "$ROOT/scripts/render-homebrew-formula.sh" "$TAG" "$CHECKSUM" "$FORMULA" >/dev/null
 grep -Fqx \
-    "  url \"https://github.com/vkarabinovych/dotlad/releases/download/$TAG/dotlad-$VERSION.tar.gz\"" \
+    "  url \"https://github.com/ter-sh/dotlad/releases/download/$TAG/dotlad-$VERSION.tar.gz\"" \
     "$FORMULA"
 formula_sha256="$(awk '$1 == "sha256" { gsub(/"/, "", $2); print $2 }' "$FORMULA")"
 archive_sha256="$(awk -v archive="dotlad-$VERSION.tar.gz" '$2 == archive { print $1 }' "$CHECKSUM")"
@@ -124,7 +124,7 @@ done
 [[ -n "$destination" && -n "$url" ]]
 printf '%s\n' "$url" >>"$DOTLAD_TEST_DOWNLOAD_LOG"
 case "$url" in
-    https://api.github.com/repos/vkarabinovych/dotlad/releases/latest)
+    https://api.github.com/repos/ter-sh/dotlad/releases/latest)
         printf '{"tag_name":"v%s"}\n' "$DOTLAD_TEST_VERSION" >"$destination"
         ;;
     */dotlad-"$DOTLAD_TEST_VERSION".tar.gz)
@@ -137,7 +137,7 @@ case "$url" in
     */dotlad-"$DOTLAD_TEST_VERSION".sha256)
         cp "$DOTLAD_TEST_DIST/dotlad-$DOTLAD_TEST_VERSION.sha256" "$destination"
         ;;
-    https://raw.githubusercontent.com/vkarabinovych/dotlad/main/install.sh)
+    https://raw.githubusercontent.com/ter-sh/dotlad/main/install.sh)
         cp "$DOTLAD_TEST_SOURCE_INSTALLER" "$destination"
         ;;
     *)
@@ -194,7 +194,7 @@ printf '%s\n' 'source <(dotlad completion zsh)' >"$ZSH_HOME/.zshrc"
 configured_output="$(HOME="$ZSH_HOME" DOTLAD_VERSION="$TAG" run_installer)"
 grep -Fqx "  ✓ Zsh completion is already configured in $ZSH_HOME/.zshrc." \
     <<<"$configured_output"
-grep -F "https://api.github.com/repos/vkarabinovych/dotlad/releases/latest" \
+grep -F "https://api.github.com/repos/ter-sh/dotlad/releases/latest" \
     "$DOWNLOAD_LOG" >/dev/null
 grep -F "Add this line to $HOME/.zshrc:" <<<"$latest_output" >/dev/null
 grep -Fqx '  Zsh completion:' <<<"$latest_output"
@@ -219,7 +219,7 @@ update_output="$(cd "$SB/outside" && PATH="$DOWNLOAD_BIN:$PATH" \
 grep -F "dotlad install: reinstalling $TAG for" <<<"$update_output" >/dev/null
 grep -Fqx "dotlad install: reinstalled $TAG" <<<"$update_output"
 grep -Fqx \
-    'https://raw.githubusercontent.com/vkarabinovych/dotlad/main/install.sh' \
+    'https://raw.githubusercontent.com/ter-sh/dotlad/main/install.sh' \
     "$DOWNLOAD_LOG"
 
 # An explicit version skips the latest-release API and safely updates the

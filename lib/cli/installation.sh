@@ -45,14 +45,14 @@ cli_update() {
             }
             if command -v curl >/dev/null 2>&1; then
                 if ! curl -fsSL -o "$update_script" \
-                    https://raw.githubusercontent.com/vkarabinovych/dotlad/main/install.sh; then
+                    https://raw.githubusercontent.com/ter-sh/dotlad/main/install.sh; then
                     rm -f "$update_script"
                     err "update script download failed"
                     return 1
                 fi
             elif command -v wget >/dev/null 2>&1; then
                 if ! wget -q -O "$update_script" \
-                    https://raw.githubusercontent.com/vkarabinovych/dotlad/main/install.sh; then
+                    https://raw.githubusercontent.com/ter-sh/dotlad/main/install.sh; then
                     rm -f "$update_script"
                     err "update script download failed"
                     return 1

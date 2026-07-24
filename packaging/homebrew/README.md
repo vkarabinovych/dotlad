@@ -9,5 +9,5 @@ scripts/render-homebrew-formula.sh \
   ../homebrew-tap/Formula/dotlad.rb
 ```
 
-The rendered formula belongs in `vkarabinovych/homebrew-tap`, not this
+The rendered formula belongs in `ter-sh/homebrew-tap`, not this
 repository. The tap owns its repository policy and formula validation workflow.

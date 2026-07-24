@@ -1,7 +1,7 @@
 # Dotlad
 
-[![CI](https://github.com/vkarabinovych/dotlad/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/vkarabinovych/dotlad/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/vkarabinovych/dotlad?style=flat&logo=github&label=release)](https://github.com/vkarabinovych/dotlad/releases/latest)
+[![CI](https://github.com/ter-sh/dotlad/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ter-sh/dotlad/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/ter-sh/dotlad?style=flat&logo=github&label=release)](https://github.com/ter-sh/dotlad/releases/latest)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20WSL-0057B8?style=flat)](#requirements)
 [![Bash](https://img.shields.io/badge/bash-3.2%2B-4EAA25?style=flat&logo=gnubash&logoColor=white)](#requirements)
 [![License](https://img.shields.io/badge/license-MIT-0057B8?style=flat)](LICENSE)
@@ -104,7 +104,7 @@ Linux and WSL.
 Install the latest tagged release without Homebrew:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vkarabinovych/dotlad/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ter-sh/dotlad/main/install.sh | bash
 ```
 
 The installer uses `curl`, with `wget` as a fallback, and never invokes
@@ -118,7 +118,7 @@ To inspect the installer before running it:
 ```bash
 installer="$(mktemp)"
 curl -fsSL \
-  https://raw.githubusercontent.com/vkarabinovych/dotlad/main/install.sh \
+  https://raw.githubusercontent.com/ter-sh/dotlad/main/install.sh \
   -o "$installer"
 less "$installer"
 bash "$installer"
@@ -128,7 +128,7 @@ rm -f "$installer"
 Pin an installation to a specific release when reproducibility matters:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vkarabinovych/dotlad/main/install.sh |
+curl -fsSL https://raw.githubusercontent.com/ter-sh/dotlad/main/install.sh |
   DOTLAD_VERSION=v0.9.0 bash
 ```
 
@@ -140,7 +140,7 @@ By default, application files are installed under
 for the runtime entrypoint. Override either absolute path independently:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/vkarabinovych/dotlad/main/install.sh |
+curl -fsSL https://raw.githubusercontent.com/ter-sh/dotlad/main/install.sh |
   DOTLAD_INSTALL_DIR="$HOME/apps/dotlad" \
   DOTLAD_BIN_DIR="$HOME/bin" bash
 ```
@@ -177,7 +177,7 @@ or run it directly for the default layout:
 
 ```bash
 curl -fsSL \
-  https://raw.githubusercontent.com/vkarabinovych/dotlad/main/uninstall.sh |
+  https://raw.githubusercontent.com/ter-sh/dotlad/main/uninstall.sh |
   bash
 ```
 
@@ -314,7 +314,7 @@ controls, automation behavior, and exit statuses.
 A consumer project can pin Dotlad instead of requiring a global installation:
 
 ```bash
-git submodule add https://github.com/vkarabinovych/dotlad.git vendor/dotlad
+git submodule add https://github.com/ter-sh/dotlad.git vendor/dotlad
 git submodule update --init --recursive
 ```
 

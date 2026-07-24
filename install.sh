@@ -2,7 +2,7 @@
 # Install the latest tagged Dotlad release from its verified archive.
 set -euo pipefail
 
-REPOSITORY="vkarabinovych/dotlad"
+REPOSITORY="ter-sh/dotlad"
 GITHUB_URL="https://github.com/$REPOSITORY"
 API_URL="https://api.github.com/repos/$REPOSITORY"
 MIN_SUPPORTED_VERSION="v0.9.0"

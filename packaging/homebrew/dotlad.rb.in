@@ -1,7 +1,7 @@
 class Dotlad < Formula
   desc "Install packages and deploy dotfiles from a manifest-driven project"
-  homepage "https://github.com/vkarabinovych/dotlad"
-  url "https://github.com/vkarabinovych/dotlad/releases/download/v@VERSION@/dotlad-@VERSION@.tar.gz"
+  homepage "https://github.com/ter-sh/dotlad"
+  url "https://github.com/ter-sh/dotlad/releases/download/v@VERSION@/dotlad-@VERSION@.tar.gz"
   sha256 "@SHA256@"
   license "MIT"
 
