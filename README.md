@@ -83,7 +83,7 @@ WSL. Both methods install the same immutable, checksummed release archive.
 Install from the official tap:
 
 ```bash
-brew install vkarabinovych/tap/dotlad
+brew install ter-sh/tap/dotlad
 ```
 
 Homebrew owns the application under its active prefix, so the command works
