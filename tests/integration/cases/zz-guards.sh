@@ -18,6 +18,13 @@ direct_project_rc=0
 [[ "$direct_project_rc" == 0 ]] &&
     pass "direct project path selects the manifest root" ||
     fail "direct project path was not accepted (rc=$direct_project_rc)"
+relative_project_rc=0
+(cd "$SB" && PATH="$SB/brewprefix/bin:$SB/bin:$PATH" HOME="$H" \
+    DOTLAD_PLAIN=1 /bin/bash "$ROOT/dotlad" repo --plain >/dev/null) ||
+    relative_project_rc=$?
+[[ "$relative_project_rc" == 0 ]] &&
+    pass "relative project path selects the manifest root" ||
+    fail "relative project path was not accepted (rc=$relative_project_rc)"
 rc_is "help command exits 0" 0 df help
 rc_is "uppercase help flag exits 0" 0 df -H
 rc_is "help flag rejects positional arguments" 1 df -H extra

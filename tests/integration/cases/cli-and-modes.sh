@@ -53,27 +53,24 @@ else
 fi
 EOF
 chmod +x "$WSL_BIN/uname"
-linux_df() {
+platform_df() {
+    local platform_bin="$1"
+    local wsl_mode="$2"
+    shift 2
     (
-        unset WSL_DISTRO_NAME WSL_INTEROP
-        cd "$FAKE" && PATH="$LINUX_BIN:$SB/brewprefix/bin:$SB/bin:$PATH" HOME="$H" \
+        if [[ "$wsl_mode" == 1 ]]; then
+            export WSL_DISTRO_NAME=1 WSL_INTEROP=1
+        else
+            unset WSL_DISTRO_NAME WSL_INTEROP
+        fi
+        cd "$FAKE" && PATH="$platform_bin:$SB/brewprefix/bin:$SB/bin:$PATH" HOME="$H" \
             DOTLAD_YES=1 DOTLAD_PLAIN=1 /bin/bash "$ROOT/dotlad" \
             "$FAKE" --backup "$H/.dotlad_backup" "$@"
     )
 }
-wsl_df() {
-    (
-        unset WSL_DISTRO_NAME WSL_INTEROP
-        cd "$FAKE" && PATH="$WSL_BIN:$SB/brewprefix/bin:$SB/bin:$PATH" HOME="$H" \
-            DOTLAD_YES=1 DOTLAD_PLAIN=1 /bin/bash "$ROOT/dotlad" \
-            "$FAKE" --backup "$H/.dotlad_backup" "$@"
-    )
-}
-macos_df() {
-    (cd "$FAKE" && PATH="$MACOS_BIN:$SB/brewprefix/bin:$SB/bin:$PATH" HOME="$H" \
-        DOTLAD_YES=1 DOTLAD_PLAIN=1 /bin/bash "$ROOT/dotlad" \
-        "$FAKE" --backup "$H/.dotlad_backup" "$@")
-}
+linux_df() { platform_df "$LINUX_BIN" 0 "$@"; }
+wsl_df() { platform_df "$WSL_BIN" 1 "$@"; }
+macos_df() { platform_df "$MACOS_BIN" 0 "$@"; }
 mkdir -p "$FAKE/tools/wsl-only"
 cat >"$FAKE/tools/wsl-only/tool.conf" <<'EOF'
 NAME="wsl-only"
