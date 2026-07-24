@@ -172,7 +172,7 @@ incomplete notes. The workflow never creates or moves release tags.
 
 After publishing the GitHub Release, the workflow renders the Homebrew formula
 from that release's checksum and opens a pull request against
-`vkarabinovych/homebrew-tap`. Configure a fine-grained repository secret named
+`ter-sh/homebrew-tap`. Configure a fine-grained repository secret named
 `HOMEBREW_TAP_TOKEN` with contents and pull-request write access to that tap.
 The Homebrew job fails explicitly when the secret is absent or invalid, while
 the already published GitHub Release remains available.

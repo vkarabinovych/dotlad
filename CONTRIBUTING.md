@@ -17,7 +17,7 @@ stock macOS Bash 3.2. Maintainer checks additionally require ShellCheck,
 shfmt, jq, yq, and Git.
 
 ```bash
-git clone https://github.com/vkarabinovych/dotlad.git
+git clone https://github.com/ter-sh/dotlad.git
 cd dotlad
 /bin/bash scripts/check.sh
 /bin/bash tests/run.sh

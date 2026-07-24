@@ -105,7 +105,7 @@ jobs:
 
       - uses: actions/checkout@v7
         with:
-          repository: vkarabinovych/homebrew-tap
+          repository: ter-sh/homebrew-tap
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           path: homebrew-tap
 
@@ -131,7 +131,7 @@ jobs:
           git add Formula/dotlad.rb
           git commit -m "dotlad $version"
           git push --set-upstream origin "$branch"
-          gh pr create --repo vkarabinovych/homebrew-tap \
+          gh pr create --repo ter-sh/homebrew-tap \
               --base main --head "$branch" \
               --title "dotlad $version" \
               --body "Update Dotlad to [$GITHUB_REF_NAME](https://github.com/$GITHUB_REPOSITORY/releases/tag/$GITHUB_REF_NAME)."

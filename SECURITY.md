@@ -9,7 +9,7 @@ remediation, or release timeline.
 ## Report a vulnerability
 
 Do not open a public issue for a suspected vulnerability. Use GitHub's private
-[security advisory form](https://github.com/vkarabinovych/dotlad/security/advisories/new)
+[security advisory form](https://github.com/ter-sh/dotlad/security/advisories/new)
 and include:
 
 - the affected version and command;
